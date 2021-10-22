@@ -16,6 +16,7 @@ package server
 
 import (
 	"context"
+	"github.com/mendersoftware/azure-iot-manager/store"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,14 +33,14 @@ import (
 )
 
 // InitAndRun initializes the server and runs it
-func InitAndRun(conf config.Reader) error {
+func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 	ctx := context.Background()
 
 	log.Setup(conf.GetBool(dconfig.SettingDebugLog))
 	l := log.FromContext(ctx)
 
 	config := app.Config{}
-	azureIotManagerApp := app.New(config)
+	azureIotManagerApp := app.New(config, dataStore)
 
 	router, err := api.NewRouter(azureIotManagerApp)
 	if err != nil {

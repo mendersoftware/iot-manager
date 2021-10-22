@@ -25,6 +25,7 @@ import (
 
 	dconfig "github.com/mendersoftware/azure-iot-manager/config"
 	"github.com/mendersoftware/azure-iot-manager/server"
+	store "github.com/mendersoftware/azure-iot-manager/store/mongo"
 )
 
 func main() {
@@ -90,7 +91,13 @@ func doMain(args []string) {
 }
 
 func cmdServer(args *cli.Context) error {
-	return server.InitAndRun(config.Config)
+	mgoConfig := store.NewConfig().SetAutomigrate(args.Bool("automigrate"))
+	dataStore, err := store.SetupDataStore(mgoConfig)
+	if err != nil {
+		return err
+	}
+	defer dataStore.Close()
+	return server.InitAndRun(config.Config, dataStore)
 }
 
 func cmdMigrate(args *cli.Context) error {

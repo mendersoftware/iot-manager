@@ -16,6 +16,9 @@ package app
 
 import (
 	"context"
+
+	"github.com/mendersoftware/azure-iot-manager/model"
+	"github.com/mendersoftware/azure-iot-manager/store"
 )
 
 // App interface describes app objects
@@ -23,24 +26,36 @@ import (
 //go:generate ../utils/mockgen.sh
 type App interface {
 	HealthCheck(ctx context.Context) error
+	GetSettings(ctx context.Context) (model.Settings, error)
+	SetSettings(ctx context.Context, settings model.Settings) error
 }
 
 // app is an app object
 type app struct {
 	Config
+	store store.DataStore
 }
 
 type Config struct {
 }
 
 // NewApp initialize a new azure-iot-manager App
-func New(config Config) App {
+func New(config Config, ds store.DataStore) App {
 	return &app{
 		Config: config,
+		store:  ds,
 	}
 }
 
 // HealthCheck performs a health check and returns an error if it fails
 func (a *app) HealthCheck(ctx context.Context) error {
-	return nil
+	return a.store.Ping(ctx)
+}
+
+func (a *app) GetSettings(ctx context.Context) (model.Settings, error) {
+	return a.store.GetSettings(ctx)
+}
+
+func (a *app) SetSettings(ctx context.Context, settings model.Settings) error {
+	return a.store.SetSettings(ctx, settings)
 }
