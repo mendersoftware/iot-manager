@@ -16,14 +16,137 @@ package app
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
+	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
+	"github.com/mendersoftware/azure-iot-manager/model"
+	storeMocks "github.com/mendersoftware/azure-iot-manager/store/mocks"
 )
 
 func TestHealthCheck(t *testing.T) {
-	app := New(Config{})
+	testCases := []struct {
+		Name string
 
-	ctx := context.Background()
-	err := app.HealthCheck(ctx)
-	assert.NoError(t, err)
+		PingReturn    error
+		ExpectedError error
+	}{
+		{
+			Name:          "db Ping failed",
+			PingReturn:    errors.New("failed to connect to db"),
+			ExpectedError: errors.New("failed to connect to db"),
+		},
+		{
+			Name: "db Ping successful",
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			store := &storeMocks.DataStore{}
+			store.On("Ping",
+				mock.MatchedBy(func(ctx context.Context) bool {
+					return true
+				}),
+			).Return(tc.PingReturn)
+			app := New(Config{}, store)
+
+			ctx := context.Background()
+			err := app.HealthCheck(ctx)
+			if tc.ExpectedError != nil {
+				assert.EqualError(t, err, tc.ExpectedError.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetSettings(t *testing.T) {
+	testCases := []struct {
+		Name string
+
+		GetSettingsSettings model.Settings
+		GetSettingsError    error
+	}{
+		{
+			Name: "settings exist",
+
+			GetSettingsSettings: model.Settings{ConnectionString: "my://connection.string"},
+		},
+		{
+			Name: "settings do not exists",
+
+			GetSettingsSettings: model.Settings{},
+		},
+		{
+			Name: "settings retrieval error",
+
+			GetSettingsError: errors.New("error getting the settings"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			store := &storeMocks.DataStore{}
+			store.On("GetSettings",
+				mock.MatchedBy(func(ctx context.Context) bool {
+					return true
+				}),
+			).Return(tc.GetSettingsSettings, tc.GetSettingsError)
+			app := New(Config{}, store)
+
+			ctx := context.Background()
+			settings, err := app.GetSettings(ctx)
+			if tc.GetSettingsError != nil {
+				assert.EqualError(t, err, tc.GetSettingsError.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.GetSettingsSettings, settings)
+			}
+		})
+	}
+}
+
+func TestSetSettings(t *testing.T) {
+	testCases := []struct {
+		Name string
+
+		SetSettingsSettings model.Settings
+		SetSettingsError    error
+	}{
+		{
+			Name: "settings saved",
+
+			SetSettingsSettings: model.Settings{ConnectionString: "my://connection.string"},
+		},
+		{
+			Name: "settings saving error",
+
+			SetSettingsError: errors.New("error setting the settings"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			store := &storeMocks.DataStore{}
+			store.On("SetSettings",
+				mock.MatchedBy(func(ctx context.Context) bool {
+					return true
+				}),
+				mock.AnythingOfType("model.Settings"),
+			).Return(tc.SetSettingsError)
+			app := New(Config{}, store)
+
+			ctx := context.Background()
+			err := app.SetSettings(ctx, tc.SetSettingsSettings)
+			if tc.SetSettingsError != nil {
+				assert.EqualError(t, err, tc.SetSettingsError.Error())
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 
 	"github.com/mendersoftware/go-lib-micro/accesslog"
+	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/requestid"
 
 	"github.com/mendersoftware/azure-iot-manager/app"
@@ -30,6 +31,10 @@ const (
 
 	APIURLAlive  = "/alive"
 	APIURLHealth = "/health"
+
+	APIURLManagement = "/api/management/v1/azure-iot-manager"
+
+	APIURLSettings = "/settings"
 )
 
 // NewRouter returns the gin router
@@ -45,6 +50,11 @@ func NewRouter(app app.App) (*gin.Engine, error) {
 	internalAPI := router.Group(APIURLInternal)
 	internalAPI.GET(APIURLAlive, status.Alive)
 	internalAPI.GET(APIURLHealth, status.Health)
+
+	management := NewManagementController(app)
+	managementAPI := router.Group(APIURLManagement, identity.Middleware())
+	managementAPI.GET(APIURLSettings, management.GetSettings)
+	managementAPI.PUT(APIURLSettings, management.SetSettings)
 
 	return router, nil
 }
