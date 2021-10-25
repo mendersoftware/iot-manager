@@ -23,7 +23,6 @@ import (
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
-	"github.com/mendersoftware/azure-iot-manager/app"
 	"github.com/mendersoftware/azure-iot-manager/model"
 )
 
@@ -33,20 +32,32 @@ var (
 	)
 )
 
-// ManagementController container for end-points
-type ManagementController struct {
-	app app.App
-}
+// ManagementHandler is the namespace for management API handlers.
+type ManagementHandler APIHandler
 
 // NewManagementController returns a new ManagementController
-func NewManagementController(app app.App) *ManagementController {
-	return &ManagementController{
-		app: app,
-	}
+func NewManagementHandler(h *APIHandler) *ManagementHandler {
+	return (*ManagementHandler)(h)
+}
+
+// GET /device/:id/twin
+func (h *ManagementHandler) GetDeviceTwin(c *gin.Context) {
+	// Adapter for Azure API:
+	//   GET /twins/{id}?api-version=2020-05-31-preview
+}
+
+// PATCH /device/:id/twin
+func (h *ManagementHandler) UpdateDeviceTwin(c *gin.Context) {
+	// TODO
+}
+
+// PUT /device/:id/twin
+func (h *ManagementHandler) SetDeviceTwin(c *gin.Context) {
+	// TODO
 }
 
 // GET /settings
-func (h *ManagementController) GetSettings(c *gin.Context) {
+func (h *ManagementHandler) GetSettings(c *gin.Context) {
 	var (
 		ctx = c.Request.Context()
 		id  = identity.FromContext(ctx)
@@ -69,7 +80,7 @@ func (h *ManagementController) GetSettings(c *gin.Context) {
 }
 
 // PUT /settings
-func (h *ManagementController) SetSettings(c *gin.Context) {
+func (h *ManagementHandler) SetSettings(c *gin.Context) {
 	var (
 		ctx = c.Request.Context()
 		id  = identity.FromContext(ctx)

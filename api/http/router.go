@@ -15,12 +15,19 @@
 package http
 
 import (
+	"context"
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
+	"github.com/pkg/errors"
 
 	"github.com/mendersoftware/go-lib-micro/accesslog"
 	"github.com/mendersoftware/go-lib-micro/identity"
+	"github.com/mendersoftware/go-lib-micro/log"
 	"github.com/mendersoftware/go-lib-micro/requestid"
+	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
 	"github.com/mendersoftware/azure-iot-manager/app"
 )
@@ -37,26 +44,81 @@ const (
 	APIURLSettings = "/settings"
 )
 
+const (
+	defaultTimeout = time.Second * 10
+)
+
 // NewRouter returns the gin router
 func NewRouter(app app.App) (*gin.Engine, error) {
 	gin.SetMode(gin.ReleaseMode)
 	gin.DisableConsoleColor()
+	handler := NewAPIHandler(app)
 
 	router := gin.New()
 	router.Use(accesslog.Middleware())
 	router.Use(requestid.Middleware())
 
-	status := NewStatusController(app)
-	internalAPI := router.Group(APIURLInternal)
-	internalAPI.GET(APIURLAlive, status.Alive)
-	internalAPI.GET(APIURLHealth, status.Health)
+	router.NoMethod(handler.NoMethod)
+	router.NoRoute(handler.NoRoute)
 
-	management := NewManagementController(app)
+	internalAPI := router.Group(APIURLInternal)
+	internalAPI.GET(APIURLAlive, handler.Alive)
+	internalAPI.GET(APIURLHealth, handler.Health)
+
+	management := NewManagementHandler(handler)
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
 	managementAPI.GET(APIURLSettings, management.GetSettings)
 	managementAPI.PUT(APIURLSettings, management.SetSettings)
 
 	return router, nil
+}
+
+type APIHandler struct {
+	app app.App
+}
+
+func NewAPIHandler(app app.App) *APIHandler {
+	return &APIHandler{
+		app: app,
+	}
+}
+
+// Alive responds to GET /alive
+func (h *APIHandler) Alive(c *gin.Context) {
+	c.Writer.WriteHeader(http.StatusNoContent)
+}
+
+// Health responds to GET /health
+func (h *APIHandler) Health(c *gin.Context) {
+	ctx := c.Request.Context()
+	l := log.FromContext(ctx)
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+
+	err := h.app.HealthCheck(ctx)
+	if err != nil {
+		l.Error(errors.Wrap(err, "health check failed"))
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.Writer.WriteHeader(http.StatusNoContent)
+}
+
+func (h *APIHandler) NoMethod(c *gin.Context) {
+	c.JSON(http.StatusMethodNotAllowed, rest.Error{
+		Err:       "method not allowed",
+		RequestID: requestid.FromContext(c.Request.Context()),
+	})
+}
+
+func (h *APIHandler) NoRoute(c *gin.Context) {
+	c.JSON(http.StatusNotFound, rest.Error{
+		Err:       "not found",
+		RequestID: requestid.FromContext(c.Request.Context()),
+	})
 }
 
 // Make gin-gonic use validatable structs instead of relying on go-playground
