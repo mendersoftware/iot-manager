@@ -15,7 +15,11 @@
 package http
 
 import (
+	"context"
+	"io"
+	"net"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -26,34 +30,154 @@ import (
 	"github.com/mendersoftware/azure-iot-manager/model"
 )
 
+const (
+	// https://docs.microsoft.com/en-us/rest/api/iothub/service/devices
+	AzureAPIVersion = "2021-04-12"
+
+	AzureURITwins = "/twins"
+
+	defaultTTL = time.Minute
+)
+
+const (
+	HdrKeyAuthz       = "Authorization"
+	HdrKeyXFF         = "X-Forwarded-For"
+	HdrKeyMSRequestID = "X-Ms-Request-Id"
+)
+
+// Hop-by-hop headers (RFC2616 section 13.5.1)
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
+var hbhHeaders = [...]string{
+	"Connection",
+	"Keep-Alive",
+	"Proxy-Authenticate",
+	"Proxy-Authorization",
+	"Te",
+	"Trailers",
+	"Transfer-Encoding",
+	"Upgrade",
+	"X-Men-Requestid",
+}
+
+func delHbHHeaders(header http.Header) {
+	for _, hdr := range hbhHeaders {
+		delete(header, hdr)
+	}
+}
+
 var (
 	ErrMissingUserAuthentication = errors.New(
 		"user identity missing from authorization token",
 	)
+	ErrMissingConnectionString = errors.New("connection string is not configured")
 )
 
 // ManagementHandler is the namespace for management API handlers.
-type ManagementHandler APIHandler
+type ManagementHandler struct {
+	*APIHandler
+	*http.Client
+}
 
 // NewManagementController returns a new ManagementController
-func NewManagementHandler(h *APIHandler) *ManagementHandler {
-	return (*ManagementHandler)(h)
+func NewManagementHandler(h *APIHandler, config ...*Config) *ManagementHandler {
+	conf := NewConfig(config...)
+	mh := &ManagementHandler{
+		APIHandler: h,
+	}
+	if conf.Client != nil {
+		mh.Client = conf.Client
+	} else {
+		mh.Client = new(http.Client)
+	}
+	return mh
+}
+
+func (h *ManagementHandler) proxyAzureRequest(c *gin.Context, dstPath string) {
+	req := c.Request
+	ctx := req.Context()
+	settings, err := h.app.GetSettings(ctx)
+	switch {
+	case err != nil:
+		_ = c.Error(err)
+		rest.RenderError(c,
+			http.StatusInternalServerError,
+			errors.New(http.StatusText(http.StatusInternalServerError)),
+		)
+		return
+	case settings.ConnectionString == nil:
+		fallthrough
+	case settings.ConnectionString.Validate() != nil:
+		rest.RenderError(c, http.StatusConflict, ErrMissingConnectionString)
+	default:
+	}
+	cs := settings.ConnectionString
+	q := c.Request.URL.Query()
+	q.Set("api-version", AzureAPIVersion)
+	req.URL.Scheme = "https"
+	req.URL.RawQuery = q.Encode()
+	req.Host = cs.HostName
+	req.URL.Path = dstPath
+
+	req.URL.Host = cs.HostName
+	if cs.GatewayHostName != "" {
+		req.URL.Host = cs.GatewayHostName
+	}
+	req.RequestURI = ""
+
+	delHbHHeaders(req.Header)
+
+	var expireAt time.Time
+	if dl, ok := ctx.Deadline(); ok {
+		expireAt = dl
+	} else {
+		var cancel context.CancelFunc
+		expireAt = time.Now().Add(defaultTTL)
+		ctx, cancel = context.WithDeadline(ctx, expireAt)
+		defer cancel()
+		req = req.WithContext(ctx)
+	}
+	req.Header.Set(HdrKeyAuthz, cs.Authorization(expireAt))
+	if req.Header.Get(HdrKeyXFF) == "" {
+		if host, _, err := net.SplitHostPort(req.RemoteAddr); err == nil {
+			req.Header.Set(HdrKeyXFF, host)
+		}
+	}
+	rsp, err := h.Do(req)
+	if err != nil {
+		_ = c.Error(err)
+		rest.RenderError(c,
+			http.StatusBadGateway,
+			errors.New("failed to proxy request to IoT Hub"),
+		)
+		return
+	}
+	defer rsp.Body.Close()
+	delHbHHeaders(rsp.Header)
+	delete(rsp.Header, HdrKeyMSRequestID)
+	rspHdrs := c.Writer.Header()
+	for k, v := range rsp.Header {
+		rspHdrs[k] = v
+	}
+	c.Status(rsp.StatusCode)
+	_, err = io.Copy(c.Writer, rsp.Body)
+	if err != nil {
+		_ = c.Error(err)
+	}
 }
 
 // GET /device/:id/twin
 func (h *ManagementHandler) GetDeviceTwin(c *gin.Context) {
-	// Adapter for Azure API:
-	//   GET /twins/{id}?api-version=2020-05-31-preview
+	h.proxyAzureRequest(c, AzureURITwins+"/"+c.Param("id"))
 }
 
 // PATCH /device/:id/twin
 func (h *ManagementHandler) UpdateDeviceTwin(c *gin.Context) {
-	// TODO
+	h.proxyAzureRequest(c, AzureURITwins+"/"+c.Param("id"))
 }
 
 // PUT /device/:id/twin
 func (h *ManagementHandler) SetDeviceTwin(c *gin.Context) {
-	// TODO
+	h.proxyAzureRequest(c, AzureURITwins+"/"+c.Param("id"))
 }
 
 // GET /settings

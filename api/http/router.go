@@ -41,15 +41,41 @@ const (
 
 	APIURLManagement = "/api/management/v1/azure-iot-manager"
 
-	APIURLSettings = "/settings"
+	APIURLSettings   = "/settings"
+	APIURLDeviceTwin = "/device/:id/twin"
 )
 
 const (
 	defaultTimeout = time.Second * 10
 )
 
+type Config struct {
+	Client *http.Client
+}
+
+// NewConfig initializes a new empty config and optionally merges the
+// configurations provided as argument.
+func NewConfig(configs ...*Config) *Config {
+	var config = new(Config)
+	for _, conf := range configs {
+		if conf == nil {
+			continue
+		}
+		if conf.Client != nil {
+			config.Client = conf.Client
+		}
+	}
+	return config
+}
+
+func (conf *Config) SetClient(client *http.Client) *Config {
+	conf.Client = client
+	return conf
+}
+
 // NewRouter returns the gin router
-func NewRouter(app app.App) (*gin.Engine, error) {
+func NewRouter(app app.App, config ...*Config) *gin.Engine {
+	conf := NewConfig(config...)
 	gin.SetMode(gin.ReleaseMode)
 	gin.DisableConsoleColor()
 	handler := NewAPIHandler(app)
@@ -58,19 +84,22 @@ func NewRouter(app app.App) (*gin.Engine, error) {
 	router.Use(accesslog.Middleware())
 	router.Use(requestid.Middleware())
 
-	router.NoMethod(handler.NoMethod)
 	router.NoRoute(handler.NoRoute)
 
 	internalAPI := router.Group(APIURLInternal)
 	internalAPI.GET(APIURLAlive, handler.Alive)
 	internalAPI.GET(APIURLHealth, handler.Health)
 
-	management := NewManagementHandler(handler)
+	management := NewManagementHandler(handler, conf)
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
 	managementAPI.GET(APIURLSettings, management.GetSettings)
 	managementAPI.PUT(APIURLSettings, management.SetSettings)
 
-	return router, nil
+	managementAPI.GET(APIURLDeviceTwin, management.GetDeviceTwin)
+	managementAPI.PUT(APIURLDeviceTwin, management.SetDeviceTwin)
+	managementAPI.PATCH(APIURLDeviceTwin, management.UpdateDeviceTwin)
+
+	return router
 }
 
 type APIHandler struct {
@@ -105,13 +134,6 @@ func (h *APIHandler) Health(c *gin.Context) {
 	}
 
 	c.Writer.WriteHeader(http.StatusNoContent)
-}
-
-func (h *APIHandler) NoMethod(c *gin.Context) {
-	c.JSON(http.StatusMethodNotAllowed, rest.Error{
-		Err:       "method not allowed",
-		RequestID: requestid.FromContext(c.Request.Context()),
-	})
 }
 
 func (h *APIHandler) NoRoute(c *gin.Context) {

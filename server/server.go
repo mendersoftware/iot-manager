@@ -42,10 +42,7 @@ func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 
 	azureIotManagerApp := app.New(dataStore)
 
-	router, err := api.NewRouter(azureIotManagerApp)
-	if err != nil {
-		l.Fatal(err)
-	}
+	router := api.NewRouter(azureIotManagerApp)
 
 	var listen = conf.GetString(dconfig.SettingListen)
 	srv := &http.Server{
