@@ -199,7 +199,9 @@ func (db *DataStoreMongo) GetSettings(ctx context.Context) (model.Settings, erro
 		tenantId = id.Tenant
 	}
 
-	if err := collSettings.FindOne(ctx, bson.M{KeyTenantID: tenantId}).Decode(&settings); err != nil {
+	if err := collSettings.FindOne(ctx,
+		bson.M{KeyTenantID: tenantId},
+	).Decode(&settings); err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
 			return model.Settings{}, nil

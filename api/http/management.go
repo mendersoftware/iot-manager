@@ -95,7 +95,7 @@ func (h *ManagementHandler) SetSettings(c *gin.Context) {
 	if err := c.ShouldBindJSON(&settings); err != nil {
 		rest.RenderError(c,
 			http.StatusBadRequest,
-			errors.New("malformed request body"),
+			errors.Wrap(err, "malformed request body"),
 		)
 		return
 	}

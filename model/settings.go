@@ -14,20 +14,15 @@
 
 package model
 
-import (
-	validation "github.com/go-ozzo/ozzo-validation/v4"
-)
+import validation "github.com/go-ozzo/ozzo-validation/v4"
 
-var (
-	ruleLenLte2048 = validation.Length(0, 2048)
-)
-
+//nolint:lll
 type Settings struct {
-	ConnectionString string `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
+	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
 }
 
 func (s Settings) Validate() error {
 	return validation.ValidateStruct(&s,
-		validation.Field(&s.ConnectionString, ruleLenLte2048),
+		validation.Field(&s.ConnectionString),
 	)
 }

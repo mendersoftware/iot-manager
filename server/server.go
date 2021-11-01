@@ -16,11 +16,12 @@ package server
 
 import (
 	"context"
-	"github.com/mendersoftware/azure-iot-manager/store"
 	"net/http"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/mendersoftware/azure-iot-manager/store"
 
 	"golang.org/x/sys/unix"
 
@@ -39,8 +40,7 @@ func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 	log.Setup(conf.GetBool(dconfig.SettingDebugLog))
 	l := log.FromContext(ctx)
 
-	config := app.Config{}
-	azureIotManagerApp := app.New(config, dataStore)
+	azureIotManagerApp := app.New(dataStore)
 
 	router, err := api.NewRouter(azureIotManagerApp)
 	if err != nil {

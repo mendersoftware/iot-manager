@@ -21,15 +21,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/google/uuid"
-
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
 	"testing"
 
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -42,7 +41,14 @@ import (
 	"github.com/mendersoftware/azure-iot-manager/model"
 )
 
-var contextMatcher = mock.MatchedBy(func(_ context.Context) bool { return true })
+var (
+	contextMatcher  = mock.MatchedBy(func(_ context.Context) bool { return true })
+	validConnString = &model.ConnectionString{
+		HostName: "localhost:8080",
+		Key:      []byte("not-so-secret-key"),
+		Name:     "foobar",
+	}
+)
 
 func compareParameterValues(t *testing.T, expected interface{}) interface{} {
 	return mock.MatchedBy(func(actual interface{}) bool {
@@ -90,13 +96,15 @@ func TestGetSettings(t *testing.T) {
 				app := new(mapp.App)
 				app.On("GetSettings",
 					contextMatcher).
-					Return(model.Settings{ConnectionString: "my://connection.string"}, nil)
+					Return(model.Settings{
+						ConnectionString: validConnString,
+					}, nil)
 				return app
 			},
 
 			StatusCode: http.StatusOK,
-			Response: model.Settings{
-				ConnectionString: "my://connection.string",
+			Response: map[string]interface{}{
+				"connection_string": validConnString.String(),
 			},
 		},
 		{
@@ -174,9 +182,9 @@ func TestGetSettings(t *testing.T) {
 
 func TestSetSettings(t *testing.T) {
 	t.Parallel()
-	jitter768 := ""
-	for i := 0; i < 2049; i++ {
-		jitter768 += "1"
+	var jitter string
+	for i := 0; i < 4096; i++ {
+		jitter += "1"
 	}
 	testCases := []struct {
 		Name string
@@ -192,7 +200,7 @@ func TestSetSettings(t *testing.T) {
 		Name: "ok",
 
 		RequestBody: map[string]string{
-			"connection_string": "my://connection.string",
+			"connection_string": validConnString.String(),
 		},
 		RequestHdrs: http.Header{
 			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
@@ -214,7 +222,7 @@ func TestSetSettings(t *testing.T) {
 		Name: "internal error",
 
 		RequestBody: map[string]string{
-			"connection_string": "my://connection.string",
+			"connection_string": validConnString.String(),
 		},
 		RequestHdrs: http.Header{
 			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
@@ -237,7 +245,7 @@ func TestSetSettings(t *testing.T) {
 		Name: "settings string too long",
 
 		RequestBody: map[string]string{
-			"connection_string": "my://long.connections.string" + jitter768,
+			"connection_string": validConnString.String() + ";DeviceId=" + jitter,
 		},
 		RequestHdrs: http.Header{
 			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
@@ -250,7 +258,9 @@ func TestSetSettings(t *testing.T) {
 		App: func(t *testing.T) *mapp.App { return new(mapp.App) },
 
 		RspCode: http.StatusBadRequest,
-		Error:   errors.New("malformed request body"),
+		Error: errors.Wrap(model.ErrConnectionStringTooLong,
+			"malformed request body: connection string invalid",
+		),
 	}}
 	for i := range testCases {
 		tc := testCases[i]
