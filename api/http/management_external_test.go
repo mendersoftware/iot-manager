@@ -95,10 +95,7 @@ func TestIOTHubExternal(t *testing.T) {
 		Return(model.Settings{
 			ConnectionString: externalCS,
 		}, nil)
-	handler, err := NewRouter(mockApp)
-	if err != nil {
-		panic(err)
-	}
+	handler := NewRouter(mockApp)
 	srv := httptest.NewServer(handler)
 	client := srv.Client()
 	client.Transport = &http.Transport{
