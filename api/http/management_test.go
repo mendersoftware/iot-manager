@@ -467,6 +467,78 @@ func TestProxyAzureRequest(t *testing.T) {
 			return r
 		}(),
 	}, {
+		Name: "ok, GET device",
+
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			app := new(mapp.App)
+			app.On("GetSettings", contextMatcher).
+				Return(model.Settings{
+					ConnectionString: self.ConnString,
+				}, nil)
+			return app
+		},
+		ConnString: &model.ConnectionString{
+			HostName:        "acme.iot.hub",
+			Key:             []byte("not-so-secret-key"),
+			Name:            "foobar",
+			GatewayHostName: "localhost:8080",
+		},
+		Req: func() *http.Request {
+			r, _ := http.NewRequestWithContext(
+				neverExpireContext{Context: ctxWithoutLog},
+				http.MethodGet,
+				"http://localhost"+APIURLManagement+strings.Replace(
+					APIURLDevice,
+					":id",
+					uuid.New().String(),
+					1),
+				nil,
+			)
+			r.Header.Set("Authorization", "Bearer "+GenerateJWT(identity.Identity{
+				Subject: uuid.NewSHA1(uuid.Nil, []byte("Hans")).String(),
+				Tenant:  "123456789012345678901234",
+				IsUser:  true,
+			}))
+			r.Header.Set("X-Test", "test")
+			return r
+		}(),
+	}, {
+		Name: "ok, GET device modules",
+
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			app := new(mapp.App)
+			app.On("GetSettings", contextMatcher).
+				Return(model.Settings{
+					ConnectionString: self.ConnString,
+				}, nil)
+			return app
+		},
+		ConnString: &model.ConnectionString{
+			HostName:        "acme.iot.hub",
+			Key:             []byte("not-so-secret-key"),
+			Name:            "foobar",
+			GatewayHostName: "localhost:8080",
+		},
+		Req: func() *http.Request {
+			r, _ := http.NewRequestWithContext(
+				neverExpireContext{Context: ctxWithoutLog},
+				http.MethodGet,
+				"http://localhost"+APIURLManagement+strings.Replace(
+					APIURLDeviceModules,
+					":id",
+					uuid.New().String(),
+					1),
+				nil,
+			)
+			r.Header.Set("Authorization", "Bearer "+GenerateJWT(identity.Identity{
+				Subject: uuid.NewSHA1(uuid.Nil, []byte("Hans")).String(),
+				Tenant:  "123456789012345678901234",
+				IsUser:  true,
+			}))
+			r.Header.Set("X-Test", "test")
+			return r
+		}(),
+	}, {
 		Name: "internal client error",
 
 		App: func(t *testing.T, self *testCase) *mapp.App {

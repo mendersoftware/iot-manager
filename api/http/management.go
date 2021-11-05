@@ -19,6 +19,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -34,10 +35,18 @@ const (
 	// https://docs.microsoft.com/en-us/rest/api/iothub/service/devices
 	AzureAPIVersion = "2021-04-12"
 
-	AzureURITwins = "/twins"
+	AzureURIDeviceTwin    AzureDeviceURI = "/twins/:id"
+	AzureURIDevice        AzureDeviceURI = "/devices/:id"
+	AzureURIDeviceModules AzureDeviceURI = "/devices/:id/modules"
 
 	defaultTTL = time.Minute
 )
+
+type AzureDeviceURI string
+
+func (s AzureDeviceURI) URI(deviceID string) string {
+	return strings.Replace(string(s), ":id", deviceID, 1)
+}
 
 const (
 	HdrKeyAuthz       = "Authorization"
@@ -165,19 +174,27 @@ func (h *ManagementHandler) proxyAzureRequest(c *gin.Context, dstPath string) {
 	}
 }
 
+func (h *ManagementHandler) GetDeviceModules(c *gin.Context) {
+	h.proxyAzureRequest(c, AzureURIDeviceModules.URI(c.Param("id")))
+}
+
+func (h *ManagementHandler) GetDevice(c *gin.Context) {
+	h.proxyAzureRequest(c, AzureURIDevice.URI(c.Param("id")))
+}
+
 // GET /device/:id/twin
 func (h *ManagementHandler) GetDeviceTwin(c *gin.Context) {
-	h.proxyAzureRequest(c, AzureURITwins+"/"+c.Param("id"))
+	h.proxyAzureRequest(c, AzureURIDeviceTwin.URI(c.Param("id")))
 }
 
 // PATCH /device/:id/twin
 func (h *ManagementHandler) UpdateDeviceTwin(c *gin.Context) {
-	h.proxyAzureRequest(c, AzureURITwins+"/"+c.Param("id"))
+	h.proxyAzureRequest(c, AzureURIDeviceTwin.URI(c.Param("id")))
 }
 
 // PUT /device/:id/twin
 func (h *ManagementHandler) SetDeviceTwin(c *gin.Context) {
-	h.proxyAzureRequest(c, AzureURITwins+"/"+c.Param("id"))
+	h.proxyAzureRequest(c, AzureURIDeviceTwin.URI(c.Param("id")))
 }
 
 // GET /settings
@@ -223,6 +240,10 @@ func (h *ManagementHandler) SetSettings(c *gin.Context) {
 		)
 		return
 	}
+
+	// TODO verify that connectionstring has correct permissions
+	//      - service
+	//      - registry read/write
 
 	err := h.app.SetSettings(ctx, settings)
 	if err != nil {
