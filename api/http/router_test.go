@@ -22,11 +22,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	app_mocks "github.com/mendersoftware/azure-iot-manager/app/mocks"
+
+	"github.com/mendersoftware/go-lib-micro/rest.utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
-	app_mocks "github.com/mendersoftware/azure-iot-manager/app/mocks"
-	"github.com/mendersoftware/go-lib-micro/rest.utils"
 )
 
 func TestAlive(t *testing.T) {

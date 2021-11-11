@@ -412,8 +412,10 @@ func TestProxyAzureRequest(t *testing.T) {
 		},
 		ConnString: validConnString,
 		Req: func() *http.Request {
-			b, _ := json.Marshal(map[string]string{
-				"testing": "test",
+			b, _ := json.Marshal(map[string]interface{}{
+				"properties": map[string]string{
+					"testing": "test",
+				},
 			})
 			r, _ := http.NewRequestWithContext(
 				ctxWithoutLog,
@@ -446,8 +448,10 @@ func TestProxyAzureRequest(t *testing.T) {
 		},
 		ConnString: validConnString,
 		Req: func() *http.Request {
-			b, _ := json.Marshal(map[string]string{
-				"testing": "test",
+			b, _ := json.Marshal(map[string]interface{}{
+				"properties": map[string]string{
+					"testing": "test",
+				},
 			})
 			r, _ := http.NewRequestWithContext(
 				ctxWithoutLog,
@@ -670,10 +674,22 @@ func TestProxyAzureRequest(t *testing.T) {
 
 					// Check that body matches
 					if r.Body != nil {
+						// Transform body to azure schema
+						var m map[string]interface{}
+						expectedBody := bodyCopy
+						err := json.Unmarshal(expectedBody, &m)
+						require.NoError(t, err)
+						if p, ok := m["properties"]; ok {
+							m["properties"] = map[string]interface{}{
+								"desired": p,
+							}
+							expectedBody, _ = json.Marshal(m)
+						}
+
 						rb, _ := io.ReadAll(r.Body)
-						assert.Equal(t,
-							string(bodyCopy),
+						assert.Contains(t,
 							string(rb),
+							string(expectedBody),
 							"Proxy request body does not match",
 						)
 					}

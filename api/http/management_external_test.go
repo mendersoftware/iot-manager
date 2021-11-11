@@ -130,7 +130,7 @@ func TestIOTHubExternal(t *testing.T) {
 		nextValue = uint32(cur) + 1
 	}
 	boi.Properties.Desired[testKey] = nextValue
-	b, _ := json.Marshal(boi)
+	b, _ := json.Marshal(map[string]interface{}{"properties": boi.Properties.Desired})
 	req, _ = http.NewRequestWithContext(ctx, http.MethodPatch, uri, bytes.NewReader(b))
 	req.Header.Set(HdrKeyAuthz, authz)
 	require.NoError(t, err)

@@ -42,9 +42,9 @@ const (
 	APIURLManagement = "/api/management/v1/azure-iot-manager"
 
 	APIURLSettings      = "/settings"
-	APIURLDevice        = "/device/:id"
-	APIURLDeviceTwin    = "/device/:id/twin"
-	APIURLDeviceModules = "/device/:id/modules"
+	APIURLDevice        = "/devices/:id"
+	APIURLDeviceTwin    = "/devices/:id/twin"
+	APIURLDeviceModules = "/devices/:id/modules"
 )
 
 const (
@@ -98,7 +98,7 @@ func NewRouter(app app.App, config ...*Config) *gin.Engine {
 	managementAPI.PUT(APIURLSettings, management.SetSettings)
 
 	managementAPI.GET(APIURLDeviceTwin, management.GetDeviceTwin)
-	managementAPI.PUT(APIURLDeviceTwin, management.SetDeviceTwin)
+	managementAPI.PUT(APIURLDeviceTwin, management.UpdateDeviceTwin)
 	managementAPI.PATCH(APIURLDeviceTwin, management.UpdateDeviceTwin)
 	managementAPI.GET(APIURLDeviceModules, management.GetDeviceModules)
 	managementAPI.GET(APIURLDevice, management.GetDevice)
