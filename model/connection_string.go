@@ -51,13 +51,13 @@ var (
 // The implementation is based on the official python SDK.
 // https://github.com/Azure/azure-iot-sdk-python
 type ConnectionString struct {
-	Key             []byte `cs:"SharedAccessKey" bson:"access_key"`
 	HostName        string `cs:"HostName" bson:"hostname"`
 	GatewayHostName string `cs:"GatewayHostName" bson:"gateway_hostname,omitempty"`
 	Name            string `cs:"SharedAccessKeyName" bson:"name,omitempty"`
-	Signature       string `cs:"SharedAccessSignature" bson:"-"`
 	DeviceID        string `cs:"DeviceId" bson:"device_id,omitempty"`
 	ModuleID        string `cs:"ModuleId" bson:"module_id,omitempty"`
+	Key             []byte `cs:"SharedAccessKey" bson:"access_key"`
+	Signature       string `cs:"SharedAccessSignature" bson:"-"`
 }
 
 func ParseConnectionString(connection string) (*ConnectionString, error) {

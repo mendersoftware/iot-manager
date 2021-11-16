@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -32,7 +33,8 @@ import (
 
 const (
 	uriTwin      = "/twins"
-	uriQueryTwin = "/devices/query"
+	uriDevices   = "/devices"
+	uriQueryTwin = uriDevices + "/query"
 
 	hdrKeyContentType = "Content-Type"
 	hdrKeyContToken   = "X-Ms-Continuation"
@@ -41,6 +43,10 @@ const (
 	// https://docs.microsoft.com/en-us/rest/api/iothub/service/devices
 	APIVersion = "2021-04-12"
 )
+
+func uriDevice(id string) string {
+	return uriDevices + "/" + url.QueryEscape(id)
+}
 
 const (
 	defaultTTL = time.Minute
@@ -53,9 +59,25 @@ const (
 //nolint:lll
 //go:generate ../../utils/mockgen.sh
 type Client interface {
-	GetDeviceTwins(ctx context.Context, sas *model.ConnectionString) (Cursor, error)
-	GetDeviceTwin(ctx context.Context, sas *model.ConnectionString, id string) (*DeviceTwin, error)
-	UpdateDeviceTwin(ctx context.Context, sas *model.ConnectionString, id string, r *DeviceTwinUpdate) error
+	GetDeviceTwins(ctx context.Context, cs *model.ConnectionString) (Cursor, error)
+	GetDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string) (*DeviceTwin, error)
+	UpdateDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string, r *DeviceTwinUpdate) error
+
+	// UpsertDevice create or update a device with the given ID. If a device
+	// is created, the IoT Hub will generate a new 256-bit primary and
+	// secondary key used to construct the device connection string:
+	// primaryCS := &model.ConnectionString{
+	// 	HostName: cs.HostName,
+	// 	DeviceID: Device.DeviceID,
+	// 	Key:      Device.Auth.SymmetricKey.Primary,
+	// }.String()
+	// secondary := &model.ConnectionString{
+	// 	HostName: cs.HostName,
+	// 	DeviceID: Device.DeviceID,
+	// 	Key:      Device.Auth.SymmetricKey.Secondary,
+	// }.String()
+	UpsertDevice(ctx context.Context, cs *model.ConnectionString, id string, deviceUpdate ...*Device) (*Device, error)
+	DeleteDevice(ctx context.Context, cs *model.ConnectionString, id string) error
 }
 
 type client struct {
@@ -69,7 +91,7 @@ type Options struct {
 func NewOptions(opts ...*Options) *Options {
 	opt := new(Options)
 	for _, o := range opts {
-		if opt == nil {
+		if o == nil {
 			continue
 		}
 		if o.Client != nil {
@@ -134,84 +156,59 @@ func (c *client) NewRequestWithContext(
 	return req, err
 }
 
-type cursor struct {
-	err     error
-	buf     bytes.Buffer
-	mut     *sync.Mutex
-	cs      *model.ConnectionString
-	client  *http.Client
-	req     *http.Request
-	dec     *json.Decoder
-	current json.RawMessage
+func (c *client) UpsertDevice(ctx context.Context,
+	cs *model.ConnectionString,
+	deviceID string,
+	deviceUpdate ...*Device,
+) (*Device, error) {
+	dev := mergeDevices(deviceUpdate...)
+	dev.DeviceID = deviceID
+	b, _ := json.Marshal(dev)
+	req, err := c.NewRequestWithContext(
+		ctx,
+		cs,
+		http.MethodPut,
+		uriDevice(deviceID),
+		bytes.NewReader(b),
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "iothub: failed to prepare request")
+	}
+	rsp, err := c.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "iothub: failed to execute request")
+	}
+	defer rsp.Body.Close()
+	if rsp.StatusCode >= 400 {
+		return nil, common.HTTPError{Code: rsp.StatusCode}
+	}
+	dec := json.NewDecoder(rsp.Body)
+	if err = dec.Decode(dev); err != nil {
+		return nil, errors.Wrap(err, "iothub: failed to decode updated device")
+	}
+	return dev, nil
 }
 
-func (cur *cursor) fetchPage(ctx context.Context) error {
-	cur.buf.Reset()
-	req := cur.req.WithContext(ctx)
-	req.Body, _ = cur.req.GetBody()
-	var expireAt time.Time
-	if dl, ok := ctx.Deadline(); ok {
-		expireAt = dl
-	} else {
-		expireAt = time.Now().Add(defaultTTL)
+func (c *client) DeleteDevice(ctx context.Context, cs *model.ConnectionString, id string) error {
+	req, err := c.NewRequestWithContext(ctx,
+		cs,
+		http.MethodDelete,
+		uriDevice(id),
+		nil,
+	)
+	if err != nil {
+		return errors.Wrap(err, "iothub: failed to prepare request")
 	}
-	req.Header.Set(hdrKeyAuthorization, cur.cs.Authorization(expireAt))
-	rsp, err := cur.client.Do(req)
+	req.Header.Set("If-Match", "*")
+	rsp, err := c.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "iothub: failed to execute request")
 	}
 	defer rsp.Body.Close()
 	if rsp.StatusCode >= 400 {
-		return errors.Wrapf(err,
-			"iothub: received unexpected status code from server: %s",
-			rsp.Status,
-		)
-	}
-	_, err = io.Copy(&cur.buf, rsp.Body)
-	if err != nil {
-		return errors.Wrap(err, "iothub: failed to buffer HTTP response")
-	}
-	cur.req.Header.Set(hdrKeyContToken, rsp.Header.Get(hdrKeyContToken))
-	cur.dec = json.NewDecoder(&cur.buf)
-	tkn, err := cur.dec.Token()
-	if err != nil {
-		return errors.Wrap(err, "iothub: failed to decode response from hub")
-	} else if tkn != json.Delim('[') {
-		return errors.Wrap(err, "iothub: unexpected json response from hub")
+		return common.HTTPError{Code: rsp.StatusCode}
 	}
 	return nil
-}
-
-func (cur *cursor) Next(ctx context.Context) bool {
-	if cur.err != nil {
-		return false
-	}
-	cur.mut.Lock()
-	defer cur.mut.Unlock()
-	if cur.dec == nil || !cur.dec.More() {
-		if cur.req.Header.Get(hdrKeyContToken) == "" {
-			cur.err = io.EOF
-			return false
-		}
-		err := cur.fetchPage(ctx)
-		if err != nil {
-			cur.err = err
-			return false
-		}
-	}
-	err := cur.dec.Decode(&cur.current)
-	if err != nil {
-		cur.err = errors.Wrap(err, "iothub: failed to retrieve next element")
-		return false
-	}
-	return true
-}
-
-func (cur *cursor) Decode(v interface{}) error {
-	if cur.err != nil {
-		return cur.err
-	}
-	return json.Unmarshal(cur.current, v)
 }
 
 func (c *client) GetDeviceTwins(

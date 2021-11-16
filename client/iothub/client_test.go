@@ -164,7 +164,7 @@ func (h *deviceProducer) produceDevice() *DeviceTwin {
 	deviceNum := atomic.AddInt32(&h.deviceNum, 1)
 	return &DeviceTwin{
 		AuthenticationType: "sas",
-		Capabilities: DeviceCapabilities{
+		Capabilities: &DeviceCapabilities{
 			IOTEdge: maybe(),
 		},
 		CloudToDeviceMessageCount: int64(rand.Int31()),
