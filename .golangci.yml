@@ -43,4 +43,4 @@ linters-settings:
     # max line length, lines longer will be reported. Default is 120.
     line-length: 100
     # tab width in spaces. Default to 1.
-    tab-width: 8
+    tab-width: 4
