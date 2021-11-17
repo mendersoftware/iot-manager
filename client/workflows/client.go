@@ -40,7 +40,7 @@ const (
 )
 
 // Client is the workflows client
-//go:generate ../../x/mockgen.sh
+//go:generate ../../utils/mockgen.sh
 type Client interface {
 	CheckHealth(ctx context.Context) error
 	SubmitDeviceConfiguration(ctx context.Context, devID string, config map[string]string) error

@@ -30,13 +30,27 @@ type Client struct {
 	mock.Mock
 }
 
-// GetDeviceTwin provides a mock function with given fields: ctx, sas, id
-func (_m *Client) GetDeviceTwin(ctx context.Context, sas *model.ConnectionString, id string) (*iothub.DeviceTwin, error) {
-	ret := _m.Called(ctx, sas, id)
+// DeleteDevice provides a mock function with given fields: ctx, cs, id
+func (_m *Client) DeleteDevice(ctx context.Context, cs *model.ConnectionString, id string) error {
+	ret := _m.Called(ctx, cs, id)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString, string) error); ok {
+		r0 = rf(ctx, cs, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// GetDeviceTwin provides a mock function with given fields: ctx, cs, id
+func (_m *Client) GetDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string) (*iothub.DeviceTwin, error) {
+	ret := _m.Called(ctx, cs, id)
 
 	var r0 *iothub.DeviceTwin
 	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString, string) *iothub.DeviceTwin); ok {
-		r0 = rf(ctx, sas, id)
+		r0 = rf(ctx, cs, id)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*iothub.DeviceTwin)
@@ -45,7 +59,7 @@ func (_m *Client) GetDeviceTwin(ctx context.Context, sas *model.ConnectionString
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *model.ConnectionString, string) error); ok {
-		r1 = rf(ctx, sas, id)
+		r1 = rf(ctx, cs, id)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -53,13 +67,13 @@ func (_m *Client) GetDeviceTwin(ctx context.Context, sas *model.ConnectionString
 	return r0, r1
 }
 
-// GetDeviceTwins provides a mock function with given fields: ctx, sas
-func (_m *Client) GetDeviceTwins(ctx context.Context, sas *model.ConnectionString) (iothub.Cursor, error) {
-	ret := _m.Called(ctx, sas)
+// GetDeviceTwins provides a mock function with given fields: ctx, cs
+func (_m *Client) GetDeviceTwins(ctx context.Context, cs *model.ConnectionString) (iothub.Cursor, error) {
+	ret := _m.Called(ctx, cs)
 
 	var r0 iothub.Cursor
 	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString) iothub.Cursor); ok {
-		r0 = rf(ctx, sas)
+		r0 = rf(ctx, cs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(iothub.Cursor)
@@ -68,7 +82,7 @@ func (_m *Client) GetDeviceTwins(ctx context.Context, sas *model.ConnectionStrin
 
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, *model.ConnectionString) error); ok {
-		r1 = rf(ctx, sas)
+		r1 = rf(ctx, cs)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -76,16 +90,46 @@ func (_m *Client) GetDeviceTwins(ctx context.Context, sas *model.ConnectionStrin
 	return r0, r1
 }
 
-// UpdateDeviceTwin provides a mock function with given fields: ctx, sas, id, r
-func (_m *Client) UpdateDeviceTwin(ctx context.Context, sas *model.ConnectionString, id string, r *iothub.DeviceTwinUpdate) error {
-	ret := _m.Called(ctx, sas, id, r)
+// UpdateDeviceTwin provides a mock function with given fields: ctx, cs, id, r
+func (_m *Client) UpdateDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string, r *iothub.DeviceTwinUpdate) error {
+	ret := _m.Called(ctx, cs, id, r)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString, string, *iothub.DeviceTwinUpdate) error); ok {
-		r0 = rf(ctx, sas, id, r)
+		r0 = rf(ctx, cs, id, r)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
+}
+
+// UpsertDevice provides a mock function with given fields: ctx, cs, id, deviceUpdate
+func (_m *Client) UpsertDevice(ctx context.Context, cs *model.ConnectionString, id string, deviceUpdate ...*iothub.Device) (*iothub.Device, error) {
+	_va := make([]interface{}, len(deviceUpdate))
+	for _i := range deviceUpdate {
+		_va[_i] = deviceUpdate[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, ctx, cs, id)
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 *iothub.Device
+	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString, string, ...*iothub.Device) *iothub.Device); ok {
+		r0 = rf(ctx, cs, id, deviceUpdate...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iothub.Device)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *model.ConnectionString, string, ...*iothub.Device) error); ok {
+		r1 = rf(ctx, cs, id, deviceUpdate...)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

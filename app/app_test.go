@@ -51,7 +51,7 @@ func TestHealthCheck(t *testing.T) {
 					return true
 				}),
 			).Return(tc.PingReturn)
-			app := New(store)
+			app := New(store, nil, nil)
 
 			ctx := context.Background()
 			err := app.HealthCheck(ctx)
@@ -102,7 +102,7 @@ func TestGetSettings(t *testing.T) {
 					return true
 				}),
 			).Return(tc.GetSettingsSettings, tc.GetSettingsError)
-			app := New(store)
+			app := New(store, nil, nil)
 
 			ctx := context.Background()
 			settings, err := app.GetSettings(ctx)
@@ -150,7 +150,7 @@ func TestSetSettings(t *testing.T) {
 				}),
 				mock.AnythingOfType("model.Settings"),
 			).Return(tc.SetSettingsError)
-			app := New(store)
+			app := New(store, nil, nil)
 
 			ctx := context.Background()
 			err := app.SetSettings(ctx, tc.SetSettingsSettings)

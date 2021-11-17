@@ -50,6 +50,11 @@ const (
 	// SettingDbPassword is the config key for the mongo password
 	SettingDbPassword = "mongo_password"
 
+	// SettingWorkflowsURL configures the workflows URL
+	SettingWorkflowsURL = "workflows_url"
+	// SettingWorkflowsURL defines the default workflows URL
+	SettingWorkflowsURLDefault = "http://mender-workflows-server:8080"
+
 	// SettingDebugLog is the config key for the turning on the debug log
 	SettingDebugLog = "debug_log"
 	// SettingDebugLogDefault is the default value for the debug log enabling
@@ -65,5 +70,6 @@ var (
 		{Key: SettingDbSSL, Value: SettingDbSSLDefault},
 		{Key: SettingDbSSLSkipVerify, Value: SettingDbSSLSkipVerifyDefault},
 		{Key: SettingDebugLog, Value: SettingDebugLogDefault},
+		{Key: SettingWorkflowsURL, Value: SettingWorkflowsURLDefault},
 	}
 )

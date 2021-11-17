@@ -36,8 +36,12 @@ import (
 const (
 	APIURLInternal = "/api/internal/v1/azure-iot-manager"
 
-	APIURLAlive  = "/alive"
-	APIURLHealth = "/health"
+	APIURLAlive         = "/alive"
+	APIURLHealth        = "/health"
+	APIURLTenants       = "/tenants"
+	APIURLTenant        = APIURLTenants + "/:tenant_id"
+	APIURLTenantDevices = APIURLTenant + "/devices"
+	APIURLTenantDevice  = APIURLTenantDevices + "/:device_id"
 
 	APIURLManagement = "/api/management/v1/azure-iot-manager"
 
@@ -76,11 +80,16 @@ func (conf *Config) SetClient(client *http.Client) *Config {
 }
 
 // NewRouter returns the gin router
-func NewRouter(app app.App, config ...*Config) *gin.Engine {
+func NewRouter(
+	app app.App,
+	config ...*Config,
+) *gin.Engine {
 	conf := NewConfig(config...)
 	gin.SetMode(gin.ReleaseMode)
 	gin.DisableConsoleColor()
-	handler := NewAPIHandler(app)
+	handler := NewAPIHandler(app, conf)
+	internal := (*InternalHandler)(handler)
+	management := (*ManagementHandler)(handler)
 
 	router := gin.New()
 	router.Use(accesslog.Middleware())
@@ -92,7 +101,9 @@ func NewRouter(app app.App, config ...*Config) *gin.Engine {
 	internalAPI.GET(APIURLAlive, handler.Alive)
 	internalAPI.GET(APIURLHealth, handler.Health)
 
-	management := NewManagementHandler(handler, conf)
+	internalAPI.POST(APIURLTenantDevices, internal.ProvisionDevice)
+	internalAPI.DELETE(APIURLTenantDevice, internal.DecomissionDevice)
+
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
 	managementAPI.GET(APIURLSettings, management.GetSettings)
 	managementAPI.PUT(APIURLSettings, management.SetSettings)
@@ -107,12 +118,18 @@ func NewRouter(app app.App, config ...*Config) *gin.Engine {
 }
 
 type APIHandler struct {
+	*http.Client
 	app app.App
 }
 
-func NewAPIHandler(app app.App) *APIHandler {
+func NewAPIHandler(app app.App, config ...*Config) *APIHandler {
+	conf := NewConfig(config...)
+	if conf.Client == nil {
+		conf.Client = new(http.Client)
+	}
 	return &APIHandler{
-		app: app,
+		Client: conf.Client,
+		app:    app,
 	}
 }
 

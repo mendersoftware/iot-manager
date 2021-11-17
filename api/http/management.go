@@ -84,24 +84,7 @@ var (
 )
 
 // ManagementHandler is the namespace for management API handlers.
-type ManagementHandler struct {
-	*APIHandler
-	*http.Client
-}
-
-// NewManagementController returns a new ManagementController
-func NewManagementHandler(h *APIHandler, config ...*Config) *ManagementHandler {
-	conf := NewConfig(config...)
-	mh := &ManagementHandler{
-		APIHandler: h,
-	}
-	if conf.Client != nil {
-		mh.Client = conf.Client
-	} else {
-		mh.Client = new(http.Client)
-	}
-	return mh
-}
+type ManagementHandler APIHandler
 
 func (h *ManagementHandler) proxyAzureRequest(c *gin.Context, dstPath string) {
 	req := c.Request
