@@ -21,8 +21,6 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/mendersoftware/azure-iot-manager/store"
-
 	"golang.org/x/sys/unix"
 
 	"github.com/mendersoftware/go-lib-micro/config"
@@ -31,6 +29,7 @@ import (
 	api "github.com/mendersoftware/azure-iot-manager/api/http"
 	"github.com/mendersoftware/azure-iot-manager/app"
 	dconfig "github.com/mendersoftware/azure-iot-manager/config"
+	"github.com/mendersoftware/azure-iot-manager/store"
 )
 
 // InitAndRun initializes the server and runs it
