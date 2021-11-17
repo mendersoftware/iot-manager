@@ -43,14 +43,22 @@ func TestSetSettings(t *testing.T) {
 				Tenant: "1234567890",
 			}),
 			Settings: model.Settings{
-				ConnectionString: "my://connection",
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("password123"),
+					Name:     "acmeHub",
+				},
 			},
 		}, {
 			Name: "ok, no tenant context",
 
 			CTX: context.Background(),
 			Settings: model.Settings{
-				ConnectionString: "my://connection.string",
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("password123"),
+					Name:     "acmeHub",
+				},
 			},
 		}, {
 			Name: "error, context canceled",
@@ -61,7 +69,11 @@ func TestSetSettings(t *testing.T) {
 				return ctx
 			}(),
 			Settings: model.Settings{
-				ConnectionString: "my://connection.string",
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("password123"),
+					Name:     "acmeHub",
+				},
 			},
 			Error: context.Canceled,
 		},
@@ -126,7 +138,11 @@ func TestGetSettings(t *testing.T) {
 				Tenant: tenantID,
 			}),
 			Settings: model.Settings{
-				ConnectionString: "my://connection",
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("password123"),
+					Name:     "acmeHub",
+				},
 			},
 		},
 		{

@@ -37,7 +37,7 @@ generate_mock() {
     docker run --rm -v ${REPO_ROOT}:/wd \
         -w /wd/${PACKAGE_PATH} \
         -u $(id -u):$(id -g) \
-        vektra/mockery:v2.2 --name "${INTERFACE}" \
+        vektra/mockery:v2.9.4 --name "${INTERFACE}" \
         --output ./mocks --print >> "mocks/${INTERFACE}.go"
 }
 generate_mock

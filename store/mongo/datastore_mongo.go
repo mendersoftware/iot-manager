@@ -181,7 +181,12 @@ func (db *DataStoreMongo) SetSettings(ctx context.Context, settings model.Settin
 		tenantID = identity.Tenant
 	}
 
-	_, err := collSettings.ReplaceOne(ctx, bson.M{KeyTenantID: tenantID}, mstore.WithTenantID(ctx, settings), o)
+	_, err := collSettings.ReplaceOne(
+		ctx,
+		bson.D{{Key: KeyTenantID, Value: tenantID}},
+		mstore.WithTenantID(ctx, settings),
+		o,
+	)
 	if err != nil && err != mongo.ErrNoDocuments {
 		return errors.Wrapf(err, "failed to store settings %v", settings)
 	}
@@ -199,7 +204,9 @@ func (db *DataStoreMongo) GetSettings(ctx context.Context) (model.Settings, erro
 		tenantId = id.Tenant
 	}
 
-	if err := collSettings.FindOne(ctx, bson.M{KeyTenantID: tenantId}).Decode(&settings); err != nil {
+	if err := collSettings.FindOne(ctx,
+		bson.M{KeyTenantID: tenantId},
+	).Decode(&settings); err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
 			return model.Settings{}, nil

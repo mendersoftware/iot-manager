@@ -16,21 +16,23 @@ package http
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	app_mocks "github.com/mendersoftware/azure-iot-manager/app/mocks"
+
+	"github.com/mendersoftware/go-lib-micro/rest.utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
-	app_mocks "github.com/mendersoftware/azure-iot-manager/app/mocks"
 )
 
 func TestAlive(t *testing.T) {
 	azureIotManagerApp := &app_mocks.App{}
 
-	router, _ := NewRouter(azureIotManagerApp)
+	router := NewRouter(azureIotManagerApp)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", APIURLInternal+APIURLAlive, nil)
@@ -68,7 +70,7 @@ func TestHealth(t *testing.T) {
 					return true
 				})).Return(tc.HealthCheckErr)
 
-			router, _ := NewRouter(azureIotManagerApp)
+			router := NewRouter(azureIotManagerApp)
 			req, err := http.NewRequest("GET", APIURLInternal+APIURLHealth, nil)
 			if !assert.NoError(t, err) {
 				t.FailNow()
@@ -84,4 +86,15 @@ func TestHealth(t *testing.T) {
 			azureIotManagerApp.AssertExpectations(t)
 		})
 	}
+}
+
+func TestNotFound(t *testing.T) {
+	router := NewRouter(nil, nil)
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodGet, "http://localhost/not/found", nil)
+	req.Header.Set("X-Men-Requestid", "test")
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	b, _ := json.Marshal(rest.Error{Err: "not found", RequestID: "test"})
+	assert.Equal(t, b, w.Body.Bytes())
 }

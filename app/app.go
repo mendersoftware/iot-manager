@@ -32,18 +32,13 @@ type App interface {
 
 // app is an app object
 type app struct {
-	Config
 	store store.DataStore
 }
 
-type Config struct {
-}
-
 // NewApp initialize a new azure-iot-manager App
-func New(config Config, ds store.DataStore) App {
+func New(ds store.DataStore) App {
 	return &app{
-		Config: config,
-		store:  ds,
+		store: ds,
 	}
 }
 

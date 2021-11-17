@@ -51,7 +51,7 @@ func TestHealthCheck(t *testing.T) {
 					return true
 				}),
 			).Return(tc.PingReturn)
-			app := New(Config{}, store)
+			app := New(store)
 
 			ctx := context.Background()
 			err := app.HealthCheck(ctx)
@@ -74,7 +74,13 @@ func TestGetSettings(t *testing.T) {
 		{
 			Name: "settings exist",
 
-			GetSettingsSettings: model.Settings{ConnectionString: "my://connection.string"},
+			GetSettingsSettings: model.Settings{
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("secret"),
+					Name:     "foobar",
+				},
+			},
 		},
 		{
 			Name: "settings do not exists",
@@ -96,7 +102,7 @@ func TestGetSettings(t *testing.T) {
 					return true
 				}),
 			).Return(tc.GetSettingsSettings, tc.GetSettingsError)
-			app := New(Config{}, store)
+			app := New(store)
 
 			ctx := context.Background()
 			settings, err := app.GetSettings(ctx)
@@ -120,7 +126,13 @@ func TestSetSettings(t *testing.T) {
 		{
 			Name: "settings saved",
 
-			SetSettingsSettings: model.Settings{ConnectionString: "my://connection.string"},
+			SetSettingsSettings: model.Settings{
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("secret"),
+					Name:     "foobar",
+				},
+			},
 		},
 		{
 			Name: "settings saving error",
@@ -138,7 +150,7 @@ func TestSetSettings(t *testing.T) {
 				}),
 				mock.AnythingOfType("model.Settings"),
 			).Return(tc.SetSettingsError)
-			app := New(Config{}, store)
+			app := New(store)
 
 			ctx := context.Background()
 			err := app.SetSettings(ctx, tc.SetSettingsSettings)

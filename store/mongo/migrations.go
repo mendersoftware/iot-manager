@@ -47,13 +47,18 @@ func Migrate(ctx context.Context,
 		return errors.Wrap(err, "failed to parse service version")
 	}
 
-	m := migrate.DummyMigrator{
+	m := migrate.SimpleMigrator{
 		Client:      client,
 		Db:          db,
 		Automigrate: automigrate,
 	}
 
-	var migrations []migrate.Migration
+	migrations := []migrate.Migration{
+		&migration_1_0_0{
+			client: client,
+			db:     db,
+		},
+	}
 
 	err = m.Apply(ctx, *ver, migrations)
 	if err != nil {

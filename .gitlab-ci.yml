@@ -29,3 +29,8 @@ test:unit:
   variables:
     AZURE_IOT_MANAGER_MONGO: mongo
 
+test:static:
+  image: golangci/golangci-lint:v1.43.0
+  needs: []
+  script:
+    - golangci-lint run -v
