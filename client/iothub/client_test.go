@@ -31,7 +31,9 @@ import (
 	"testing"
 	"time"
 
+	common "github.com/mendersoftware/azure-iot-manager/client"
 	"github.com/mendersoftware/azure-iot-manager/model"
+
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -41,6 +43,12 @@ var (
 	externalCS       *model.ConnectionString
 	externalDeviceID string
 )
+
+type RoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (rt RoundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return rt(r)
+}
 
 func parseConnString(connection string) error {
 	var err error
@@ -373,6 +381,195 @@ func TestGetDevices(t *testing.T) {
 					assert.Regexp(t, tc.LastError.Error(), err.Error())
 				}
 			}
+		})
+	}
+}
+
+func TestUpsertDevice(t *testing.T) {
+	t.Parallel()
+	cs := &model.ConnectionString{
+		HostName: "localhost",
+		Key:      []byte("secret"),
+		Name:     "gimmeAccessPls",
+	}
+	deviceID := "6c985f61-5093-45eb-8ece-7dfe97a6de7b"
+	testCases := []struct {
+		Name string
+
+		Updates []*Device
+		ConnStr *model.ConnectionString
+
+		RSPCode int
+		RSPBody interface{}
+
+		RTError error
+
+		Error error
+	}{{
+		Name: "ok",
+
+		Updates: []*Device{{
+			Auth: &Auth{
+				Type: AuthTypeSymmetric,
+				SymmetricKey: &SymmetricKey{
+					Primary:   Key("foo"),
+					Secondary: Key("bar"),
+				},
+			},
+		}, nil},
+		ConnStr: cs,
+		RSPCode: http.StatusOK,
+	}, {
+		Name: "error/invalid connection string",
+
+		ConnStr: &model.ConnectionString{
+			Name: "bad",
+		},
+		Error: errors.New("failed to prepare request: invalid connection string"),
+	}, {
+		Name: "error/internal roundtrip error",
+
+		ConnStr: cs,
+		RTError: errors.New("idk"),
+		Error:   errors.New("failed to execute request:.*idk"),
+	}, {
+		Name: "error/bad status code",
+
+		ConnStr: cs,
+
+		RSPCode: http.StatusInternalServerError,
+		Error:   common.HTTPError{Code: http.StatusInternalServerError},
+	}, {
+		Name: "error/malformed response",
+
+		ConnStr: cs,
+
+		RSPBody: []byte("imagine a device in this reponse pls"),
+
+		RSPCode: http.StatusOK,
+		Error:   errors.New("iothub: failed to decode updated device"),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			w := httptest.NewRecorder()
+			httpClient := &http.Client{
+				Transport: RoundTripperFunc(func(
+					r *http.Request,
+				) (*http.Response, error) {
+					if tc.RTError != nil {
+						return nil, tc.RTError
+					}
+					w.WriteHeader(tc.RSPCode)
+					switch typ := tc.RSPBody.(type) {
+					case []byte:
+						w.Write(typ)
+					case nil:
+						dev := mergeDevices(tc.Updates...)
+						b, _ := json.Marshal(dev)
+						w.Write(b)
+					default:
+						b, _ := json.Marshal(typ)
+						w.Write(b)
+					}
+
+					return w.Result(), nil
+				}),
+			}
+			client := NewClient(NewOptions(nil).
+				SetClient(httpClient))
+
+			dev, err := client.UpsertDevice(ctx, tc.ConnStr, deviceID, tc.Updates...)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+				expected := mergeDevices(tc.Updates...)
+				expected.DeviceID = deviceID
+				assert.Equal(t, expected, dev)
+			}
+
+		})
+	}
+}
+
+func TestDeleteDevice(t *testing.T) {
+	t.Parallel()
+	cs := &model.ConnectionString{
+		HostName: "localhost",
+		Key:      []byte("secret"),
+		Name:     "gimmeAccessPls",
+	}
+	deviceID := "6c985f61-5093-45eb-8ece-7dfe97a6de7b"
+	testCases := []struct {
+		Name string
+
+		ConnStr *model.ConnectionString
+
+		RSPCode int
+		RTError error
+
+		Error error
+	}{{
+		Name: "ok",
+
+		ConnStr: cs,
+		RSPCode: http.StatusOK,
+	}, {
+		Name: "error/invalid connection string",
+
+		ConnStr: &model.ConnectionString{
+			Name: "bad",
+		},
+		Error: errors.New("failed to prepare request: invalid connection string"),
+	}, {
+		Name: "error/internal roundtrip error",
+
+		ConnStr: cs,
+		RTError: errors.New("idk"),
+		Error:   errors.New("failed to execute request:.*idk"),
+	}, {
+		Name: "error/bad status code",
+
+		ConnStr: cs,
+
+		RSPCode: http.StatusInternalServerError,
+		Error:   common.HTTPError{Code: http.StatusInternalServerError},
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			w := httptest.NewRecorder()
+			httpClient := &http.Client{
+				Transport: RoundTripperFunc(func(
+					r *http.Request,
+				) (*http.Response, error) {
+					if tc.RTError != nil {
+						return nil, tc.RTError
+					}
+					w.WriteHeader(tc.RSPCode)
+
+					return w.Result(), nil
+				}),
+			}
+			client := NewClient(NewOptions(nil).
+				SetClient(httpClient))
+
+			err := client.DeleteDevice(ctx, tc.ConnStr, deviceID)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+
 		})
 	}
 }
