@@ -92,7 +92,21 @@ func ParseConnectionString(connection string) (*ConnectionString, error) {
 	return cs, errors.Wrap(cs.Validate(), "connection string invalid")
 }
 
+func (cs ConnectionString) IsZero() bool {
+	rVal := reflect.ValueOf(cs)
+	n := rVal.NumField()
+	for i := 0; i < n; i++ {
+		if !rVal.Field(i).IsZero() {
+			return false
+		}
+	}
+	return true
+}
+
 func (cs ConnectionString) Validate() error {
+	if cs.IsZero() {
+		return nil
+	}
 	err := validation.ValidateStruct(&cs,
 		validation.Field(&cs.HostName, validation.Required),
 		validation.Field(&cs.Key, validation.Required),
