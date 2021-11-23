@@ -51,13 +51,13 @@ var (
 // The implementation is based on the official python SDK.
 // https://github.com/Azure/azure-iot-sdk-python
 type ConnectionString struct {
-	Key             []byte `cs:"SharedAccessKey" bson:"access_key"`
 	HostName        string `cs:"HostName" bson:"hostname"`
 	GatewayHostName string `cs:"GatewayHostName" bson:"gateway_hostname,omitempty"`
 	Name            string `cs:"SharedAccessKeyName" bson:"name,omitempty"`
-	Signature       string `cs:"SharedAccessSignature" bson:"-"`
 	DeviceID        string `cs:"DeviceId" bson:"device_id,omitempty"`
 	ModuleID        string `cs:"ModuleId" bson:"module_id,omitempty"`
+	Key             []byte `cs:"SharedAccessKey" bson:"access_key"`
+	Signature       string `cs:"SharedAccessSignature" bson:"-"`
 }
 
 func ParseConnectionString(connection string) (*ConnectionString, error) {
@@ -92,7 +92,21 @@ func ParseConnectionString(connection string) (*ConnectionString, error) {
 	return cs, errors.Wrap(cs.Validate(), "connection string invalid")
 }
 
+func (cs ConnectionString) IsZero() bool {
+	rVal := reflect.ValueOf(cs)
+	n := rVal.NumField()
+	for i := 0; i < n; i++ {
+		if !rVal.Field(i).IsZero() {
+			return false
+		}
+	}
+	return true
+}
+
 func (cs ConnectionString) Validate() error {
+	if cs.IsZero() {
+		return nil
+	}
 	err := validation.ValidateStruct(&cs,
 		validation.Field(&cs.HostName, validation.Required),
 		validation.Field(&cs.Key, validation.Required),

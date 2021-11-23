@@ -28,34 +28,13 @@ type App struct {
 	mock.Mock
 }
 
-// GetSettings provides a mock function with given fields: ctx
-func (_m *App) GetSettings(ctx context.Context) (model.Settings, error) {
-	ret := _m.Called(ctx)
-
-	var r0 model.Settings
-	if rf, ok := ret.Get(0).(func(context.Context) model.Settings); ok {
-		r0 = rf(ctx)
-	} else {
-		r0 = ret.Get(0).(model.Settings)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// HealthCheck provides a mock function with given fields: ctx
-func (_m *App) HealthCheck(ctx context.Context) error {
-	ret := _m.Called(ctx)
+// DeleteIOTHubDevice provides a mock function with given fields: _a0, _a1
+func (_m *App) DeleteIOTHubDevice(_a0 context.Context, _a1 string) error {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = rf(ctx)
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -63,13 +42,62 @@ func (_m *App) HealthCheck(ctx context.Context) error {
 	return r0
 }
 
-// SetSettings provides a mock function with given fields: ctx, settings
-func (_m *App) SetSettings(ctx context.Context, settings model.Settings) error {
-	ret := _m.Called(ctx, settings)
+// GetSettings provides a mock function with given fields: _a0
+func (_m *App) GetSettings(_a0 context.Context) (model.Settings, error) {
+	ret := _m.Called(_a0)
+
+	var r0 model.Settings
+	if rf, ok := ret.Get(0).(func(context.Context) model.Settings); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Get(0).(model.Settings)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// HealthCheck provides a mock function with given fields: _a0
+func (_m *App) HealthCheck(_a0 context.Context) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// ProvisionDevice provides a mock function with given fields: _a0, _a1
+func (_m *App) ProvisionDevice(_a0 context.Context, _a1 string) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetSettings provides a mock function with given fields: _a0, _a1
+func (_m *App) SetSettings(_a0 context.Context, _a1 model.Settings) error {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, model.Settings) error); ok {
-		r0 = rf(ctx, settings)
+		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}
