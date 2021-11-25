@@ -101,5 +101,10 @@ func cmdServer(args *cli.Context) error {
 }
 
 func cmdMigrate(args *cli.Context) error {
-	return nil
+	mgoConfig := store.NewConfig().SetAutomigrate(true)
+	dataStore, err := store.SetupDataStore(mgoConfig)
+	if err != nil {
+		return err
+	}
+	return dataStore.Close()
 }
