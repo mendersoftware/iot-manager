@@ -18,6 +18,7 @@ import (
 	"net/http"
 
 	"github.com/mendersoftware/azure-iot-manager/app"
+	"github.com/mendersoftware/azure-iot-manager/client"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mendersoftware/go-lib-micro/identity"
@@ -56,9 +57,11 @@ func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
 		Tenant:  tenantID,
 	})
 	err := h.app.ProvisionDevice(ctx, device.ID)
-	switch errors.Cause(err) {
+	switch cause := errors.Cause(err); cause {
 	case nil:
 		c.Status(http.StatusAccepted)
+	case app.ErrDeviceAlreadyExists:
+		rest.RenderError(c, http.StatusConflict, cause)
 	case app.ErrNoConnectionString:
 		c.Status(http.StatusNoContent)
 	default:
@@ -83,4 +86,65 @@ func (h *InternalHandler) DecomissionDevice(c *gin.Context) {
 	default:
 		rest.RenderError(c, http.StatusInternalServerError, err)
 	}
+}
+
+type BulkResult struct {
+	Error bool       `json:"error"`
+	Items []BulkItem `json:"items"`
+}
+
+type BulkItem struct {
+	// Status code for the operation (translates to HTTP status)
+	Status int `json:"status"`
+	// Description in case of error
+	Description string `json:"description,omitempty"`
+	// Parameters used for producing BulkItem
+	Parameters map[string]interface{} `json:"parameters"`
+}
+
+// PUT /tenants/:tenant_id/bulk/devices/status
+func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
+	var schema struct {
+		DeviceIDs []string   `json:"device_ids"`
+		Status    app.Status `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&schema); err != nil {
+		rest.RenderError(c,
+			http.StatusBadRequest,
+			errors.Wrap(err, "invalid request body"),
+		)
+		return
+	} else if len(schema.DeviceIDs) == 0 {
+		c.Status(http.StatusNoContent)
+		return
+	}
+	ctx := identity.WithContext(
+		c.Request.Context(),
+		&identity.Identity{
+			Tenant: c.Param("tenant_id"),
+		},
+	)
+	res := BulkResult{
+		Error: false,
+		Items: make([]BulkItem, len(schema.DeviceIDs)),
+	}
+	for i, id := range schema.DeviceIDs {
+		res.Items[i].Parameters = map[string]interface{}{
+			"device_id": schema.DeviceIDs[i],
+		}
+		err := h.app.SetDeviceStatus(ctx, id, schema.Status)
+		if err != nil {
+			res.Error = true
+			if e, ok := errors.Cause(err).(client.HTTPError); ok {
+				res.Items[i].Status = e.Code
+				res.Items[i].Description = e.Error()
+			} else {
+				res.Items[i].Status = http.StatusInternalServerError
+				res.Items[i].Description = err.Error()
+			}
+		} else {
+			res.Items[i].Status = http.StatusOK
+		}
+	}
+	c.JSON(http.StatusOK, res)
 }

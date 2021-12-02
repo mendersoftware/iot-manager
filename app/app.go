@@ -38,6 +38,13 @@ const (
 
 type DeviceUpdate iothub.Device
 
+type Status iothub.Status
+
+const (
+	StatusEnabled  = Status(iothub.StatusEnabled)
+	StatusDisabled = Status(iothub.StatusDisabled)
+)
+
 // App interface describes app objects
 //nolint:lll
 //go:generate ../utils/mockgen.sh
@@ -45,6 +52,7 @@ type App interface {
 	HealthCheck(context.Context) error
 	GetSettings(context.Context) (model.Settings, error)
 	SetSettings(context.Context, model.Settings) error
+	SetDeviceStatus(context.Context, string, Status) error
 	ProvisionDevice(context.Context, string) error
 	DeleteIOTHubDevice(context.Context, string) error
 }
@@ -76,6 +84,28 @@ func (a *app) GetSettings(ctx context.Context) (model.Settings, error) {
 
 func (a *app) SetSettings(ctx context.Context, settings model.Settings) error {
 	return a.store.SetSettings(ctx, settings)
+}
+
+func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Status) error {
+	settings, err := a.GetSettings(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve settings")
+	}
+	cs := settings.ConnectionString
+	if cs == nil {
+		return ErrNoConnectionString
+	}
+	dev, err := a.hub.GetDevice(ctx, cs, deviceID)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve device from Iot Hub")
+	} else if dev.Status == iothub.Status(status) {
+		// We're done...
+		return nil
+	}
+
+	dev.Status = iothub.Status(status)
+	_, err = a.hub.UpsertDevice(ctx, cs, deviceID, dev)
+	return err
 }
 
 func (a *app) ProvisionDevice(
