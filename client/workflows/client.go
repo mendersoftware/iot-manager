@@ -31,8 +31,8 @@ import (
 )
 
 const (
-	URICheckHealth  = "/api/v1/health"
-	URISubmitConfig = "/api/v1/workflow/submit_configuration"
+	URICheckHealth     = "/api/v1/health"
+	URIProvisionDevice = "/api/v1/workflow/provision_external_device"
 )
 
 const (
@@ -43,7 +43,7 @@ const (
 //go:generate ../../utils/mockgen.sh
 type Client interface {
 	CheckHealth(ctx context.Context) error
-	SubmitDeviceConfiguration(ctx context.Context, devID string, config map[string]string) error
+	ProvisionExternalDevice(ctx context.Context, devID string, config map[string]string) error
 }
 
 type Options struct {
@@ -119,17 +119,11 @@ func (c *client) CheckHealth(ctx context.Context) error {
 	return &apiErr
 }
 
-func (c *client) SubmitDeviceConfiguration(
+func (c *client) ProvisionExternalDevice(
 	ctx context.Context,
 	devID string,
 	config map[string]string,
 ) error {
-	var workflow struct {
-		TenantID  string            `json:"tenant_id"`
-		DeviceID  string            `json:"device_id"`
-		RequestID string            `json:"request_id"`
-		Config    map[string]string `json:"configuration"`
-	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -139,9 +133,19 @@ func (c *client) SubmitDeviceConfiguration(
 		defer cancel()
 	}
 
-	workflow.DeviceID = devID
-	workflow.RequestID = requestid.FromContext(ctx)
-	workflow.Config = config
+	var workflow = struct {
+		TenantID  string            `json:"tenant_id"`
+		DeviceID  string            `json:"device_id"`
+		RequestID string            `json:"request_id"`
+		Provider  string            `json:"provider"`
+		Config    map[string]string `json:"configuration"`
+	}{
+		DeviceID:  devID,
+		RequestID: requestid.FromContext(ctx),
+		Config:    config,
+		Provider:  "Azure",
+	}
+
 	if id := identity.FromContext(ctx); id != nil {
 		workflow.TenantID = id.Tenant
 	}
@@ -149,7 +153,7 @@ func (c *client) SubmitDeviceConfiguration(
 	b, _ := json.Marshal(workflow)
 	req, err := http.NewRequestWithContext(ctx,
 		http.MethodPost,
-		c.url+URISubmitConfig,
+		c.url+URIProvisionDevice,
 		bytes.NewReader(b))
 	if err != nil {
 		return errors.Wrap(err, "workflows: failed to prepare request")

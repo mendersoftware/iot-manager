@@ -16,7 +16,9 @@ package app
 
 import (
 	"context"
+	"net/http"
 
+	"github.com/mendersoftware/azure-iot-manager/client"
 	"github.com/mendersoftware/azure-iot-manager/client/iothub"
 	"github.com/mendersoftware/azure-iot-manager/client/workflows"
 	"github.com/mendersoftware/azure-iot-manager/model"
@@ -29,6 +31,8 @@ var (
 	ErrNoConnectionString = errors.New("no connection string configured for tenant")
 
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
+
+	ErrDeviceAlreadyExists = errors.New("device already exists")
 )
 
 const (
@@ -121,8 +125,18 @@ func (a *app) ProvisionDevice(
 		return ErrNoConnectionString
 	}
 
-	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
+	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID, &iothub.Device{
+		Status: iothub.StatusEnabled,
+	})
 	if err != nil {
+		if htErr, ok := err.(client.HTTPError); ok {
+			switch htErr.Code {
+			case http.StatusUnauthorized:
+				return ErrNoConnectionString
+			case http.StatusConflict:
+				return ErrDeviceAlreadyExists
+			}
+		}
 		return errors.Wrap(err, "failed to update iothub devices")
 	}
 	if dev.Auth == nil || dev.Auth.SymmetricKey == nil {
@@ -139,7 +153,7 @@ func (a *app) ProvisionDevice(
 		HostName: cs.HostName,
 	}
 
-	err = a.wf.SubmitDeviceConfiguration(ctx, dev.DeviceID, map[string]string{
+	err = a.wf.ProvisionExternalDevice(ctx, dev.DeviceID, map[string]string{
 		confKeyPrimaryKey:   primKey.String(),
 		confKeySecondaryKey: secKey.String(),
 	})
