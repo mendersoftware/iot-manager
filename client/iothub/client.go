@@ -163,7 +163,9 @@ func (c *client) UpsertDevice(ctx context.Context,
 ) (*Device, error) {
 	dev := mergeDevices(deviceUpdate...)
 	dev.DeviceID = deviceID
-	b, _ := json.Marshal(dev)
+	etag := dev.ETag
+	dev.ETag = ""
+	b, _ := json.Marshal(*dev)
 	req, err := c.NewRequestWithContext(
 		ctx,
 		cs,
@@ -173,6 +175,9 @@ func (c *client) UpsertDevice(ctx context.Context,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "iothub: failed to prepare request")
+	}
+	if etag != "" {
+		req.Header.Set("If-Match", `"`+etag+`"`)
 	}
 	rsp, err := c.Do(req)
 	if err != nil {
