@@ -44,6 +44,29 @@ func (_m *Client) DeleteDevice(ctx context.Context, cs *model.ConnectionString, 
 	return r0
 }
 
+// GetDevice provides a mock function with given fields: ctx, cs, id
+func (_m *Client) GetDevice(ctx context.Context, cs *model.ConnectionString, id string) (*iothub.Device, error) {
+	ret := _m.Called(ctx, cs, id)
+
+	var r0 *iothub.Device
+	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString, string) *iothub.Device); ok {
+		r0 = rf(ctx, cs, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iothub.Device)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *model.ConnectionString, string) error); ok {
+		r1 = rf(ctx, cs, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDeviceTwin provides a mock function with given fields: ctx, cs, id
 func (_m *Client) GetDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string) (*iothub.DeviceTwin, error) {
 	ret := _m.Called(ctx, cs, id)
