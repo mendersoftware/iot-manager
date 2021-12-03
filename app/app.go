@@ -125,9 +125,7 @@ func (a *app) ProvisionDevice(
 		return ErrNoConnectionString
 	}
 
-	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID, &iothub.Device{
-		Status: iothub.StatusEnabled,
-	})
+	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
 	if err != nil {
 		if htErr, ok := err.(client.HTTPError); ok {
 			switch htErr.Code {

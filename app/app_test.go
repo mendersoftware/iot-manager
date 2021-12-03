@@ -227,7 +227,7 @@ func TestProvisionDevice(t *testing.T) {
 				DeviceID: self.DeviceID,
 				HostName: self.ConnStr.HostName,
 			}
-			wf.On("SubmitDeviceConfiguration",
+			wf.On("ProvisionExternalDevice",
 				contextMatcher,
 				self.DeviceID,
 				map[string]string{

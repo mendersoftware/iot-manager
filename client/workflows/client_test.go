@@ -166,7 +166,7 @@ func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return f(r)
 }
 
-func TestSubmitDeviceConfiguration(t *testing.T) {
+func TestProvisionExternalDevice(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		Name string
@@ -307,7 +307,7 @@ func TestSubmitDeviceConfiguration(t *testing.T) {
 				SetClient(htClient)
 			client := NewClient("http://localhost:6969"+tc.URLNoise, opts)
 
-			err := client.SubmitDeviceConfiguration(tc.CTX, tc.DeviceID, tc.Config)
+			err := client.ProvisionExternalDevice(tc.CTX, tc.DeviceID, tc.Config)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
 					assert.Regexp(t, tc.Error.Error(), err.Error())
