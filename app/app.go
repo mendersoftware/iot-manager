@@ -101,7 +101,7 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Statu
 	}
 	dev, err := a.hub.GetDevice(ctx, cs, deviceID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve device from Iot Hub")
+		return errors.Wrap(err, "failed to retrieve device from IoT Hub")
 	} else if dev.Status == iothub.Status(status) {
 		// We're done...
 		return nil
@@ -109,7 +109,7 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Statu
 
 	dev.Status = iothub.Status(status)
 	_, err = a.hub.UpsertDevice(ctx, cs, deviceID, dev)
-	return err
+	return errors.Wrap(err, "failed to update IoT Hub device")
 }
 
 func (a *app) ProvisionDevice(
