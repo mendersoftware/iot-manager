@@ -33,6 +33,7 @@ import (
 
 	common "github.com/mendersoftware/azure-iot-manager/client"
 	"github.com/mendersoftware/azure-iot-manager/model"
+	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -416,6 +417,7 @@ func TestUpsertDevice(t *testing.T) {
 					Secondary: Key("bar"),
 				},
 			},
+			ETag: "qwerty",
 		}, nil},
 		ConnStr: cs,
 		RSPCode: http.StatusOK,
@@ -570,6 +572,149 @@ func TestDeleteDevice(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
+		})
+	}
+}
+
+func TestGetDevice(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		Name string
+
+		DeviceID string
+		ConnStr  *model.ConnectionString
+		RSPCode  int
+		RSPBody  interface{}
+
+		RTError error
+		Error   error
+	}{{
+		Name: "ok",
+
+		DeviceID: "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Name:     "swellHub",
+			Key:      []byte("password123"),
+		},
+		RSPCode: http.StatusOK,
+		RSPBody: &Device{
+			Auth: &Auth{
+				Type: AuthTypeSymmetric,
+				SymmetricKey: &SymmetricKey{
+					Primary:   Key("foobar"),
+					Secondary: Key("barbaz"),
+				},
+			},
+			DeviceID:     "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
+			GenerationID: "such api",
+			ETag:         "much fields",
+			Status:       StatusEnabled,
+		},
+	}, {
+		Name: "error, bad connection string",
+
+		DeviceID: "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
+		ConnStr: &model.ConnectionString{
+			Name: "namelessHub",
+			Key:  []byte("password123"),
+		},
+		RSPCode: http.StatusOK,
+		RSPBody: &Device{
+			Auth: &Auth{
+				Type: AuthTypeSymmetric,
+				SymmetricKey: &SymmetricKey{
+					Primary:   Key("foobar"),
+					Secondary: Key("barbaz"),
+				},
+			},
+			DeviceID:     "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
+			GenerationID: "such api",
+			ETag:         "much fields",
+			Status:       StatusEnabled,
+		},
+		Error: errors.New("iothub: failed to prepare request"),
+	}, {
+		Name: "error, roundtrip error",
+
+		DeviceID: "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Name:     "namelessHub",
+			Key:      []byte("password123"),
+		},
+		RTError: errors.New("internal error"),
+		Error:   errors.New("iothub: failed to execute request:.*internal error"),
+	}, {
+		Name: "error, bad status code",
+
+		DeviceID: "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Name:     "swellHub",
+			Key:      []byte("password123"),
+		},
+		RSPCode: http.StatusInternalServerError,
+		RSPBody: rest.Error{Err: "internal error"},
+		Error:   common.HTTPError{Code: http.StatusInternalServerError},
+	}, {
+		Name: "error, malformed response",
+
+		DeviceID: "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Name:     "swellHub",
+			Key:      []byte("password123"),
+		},
+		RSPCode: http.StatusOK,
+		RSPBody: []byte("here's your device..."),
+
+		Error: errors.New("iothub: failed to decode device"),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+			w := httptest.NewRecorder()
+			httpClient := &http.Client{
+				Transport: RoundTripperFunc(func(
+					r *http.Request,
+				) (*http.Response, error) {
+					if tc.RTError != nil {
+						return nil, tc.RTError
+					}
+					assert.Equal(t, "/devices/"+tc.DeviceID, r.URL.Path)
+
+					w.WriteHeader(tc.RSPCode)
+					switch t := tc.RSPBody.(type) {
+					case []byte:
+						_, _ = w.Write(t)
+					default:
+						b, _ := json.Marshal(t)
+						_, _ = w.Write(b)
+					}
+
+					return w.Result(), nil
+				}),
+			}
+			client := NewClient(NewOptions().SetClient(httpClient))
+			dev, err := client.GetDevice(ctx, tc.ConnStr, tc.DeviceID)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t,
+						tc.Error.Error(),
+						err.Error(),
+						"unexpected error message content",
+					)
+				}
+			} else if assert.NoError(t, err) {
+				res := new(Device)
+				if assert.IsType(t, res, tc.RSPBody, "Bad test case") {
+					assert.Equal(t, tc.RSPBody, dev)
+				}
+			}
 		})
 	}
 }
