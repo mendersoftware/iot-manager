@@ -155,7 +155,15 @@ func (a *app) ProvisionDevice(
 		confKeyPrimaryKey:   primKey.String(),
 		confKeySecondaryKey: secKey.String(),
 	})
-	return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
+	if err != nil {
+		return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
+	}
+	err = a.hub.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
+		Tags: map[string]interface{}{
+			"mender": true,
+		},
+	})
+	return errors.Wrap(err, "failed to tag provisioned iothub device")
 }
 
 func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {

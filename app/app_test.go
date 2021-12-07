@@ -212,7 +212,12 @@ func TestProvisionDevice(t *testing.T) {
 							Secondary: iothub.Key("key2"),
 						},
 					},
-				}, nil)
+				}, nil).
+				On("UpdateDeviceTwin", contextMatcher, self.ConnStr, self.DeviceID,
+					&iothub.DeviceTwinUpdate{
+						Tags: map[string]interface{}{"mender": true},
+					}).
+				Return(nil)
 			return hub
 		},
 		Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
