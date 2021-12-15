@@ -102,6 +102,7 @@ func (h *ManagementHandler) proxyAzureRequest(c *gin.Context, dstPath string) {
 		fallthrough
 	case settings.ConnectionString.Validate() != nil:
 		rest.RenderError(c, http.StatusConflict, ErrMissingConnectionString)
+		return
 	default:
 	}
 	cs := settings.ConnectionString

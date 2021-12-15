@@ -34,8 +34,7 @@ const (
 type InternalHandler APIHandler
 
 // POST /tenants/:tenant_id/devices
-// code: 202 - device provisioned to iothub
-//       204 - nothing happened
+// code: 204 - device provisioned to iothub
 //       500 - internal server error
 func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
 	var device struct {
@@ -58,12 +57,10 @@ func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
 	})
 	err := h.app.ProvisionDevice(ctx, device.ID)
 	switch cause := errors.Cause(err); cause {
-	case nil:
-		c.Status(http.StatusAccepted)
+	case nil, app.ErrNoConnectionString:
+		c.Status(http.StatusNoContent)
 	case app.ErrDeviceAlreadyExists:
 		rest.RenderError(c, http.StatusConflict, cause)
-	case app.ErrNoConnectionString:
-		c.Status(http.StatusNoContent)
 	default:
 		rest.RenderError(c, http.StatusInternalServerError, err)
 	}
@@ -79,9 +76,7 @@ func (h *InternalHandler) DecomissionDevice(c *gin.Context) {
 	})
 	err := h.app.DeleteIOTHubDevice(ctx, deviceID)
 	switch errors.Cause(err) {
-	case nil:
-		c.Status(http.StatusAccepted)
-	case app.ErrNoConnectionString:
+	case nil, app.ErrNoConnectionString:
 		c.Status(http.StatusNoContent)
 	default:
 		rest.RenderError(c, http.StatusInternalServerError, err)
