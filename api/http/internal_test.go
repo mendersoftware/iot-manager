@@ -75,7 +75,7 @@ func TestProvisionDevice(t *testing.T) {
 			return mock
 		},
 
-		StatusCode: http.StatusAccepted,
+		StatusCode: http.StatusNoContent,
 	}, {
 		Name: "ok/noop",
 
@@ -200,7 +200,7 @@ func TestDecommissionDevice(t *testing.T) {
 			return mock
 		},
 
-		StatusCode: http.StatusAccepted,
+		StatusCode: http.StatusNoContent,
 	}, {
 		Name: "ok/noop",
 
@@ -326,7 +326,8 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 			mockApp := new(mapp.App)
 			return mockApp
 		},
-		StatusCode: http.StatusNoContent,
+		Response:   BulkResult{Items: []BulkItem{}},
+		StatusCode: http.StatusOK,
 	}, {
 		Name: "error, partial result",
 

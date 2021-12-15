@@ -134,7 +134,9 @@ paths:
                   type: array
                   items:
                     type: string
-                  description: List of device IDs to update.
+                  description: |
+                    List of device IDs to update.
+                    Up to 100 devices can be processed per request.
                 status:
                   type: string
                   enum:

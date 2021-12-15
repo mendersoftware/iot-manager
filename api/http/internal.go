@@ -97,6 +97,10 @@ type BulkItem struct {
 	Parameters map[string]interface{} `json:"parameters"`
 }
 
+const (
+	maxBulkItems = 100
+)
+
 // PUT /tenants/:tenant_id/bulk/devices/status
 func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 	var schema struct {
@@ -109,8 +113,11 @@ func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 			errors.Wrap(err, "invalid request body"),
 		)
 		return
-	} else if len(schema.DeviceIDs) == 0 {
-		c.Status(http.StatusNoContent)
+	} else if len(schema.DeviceIDs) > maxBulkItems {
+		rest.RenderError(c,
+			http.StatusBadRequest,
+			errors.New("too many bulk items: max 100 items per request"),
+		)
 		return
 	}
 	ctx := identity.WithContext(
