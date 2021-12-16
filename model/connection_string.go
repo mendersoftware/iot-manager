@@ -175,6 +175,9 @@ func (cs ConnectionString) MarshalText() ([]byte, error) {
 }
 
 func (cs *ConnectionString) UnmarshalText(b []byte) error {
+	if len(b) == 0 {
+		return nil
+	}
 	connStr, err := ParseConnectionString(string(b))
 	if err != nil {
 		return err

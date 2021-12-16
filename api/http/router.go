@@ -36,12 +36,14 @@ import (
 const (
 	APIURLInternal = "/api/internal/v1/azure-iot-manager"
 
-	APIURLAlive         = "/alive"
-	APIURLHealth        = "/health"
-	APIURLTenants       = "/tenants"
-	APIURLTenant        = APIURLTenants + "/:tenant_id"
-	APIURLTenantDevices = APIURLTenant + "/devices"
-	APIURLTenantDevice  = APIURLTenantDevices + "/:device_id"
+	APIURLAlive             = "/alive"
+	APIURLHealth            = "/health"
+	APIURLTenants           = "/tenants"
+	APIURLTenant            = APIURLTenants + "/:tenant_id"
+	APIURLTenantDevices     = APIURLTenant + "/devices"
+	APIURLTenantDevice      = APIURLTenantDevices + "/:device_id"
+	APIURLTenantBulkDevices = APIURLTenant + "/bulk/devices"
+	APIURLTenantBulkStatus  = APIURLTenantBulkDevices + "/status"
 
 	APIURLManagement = "/api/management/v1/azure-iot-manager"
 
@@ -103,6 +105,7 @@ func NewRouter(
 
 	internalAPI.POST(APIURLTenantDevices, internal.ProvisionDevice)
 	internalAPI.DELETE(APIURLTenantDevice, internal.DecomissionDevice)
+	internalAPI.PUT(APIURLTenantBulkStatus, internal.BulkSetDeviceStatus)
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
 	managementAPI.GET(APIURLSettings, management.GetSettings)

@@ -212,7 +212,12 @@ func TestProvisionDevice(t *testing.T) {
 							Secondary: iothub.Key("key2"),
 						},
 					},
-				}, nil)
+				}, nil).
+				On("UpdateDeviceTwin", contextMatcher, self.ConnStr, self.DeviceID,
+					&iothub.DeviceTwinUpdate{
+						Tags: map[string]interface{}{"mender": true},
+					}).
+				Return(nil)
 			return hub
 		},
 		Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
@@ -227,7 +232,7 @@ func TestProvisionDevice(t *testing.T) {
 				DeviceID: self.DeviceID,
 				HostName: self.ConnStr.HostName,
 			}
-			wf.On("SubmitDeviceConfiguration",
+			wf.On("ProvisionExternalDevice",
 				contextMatcher,
 				self.DeviceID,
 				map[string]string{
@@ -472,6 +477,205 @@ func TestDecommissionDevice(t *testing.T) {
 
 			app := New(ds, hub, nil)
 			err := app.DeleteIOTHubDevice(ctx, tc.DeviceID)
+
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestSetDeviceStatus(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		Name string
+
+		ConnStr  *model.ConnectionString
+		DeviceID string
+		Status   Status
+
+		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Hub   func(t *testing.T, self *testCase) *miothub.Client
+
+		Error error
+	}
+	testCases := []testCase{{
+		Name: "ok",
+
+		Status: StatusEnabled,
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Key:      []byte("super secret"),
+			Name:     "my favorite string",
+		},
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			store := new(storeMocks.DataStore)
+			store.On("GetSettings", contextMatcher).
+				Return(model.Settings{
+					ConnectionString: self.ConnStr,
+				}, nil)
+			return store
+		},
+		Hub: func(t *testing.T, self *testCase) *miothub.Client {
+			hub := new(miothub.Client)
+			dev := &iothub.Device{
+				DeviceID: "foobar",
+				Status:   iothub.StatusDisabled,
+			}
+			hub.On("GetDevice", contextMatcher, self.ConnStr, self.DeviceID).
+				Return(dev, nil).
+				On("UpsertDevice", contextMatcher, self.ConnStr, self.DeviceID,
+					mock.MatchedBy(func(dev *iothub.Device) bool {
+						return dev.Status == iothub.StatusEnabled
+					})).
+				Return(dev, nil)
+			return hub
+		},
+	}, {
+		Name: "ok, device already has matching status",
+
+		Status: StatusEnabled,
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Key:      []byte("super secret"),
+			Name:     "my favorite string",
+		},
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			store := new(storeMocks.DataStore)
+			store.On("GetSettings", contextMatcher).
+				Return(model.Settings{
+					ConnectionString: self.ConnStr,
+				}, nil)
+			return store
+		},
+		Hub: func(t *testing.T, self *testCase) *miothub.Client {
+			hub := new(miothub.Client)
+			dev := &iothub.Device{
+				DeviceID: "foobar",
+				Status:   iothub.StatusEnabled,
+			}
+			hub.On("GetDevice", contextMatcher, self.ConnStr, self.DeviceID).
+				Return(dev, nil)
+			return hub
+		},
+	}, {
+		Name: "error/hub fail to update device",
+
+		Status: StatusDisabled,
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Key:      []byte("super secret"),
+			Name:     "my favorite string",
+		},
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			store := new(storeMocks.DataStore)
+			store.On("GetSettings", contextMatcher).
+				Return(model.Settings{
+					ConnectionString: self.ConnStr,
+				}, nil)
+			return store
+		},
+		Hub: func(t *testing.T, self *testCase) *miothub.Client {
+			hub := new(miothub.Client)
+			dev := &iothub.Device{
+				DeviceID: "foobar",
+				Status:   iothub.StatusEnabled,
+			}
+			hub.On("GetDevice", contextMatcher, self.ConnStr, self.DeviceID).
+				Return(dev, nil).
+				On("UpsertDevice", contextMatcher, self.ConnStr, self.DeviceID,
+					mock.MatchedBy(func(dev *iothub.Device) bool {
+						return dev.Status == iothub.StatusDisabled
+					})).
+				Return(nil, errors.New("internal error"))
+			return hub
+		},
+
+		Error: errors.New("failed to update IoT Hub device: internal error"),
+	}, {
+		Name: "error/hub fail to get device",
+
+		Status: StatusDisabled,
+		ConnStr: &model.ConnectionString{
+			HostName: "localhost",
+			Key:      []byte("super secret"),
+			Name:     "my favorite string",
+		},
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			store := new(storeMocks.DataStore)
+			store.On("GetSettings", contextMatcher).
+				Return(model.Settings{
+					ConnectionString: self.ConnStr,
+				}, nil)
+			return store
+		},
+		Hub: func(t *testing.T, self *testCase) *miothub.Client {
+			hub := new(miothub.Client)
+			hub.On("GetDevice", contextMatcher, self.ConnStr, self.DeviceID).
+				Return(nil, errors.New("internal error"))
+			return hub
+		},
+
+		Error: errors.New("failed to retrieve device from IoT Hub: internal error"),
+	}, {
+		Name: "error/no connection string",
+
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Status: StatusDisabled,
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			store := new(storeMocks.DataStore)
+			store.On("GetSettings", contextMatcher).
+				Return(model.Settings{}, nil)
+			return store
+		},
+		Hub: func(t *testing.T, self *testCase) *miothub.Client {
+			return new(miothub.Client)
+		},
+
+		Error: ErrNoConnectionString,
+	}, {
+		Name: "error/getting settings",
+
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Status: StatusDisabled,
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			store := new(storeMocks.DataStore)
+			store.On("GetSettings", contextMatcher).
+				Return(model.Settings{}, errors.New("wut?"))
+			return store
+		},
+		Hub: func(t *testing.T, self *testCase) *miothub.Client {
+			return new(miothub.Client)
+		},
+
+		Error: errors.New("failed to retrieve settings: wut?"),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			ds := tc.Store(t, &tc)
+			hub := tc.Hub(t, &tc)
+			defer ds.AssertExpectations(t)
+			defer hub.AssertExpectations(t)
+
+			app := New(ds, hub, nil)
+			err := app.SetDeviceStatus(ctx, tc.DeviceID, tc.Status)
 
 			if tc.Error != nil {
 				if assert.Error(t, err) {

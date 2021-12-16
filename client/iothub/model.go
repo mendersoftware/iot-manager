@@ -28,6 +28,7 @@ import (
 
 	"github.com/mendersoftware/azure-iot-manager/model"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pkg/errors"
 )
 
@@ -86,6 +87,20 @@ const (
 	StatusEnabled  Status = "enabled"
 	StatusDisabled Status = "disabled"
 )
+
+func (s *Status) UnmarshalText(b []byte) error {
+	*s = Status(bytes.ToLower(b))
+	return s.Validate()
+}
+
+var validateStatus = validation.In(
+	StatusEnabled,
+	StatusDisabled,
+)
+
+func (s Status) Validate() error {
+	return validateStatus.Validate(s)
+}
 
 type DeviceCapabilities struct {
 	IOTEdge bool `json:"iotEdge"`

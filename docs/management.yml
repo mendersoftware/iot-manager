@@ -101,7 +101,7 @@ paths:
               schema:
                 $ref: '#/components/responses/InternalServerError'
 
-  /device/{id}/twin:
+  /devices/{id}/twin:
     put:
       operationId: Replace Twin
       tags:
@@ -119,9 +119,18 @@ paths:
           application/json:
             schema:
               type: object
-              additionalProperties: true
-              description: >-
-                The desired device twin properties
+              properties:
+                properties:
+                  type: object
+                  description: >-
+                    The desired device twin properties
+                  additionalProperties: true
+                tags:
+                  description: >-
+                    Device tags only visible to the user
+                  type: object
+                  additionalProperties:
+                    type: string
       responses:
         200:
           description: Success.
@@ -177,9 +186,19 @@ paths:
           application/json:
             schema:
               type: object
-              additionalProperties: true
-              description: >-
-                The desired device twin properties
+              properties:
+                properties:
+                  type: object
+                  description: >-
+                    The desired device twin properties
+                  additionalProperties: true
+                tags:
+                  description: >-
+                    Device tags only visible to the user
+                  type: object
+                  additionalProperties:
+                    type: string
+
       responses:
         200:
           description: Success.

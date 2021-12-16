@@ -63,6 +63,7 @@ type Client interface {
 	GetDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string) (*DeviceTwin, error)
 	UpdateDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string, r *DeviceTwinUpdate) error
 
+	GetDevice(ctx context.Context, cs *model.ConnectionString, id string) (*Device, error)
 	// UpsertDevice create or update a device with the given ID. If a device
 	// is created, the IoT Hub will generate a new 256-bit primary and
 	// secondary key used to construct the device connection string:
@@ -156,6 +157,38 @@ func (c *client) NewRequestWithContext(
 	return req, err
 }
 
+// GET /devices/{id}
+func (c *client) GetDevice(
+	ctx context.Context,
+	cs *model.ConnectionString,
+	id string,
+) (*Device, error) {
+	var dev = new(Device)
+	req, err := c.NewRequestWithContext(
+		ctx,
+		cs,
+		http.MethodGet,
+		uriDevice(id),
+		nil,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "iothub: failed to prepare request")
+	}
+	rsp, err := c.Do(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "iothub: failed to execute request")
+	}
+	defer rsp.Body.Close()
+	if rsp.StatusCode >= 400 {
+		return nil, common.HTTPError{Code: rsp.StatusCode}
+	}
+	dec := json.NewDecoder(rsp.Body)
+	if err = dec.Decode(dev); err != nil {
+		return nil, errors.Wrap(err, "iothub: failed to decode device")
+	}
+	return dev, nil
+}
+
 func (c *client) UpsertDevice(ctx context.Context,
 	cs *model.ConnectionString,
 	deviceID string,
@@ -163,7 +196,9 @@ func (c *client) UpsertDevice(ctx context.Context,
 ) (*Device, error) {
 	dev := mergeDevices(deviceUpdate...)
 	dev.DeviceID = deviceID
-	b, _ := json.Marshal(dev)
+	etag := dev.ETag
+	dev.ETag = ""
+	b, _ := json.Marshal(*dev)
 	req, err := c.NewRequestWithContext(
 		ctx,
 		cs,
@@ -173,6 +208,9 @@ func (c *client) UpsertDevice(ctx context.Context,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "iothub: failed to prepare request")
+	}
+	if etag != "" {
+		req.Header.Set("If-Match", `"`+etag+`"`)
 	}
 	rsp, err := c.Do(req)
 	if err != nil {

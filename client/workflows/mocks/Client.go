@@ -41,8 +41,8 @@ func (_m *Client) CheckHealth(ctx context.Context) error {
 	return r0
 }
 
-// SubmitDeviceConfiguration provides a mock function with given fields: ctx, devID, config
-func (_m *Client) SubmitDeviceConfiguration(ctx context.Context, devID string, config map[string]string) error {
+// ProvisionExternalDevice provides a mock function with given fields: ctx, devID, config
+func (_m *Client) ProvisionExternalDevice(ctx context.Context, devID string, config map[string]string) error {
 	ret := _m.Called(ctx, devID, config)
 
 	var r0 error

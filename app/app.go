@@ -16,7 +16,9 @@ package app
 
 import (
 	"context"
+	"net/http"
 
+	"github.com/mendersoftware/azure-iot-manager/client"
 	"github.com/mendersoftware/azure-iot-manager/client/iothub"
 	"github.com/mendersoftware/azure-iot-manager/client/workflows"
 	"github.com/mendersoftware/azure-iot-manager/model"
@@ -29,6 +31,8 @@ var (
 	ErrNoConnectionString = errors.New("no connection string configured for tenant")
 
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
+
+	ErrDeviceAlreadyExists = errors.New("device already exists")
 )
 
 const (
@@ -38,6 +42,13 @@ const (
 
 type DeviceUpdate iothub.Device
 
+type Status iothub.Status
+
+const (
+	StatusEnabled  = Status(iothub.StatusEnabled)
+	StatusDisabled = Status(iothub.StatusDisabled)
+)
+
 // App interface describes app objects
 //nolint:lll
 //go:generate ../utils/mockgen.sh
@@ -45,6 +56,7 @@ type App interface {
 	HealthCheck(context.Context) error
 	GetSettings(context.Context) (model.Settings, error)
 	SetSettings(context.Context, model.Settings) error
+	SetDeviceStatus(context.Context, string, Status) error
 	ProvisionDevice(context.Context, string) error
 	DeleteIOTHubDevice(context.Context, string) error
 }
@@ -78,6 +90,28 @@ func (a *app) SetSettings(ctx context.Context, settings model.Settings) error {
 	return a.store.SetSettings(ctx, settings)
 }
 
+func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Status) error {
+	settings, err := a.GetSettings(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve settings")
+	}
+	cs := settings.ConnectionString
+	if cs == nil {
+		return ErrNoConnectionString
+	}
+	dev, err := a.hub.GetDevice(ctx, cs, deviceID)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve device from IoT Hub")
+	} else if dev.Status == iothub.Status(status) {
+		// We're done...
+		return nil
+	}
+
+	dev.Status = iothub.Status(status)
+	_, err = a.hub.UpsertDevice(ctx, cs, deviceID, dev)
+	return errors.Wrap(err, "failed to update IoT Hub device")
+}
+
 func (a *app) ProvisionDevice(
 	ctx context.Context,
 	deviceID string,
@@ -93,6 +127,14 @@ func (a *app) ProvisionDevice(
 
 	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
 	if err != nil {
+		if htErr, ok := err.(client.HTTPError); ok {
+			switch htErr.Code {
+			case http.StatusUnauthorized:
+				return ErrNoConnectionString
+			case http.StatusConflict:
+				return ErrDeviceAlreadyExists
+			}
+		}
 		return errors.Wrap(err, "failed to update iothub devices")
 	}
 	if dev.Auth == nil || dev.Auth.SymmetricKey == nil {
@@ -109,11 +151,19 @@ func (a *app) ProvisionDevice(
 		HostName: cs.HostName,
 	}
 
-	err = a.wf.SubmitDeviceConfiguration(ctx, dev.DeviceID, map[string]string{
+	err = a.wf.ProvisionExternalDevice(ctx, dev.DeviceID, map[string]string{
 		confKeyPrimaryKey:   primKey.String(),
 		confKeySecondaryKey: secKey.String(),
 	})
-	return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
+	if err != nil {
+		return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
+	}
+	err = a.hub.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
+		Tags: map[string]interface{}{
+			"mender": true,
+		},
+	})
+	return errors.Wrap(err, "failed to tag provisioned iothub device")
 }
 
 func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
