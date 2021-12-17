@@ -17,11 +17,13 @@ package app
 import (
 	"context"
 	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	miothub "github.com/mendersoftware/iot-manager/client/iothub/mocks"
 	mworkflows "github.com/mendersoftware/iot-manager/client/workflows/mocks"
@@ -148,6 +150,7 @@ func TestSetSettings(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
+			hub := new(miothub.Client)
 			store := &storeMocks.DataStore{}
 			store.On("SetSettings",
 				mock.MatchedBy(func(ctx context.Context) bool {
@@ -155,7 +158,14 @@ func TestSetSettings(t *testing.T) {
 				}),
 				mock.AnythingOfType("model.Settings"),
 			).Return(tc.SetSettingsError)
-			app := New(store, nil, nil)
+			hub.On("GetDevice",
+				mock.MatchedBy(func(ctx context.Context) bool {
+					return true
+				}),
+				tc.SetSettingsSettings.ConnectionString,
+				"connectionstring-challenge",
+			).Return(nil, client.HTTPError{Code: http.StatusNotFound})
+			app := New(store, hub, nil)
 
 			ctx := context.Background()
 			err := app.SetSettings(ctx, tc.SetSettingsSettings)

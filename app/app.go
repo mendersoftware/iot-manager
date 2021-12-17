@@ -33,6 +33,8 @@ var (
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
 
 	ErrDeviceAlreadyExists = errors.New("device already exists")
+
+	ErrInsufficientPermission = errors.New("insufficient permission")
 )
 
 const (
@@ -87,6 +89,18 @@ func (a *app) GetSettings(ctx context.Context) (model.Settings, error) {
 }
 
 func (a *app) SetSettings(ctx context.Context, settings model.Settings) error {
+	if settings.ConnectionString != nil && !settings.ConnectionString.IsZero() {
+		_, err := a.hub.GetDevice(ctx, settings.ConnectionString, "connectionstring-challenge")
+		if err != nil {
+			if htErr, ok := err.(client.HTTPError); ok &&
+				htErr.Code == http.StatusUnauthorized ||
+				htErr.Code == http.StatusForbidden {
+				return errors.Wrap(ErrInsufficientPermission, "'connection_string' not accepted")
+			} else if !ok || htErr.Code >= 500 {
+				return errors.New("error checking connection string permissions")
+			}
+		}
+	}
 	return a.store.SetSettings(ctx, settings)
 }
 
