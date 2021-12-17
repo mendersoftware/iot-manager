@@ -26,12 +26,12 @@ import (
 	"github.com/mendersoftware/go-lib-micro/config"
 	"github.com/mendersoftware/go-lib-micro/log"
 
-	api "github.com/mendersoftware/azure-iot-manager/api/http"
-	"github.com/mendersoftware/azure-iot-manager/app"
-	"github.com/mendersoftware/azure-iot-manager/client/iothub"
-	"github.com/mendersoftware/azure-iot-manager/client/workflows"
-	dconfig "github.com/mendersoftware/azure-iot-manager/config"
-	"github.com/mendersoftware/azure-iot-manager/store"
+	api "github.com/mendersoftware/iot-manager/api/http"
+	"github.com/mendersoftware/iot-manager/app"
+	"github.com/mendersoftware/iot-manager/client/iothub"
+	"github.com/mendersoftware/iot-manager/client/workflows"
+	dconfig "github.com/mendersoftware/iot-manager/config"
+	"github.com/mendersoftware/iot-manager/store"
 )
 
 // InitAndRun initializes the server and runs it

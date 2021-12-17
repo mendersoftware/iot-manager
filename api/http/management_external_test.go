@@ -27,9 +27,9 @@ import (
 	"testing"
 	"time"
 
-	mapp "github.com/mendersoftware/azure-iot-manager/app/mocks"
-	"github.com/mendersoftware/azure-iot-manager/model"
 	"github.com/mendersoftware/go-lib-micro/identity"
+	mapp "github.com/mendersoftware/iot-manager/app/mocks"
+	"github.com/mendersoftware/iot-manager/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

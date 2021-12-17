@@ -9,12 +9,12 @@ ROOTDIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 
 DOCKERTAG ?= $(shell git rev-parse --abbrev-ref HEAD)
 DOCKERTESTTAG ?= prtest
-DOCKERIMAGE ?= mendersoftware/azure-iot-manager
+DOCKERIMAGE ?= mendersoftware/iot-manager
 
 GOFILES := $(shell find . -name "*.go" -type f -not -path './vendor/*')
 SRCFILES := $(filter-out _test.go,$(GOFILES))
 
-BINFILE := bin/azure-iot-manager
+BINFILE := bin/iot-manager
 COVERFILE := coverage.txt
 
 .PHONY: build
@@ -54,12 +54,12 @@ build-test: $(BINFILE).test
 test: $(COVERFILE)
 
 # Dockerfile targets
-bin/azure-iot-manager.docker: Dockerfile $(SRCFILES)
+bin/iot-manager.docker: Dockerfile $(SRCFILES)
 	docker rmi $(DOCKERIMAGE):$(DOCKERTAG) 2>/dev/null; \
 	docker build . -f Dockerfile -t $(DOCKERIMAGE):$(DOCKERTAG)
 	docker save $(DOCKERIMAGE):$(DOCKERTAG) -o $@
 
-bin/azure-iot-manager.acceptance.docker: Dockerfile.acceptance $(GOFILES)
+bin/iot-manager.acceptance.docker: Dockerfile.acceptance $(GOFILES)
 	docker rmi $(DOCKERIMAGE):$(DOCKERTESTTAG) 2>/dev/null; \
 	docker build . -f Dockerfile.acceptance -t $(DOCKERIMAGE):$(DOCKERTESTTAG)
 	docker save $(DOCKERIMAGE):$(DOCKERTESTTAG) -o $@
@@ -70,10 +70,10 @@ bin/acceptance.docker: tests/Dockerfile tests/requirements.txt
 	docker save testing -o $@
 
 .PHONY: docker
-docker: bin/azure-iot-manager.docker
+docker: bin/iot-manager.docker
 
 .PHONY: docker-test
-docker-test: bin/azure-iot-manager.acceptance.docker
+docker-test: bin/iot-manager.acceptance.docker
 
 .PHONY: docker-acceptance
 docker-acceptance: bin/acceptance.docker

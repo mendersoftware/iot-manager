@@ -4,20 +4,20 @@ RUN apk add --no-cache \
     musl-dev \
     gcc \
     make
-RUN mkdir -p /go/src/github.com/mendersoftware/azure-iot-manager
-COPY . /go/src/github.com/mendersoftware/azure-iot-manager
-RUN cd /go/src/github.com/mendersoftware/azure-iot-manager && \
+RUN mkdir -p /go/src/github.com/mendersoftware/iot-manager
+COPY . /go/src/github.com/mendersoftware/iot-manager
+RUN cd /go/src/github.com/mendersoftware/iot-manager && \
     make build-test
 
 FROM alpine:3.14.2
 RUN apk add --no-cache ca-certificates xz
-RUN mkdir -p /etc/azure-iot-manager
-COPY ./config.yaml /etc/azure-iot-manager
-COPY --from=builder /go/src/github.com/mendersoftware/azure-iot-manager/bin/azure-iot-manager.test /usr/bin
-ENTRYPOINT ["/usr/bin/azure-iot-manager.test", \
+RUN mkdir -p /etc/iot-manager
+COPY ./config.yaml /etc/iot-manager
+COPY --from=builder /go/src/github.com/mendersoftware/iot-manager/bin/iot-manager.test /usr/bin
+ENTRYPOINT ["/usr/bin/iot-manager.test", \
         "-test.coverprofile=/testing/coverage-acceptance.txt", \
         "-acceptance-testing", \
-        "--", "--config=/etc/azure-iot-manager/config.yaml", \
+        "--", "--config=/etc/iot-manager/config.yaml", \
         "server", "--automigrate"]
 
 EXPOSE 8080

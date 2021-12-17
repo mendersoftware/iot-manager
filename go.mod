@@ -1,4 +1,4 @@
-module github.com/mendersoftware/azure-iot-manager
+module github.com/mendersoftware/iot-manager
 
 go 1.14
 

@@ -9,7 +9,7 @@ info:
   version: "1"
 
 servers:
-  - url: https://hosted.mender.io/api/management/v1/azure-iot-manager
+  - url: https://hosted.mender.io/api/management/v1/iot-manager
 
 # Global security definitions
 security:

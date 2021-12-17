@@ -8,7 +8,7 @@ info:
   version: "1"
 
 servers:
-  - url: http://mender-azure-iot-manager:8080/api/internal/v1/azure-iot-manager
+  - url: http://mender-iot-manager:8080/api/internal/v1/iot-manager
 
 tags:
   - name: Internal API

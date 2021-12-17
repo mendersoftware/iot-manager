@@ -18,7 +18,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/mendersoftware/azure-iot-manager/model"
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 // DataStore interface for DataStore services

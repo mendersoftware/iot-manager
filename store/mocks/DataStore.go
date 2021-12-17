@@ -19,7 +19,7 @@ package mocks
 import (
 	context "context"
 
-	model "github.com/mendersoftware/azure-iot-manager/model"
+	model "github.com/mendersoftware/iot-manager/model"
 	mock "github.com/stretchr/testify/mock"
 )
 

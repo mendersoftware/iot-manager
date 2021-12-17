@@ -25,8 +25,8 @@ import (
 	"sync"
 	"time"
 
-	common "github.com/mendersoftware/azure-iot-manager/client"
-	"github.com/mendersoftware/azure-iot-manager/model"
+	common "github.com/mendersoftware/iot-manager/client"
+	"github.com/mendersoftware/iot-manager/model"
 
 	"github.com/pkg/errors"
 )

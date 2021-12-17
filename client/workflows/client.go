@@ -27,7 +27,7 @@ import (
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 	"github.com/pkg/errors"
 
-	common "github.com/mendersoftware/azure-iot-manager/client"
+	common "github.com/mendersoftware/iot-manager/client"
 )
 
 const (

@@ -30,7 +30,7 @@ import (
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
-	"github.com/mendersoftware/azure-iot-manager/model"
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 const (

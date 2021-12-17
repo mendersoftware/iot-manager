@@ -22,11 +22,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/mendersoftware/azure-iot-manager/client/iothub"
-	miothub "github.com/mendersoftware/azure-iot-manager/client/iothub/mocks"
-	mworkflows "github.com/mendersoftware/azure-iot-manager/client/workflows/mocks"
-	"github.com/mendersoftware/azure-iot-manager/model"
-	storeMocks "github.com/mendersoftware/azure-iot-manager/store/mocks"
+	"github.com/mendersoftware/iot-manager/client/iothub"
+	miothub "github.com/mendersoftware/iot-manager/client/iothub/mocks"
+	mworkflows "github.com/mendersoftware/iot-manager/client/workflows/mocks"
+	"github.com/mendersoftware/iot-manager/model"
+	storeMocks "github.com/mendersoftware/iot-manager/store/mocks"
 )
 
 var contextMatcher = mock.MatchedBy(func(ctx context.Context) bool { return true })

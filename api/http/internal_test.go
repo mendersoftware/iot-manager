@@ -25,11 +25,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mendersoftware/azure-iot-manager/app"
-	mapp "github.com/mendersoftware/azure-iot-manager/app/mocks"
-	"github.com/mendersoftware/azure-iot-manager/client"
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
+	"github.com/mendersoftware/iot-manager/app"
+	mapp "github.com/mendersoftware/iot-manager/app/mocks"
+	"github.com/mendersoftware/iot-manager/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

@@ -24,7 +24,7 @@ import (
 	"github.com/mendersoftware/go-lib-micro/identity"
 	mstore "github.com/mendersoftware/go-lib-micro/store/v2"
 
-	"github.com/mendersoftware/azure-iot-manager/model"
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 func TestSetSettings(t *testing.T) {

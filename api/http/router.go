@@ -29,12 +29,12 @@ import (
 	"github.com/mendersoftware/go-lib-micro/requestid"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
-	"github.com/mendersoftware/azure-iot-manager/app"
+	"github.com/mendersoftware/iot-manager/app"
 )
 
 // API URL used by the HTTP router
 const (
-	APIURLInternal = "/api/internal/v1/azure-iot-manager"
+	APIURLInternal = "/api/internal/v1/iot-manager"
 
 	APIURLAlive             = "/alive"
 	APIURLHealth            = "/health"
@@ -45,7 +45,7 @@ const (
 	APIURLTenantBulkDevices = APIURLTenant + "/bulk/devices"
 	APIURLTenantBulkStatus  = APIURLTenantBulkDevices + "/status"
 
-	APIURLManagement = "/api/management/v1/azure-iot-manager"
+	APIURLManagement = "/api/management/v1/iot-manager"
 
 	APIURLSettings      = "/settings"
 	APIURLDevice        = "/devices/:id"

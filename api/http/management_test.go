@@ -43,8 +43,8 @@ import (
 	"github.com/mendersoftware/go-lib-micro/requestid"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
-	mapp "github.com/mendersoftware/azure-iot-manager/app/mocks"
-	"github.com/mendersoftware/azure-iot-manager/model"
+	mapp "github.com/mendersoftware/iot-manager/app/mocks"
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 var (

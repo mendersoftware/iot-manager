@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	common "github.com/mendersoftware/azure-iot-manager/client"
+	common "github.com/mendersoftware/iot-manager/client"
 
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/requestid"

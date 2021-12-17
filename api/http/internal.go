@@ -17,8 +17,8 @@ package http
 import (
 	"net/http"
 
-	"github.com/mendersoftware/azure-iot-manager/app"
-	"github.com/mendersoftware/azure-iot-manager/client"
+	"github.com/mendersoftware/iot-manager/app"
+	"github.com/mendersoftware/iot-manager/client"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mendersoftware/go-lib-micro/identity"

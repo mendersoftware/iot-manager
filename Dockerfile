@@ -3,15 +3,15 @@ RUN apk add --no-cache \
     xz-dev \
     musl-dev \
     gcc
-RUN mkdir -p /go/src/github.com/mendersoftware/azure-iot-manager
-COPY . /go/src/github.com/mendersoftware/azure-iot-manager
-RUN cd /go/src/github.com/mendersoftware/azure-iot-manager && env CGO_ENABLED=1 go build
+RUN mkdir -p /go/src/github.com/mendersoftware/iot-manager
+COPY . /go/src/github.com/mendersoftware/iot-manager
+RUN cd /go/src/github.com/mendersoftware/iot-manager && env CGO_ENABLED=1 go build
 
 FROM alpine:3.14.2
 RUN apk add --no-cache ca-certificates xz
-RUN mkdir -p /etc/azure-iot-manager
-COPY ./config.yaml /etc/azure-iot-manager
-COPY --from=builder /go/src/github.com/mendersoftware/azure-iot-manager/azure-iot-manager /usr/bin
-ENTRYPOINT ["/usr/bin/azure-iot-manager"]
+RUN mkdir -p /etc/iot-manager
+COPY ./config.yaml /etc/iot-manager
+COPY --from=builder /go/src/github.com/mendersoftware/iot-manager/iot-manager /usr/bin
+ENTRYPOINT ["/usr/bin/iot-manager"]
 
 EXPOSE 8080

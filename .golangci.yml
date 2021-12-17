@@ -37,7 +37,7 @@ linters-settings:
 
   goimports:
     local-prefixes:
-      "github.com/mendersoftware/azure-iot-manager"
+      "github.com/mendersoftware/iot-manager"
 
   lll:
     # max line length, lines longer will be reported. Default is 120.

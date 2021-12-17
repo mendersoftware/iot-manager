@@ -30,9 +30,9 @@ import (
 	"github.com/mendersoftware/go-lib-micro/identity"
 	mstore "github.com/mendersoftware/go-lib-micro/store/v2"
 
-	dconfig "github.com/mendersoftware/azure-iot-manager/config"
-	"github.com/mendersoftware/azure-iot-manager/model"
-	"github.com/mendersoftware/azure-iot-manager/store"
+	dconfig "github.com/mendersoftware/iot-manager/config"
+	"github.com/mendersoftware/iot-manager/model"
+	"github.com/mendersoftware/iot-manager/store"
 )
 
 const (

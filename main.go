@@ -23,9 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	dconfig "github.com/mendersoftware/azure-iot-manager/config"
-	"github.com/mendersoftware/azure-iot-manager/server"
-	store "github.com/mendersoftware/azure-iot-manager/store/mongo"
+	dconfig "github.com/mendersoftware/iot-manager/config"
+	"github.com/mendersoftware/iot-manager/server"
+	store "github.com/mendersoftware/iot-manager/store/mongo"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func doMain(args []string) {
 				Usage: "Configuration `FILE`. " +
 					"Supports JSON, TOML, YAML and HCL " +
 					"formatted configs.",
-				Value:       "/etc/azure-iot-manager/config.yaml",
+				Value:       "/etc/iot-manager/config.yaml",
 				Destination: &configPath,
 			},
 		},

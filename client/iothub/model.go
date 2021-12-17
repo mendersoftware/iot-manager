@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mendersoftware/azure-iot-manager/model"
+	"github.com/mendersoftware/iot-manager/model"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pkg/errors"

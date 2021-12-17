@@ -1,5 +1,5 @@
 variables:
-  DOCKER_REPOSITORY: mendersoftware/azure-iot-manager
+  DOCKER_REPOSITORY: mendersoftware/iot-manager
 
 stages:
   - test_prep

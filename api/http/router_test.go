@@ -22,7 +22,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	app_mocks "github.com/mendersoftware/azure-iot-manager/app/mocks"
+	app_mocks "github.com/mendersoftware/iot-manager/app/mocks"
 
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 	"github.com/stretchr/testify/assert"

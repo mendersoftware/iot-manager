@@ -18,11 +18,11 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/mendersoftware/azure-iot-manager/client"
-	"github.com/mendersoftware/azure-iot-manager/client/iothub"
-	"github.com/mendersoftware/azure-iot-manager/client/workflows"
-	"github.com/mendersoftware/azure-iot-manager/model"
-	"github.com/mendersoftware/azure-iot-manager/store"
+	"github.com/mendersoftware/iot-manager/client"
+	"github.com/mendersoftware/iot-manager/client/iothub"
+	"github.com/mendersoftware/iot-manager/client/workflows"
+	"github.com/mendersoftware/iot-manager/model"
+	"github.com/mendersoftware/iot-manager/store"
 
 	"github.com/pkg/errors"
 )
@@ -68,7 +68,7 @@ type app struct {
 	wf    workflows.Client
 }
 
-// NewApp initialize a new azure-iot-manager App
+// NewApp initialize a new iot-manager App
 func New(ds store.DataStore, hub iothub.Client, wf workflows.Client) App {
 	return &app{
 		store: ds,

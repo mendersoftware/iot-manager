@@ -1,7 +1,7 @@
-[![Build Status](https://gitlab.com/Northern.tech/Mender/azure-iot-manager/badges/master/pipeline.svg)](https://gitlab.com/Northern.tech/Mender/azure-iot-manager/pipelines)
-[![Coverage Status](https://coveralls.io/repos/github/mendersoftware/azure-iot-manager/badge.svg?branch=master)](https://coveralls.io/github/mendersoftware/azure-iot-manager?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mendersoftware/azure-iot-manager)](https://goreportcard.com/report/github.com/mendersoftware/azure-iot-manager)
-[![Docker pulls](https://img.shields.io/docker/pulls/mendersoftware/azure-iot-manager.svg?maxAge=3600)](https://hub.docker.com/r/mendersoftware/azure-iot-manager/)
+[![Build Status](https://gitlab.com/Northern.tech/Mender/iot-manager/badges/master/pipeline.svg)](https://gitlab.com/Northern.tech/Mender/iot-manager/pipelines)
+[![Coverage Status](https://coveralls.io/repos/github/mendersoftware/iot-manager/badge.svg?branch=master)](https://coveralls.io/github/mendersoftware/iot-manager?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mendersoftware/iot-manager)](https://goreportcard.com/report/github.com/mendersoftware/iot-manager)
+[![Docker pulls](https://img.shields.io/docker/pulls/mendersoftware/iot-manager.svg?maxAge=3600)](https://hub.docker.com/r/mendersoftware/iot-manager/)
 
 Mender: Azure IoT Manager: use Azure IoT with Mender
 =============================
@@ -32,8 +32,8 @@ If you would like to build the Azure IoT Manager microservice independently, you
 these steps:
 
 ```
-git clone https://github.com/mendersoftware/azure-iot-manager.git
-cd azure-iot-manager
+git clone https://github.com/mendersoftware/iot-manager.git
+cd iot-manager
 make build
 ```
 
@@ -45,7 +45,7 @@ documentation](https://github.com/mendersoftware/mender/blob/master/CONTRIBUTING
 ## License
 
 Mender is licensed under the Apache License, Version 2.0. See
-[LICENSE](https://github.com/mendersoftware/azure-iot-manager/blob/master/LICENSE) for the
+[LICENSE](https://github.com/mendersoftware/iot-manager/blob/master/LICENSE) for the
 full license text.
 
 ## Security disclosure

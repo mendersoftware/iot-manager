@@ -31,9 +31,9 @@ import (
 	"testing"
 	"time"
 
-	common "github.com/mendersoftware/azure-iot-manager/client"
-	"github.com/mendersoftware/azure-iot-manager/model"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
+	common "github.com/mendersoftware/iot-manager/client"
+	"github.com/mendersoftware/iot-manager/model"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
