@@ -29,7 +29,7 @@ const (
 	DbVersion = "1.0.0"
 
 	// DbName is the database name
-	DbName = "azure_iot_manager"
+	DbName = "iot_manager"
 )
 
 // Migrate applies migrations to the database
