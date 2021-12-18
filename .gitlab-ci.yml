@@ -27,4 +27,4 @@ include:
 
 test:unit:
   variables:
-    AZURE_IOT_MANAGER_MONGO: mongo
+    IOT_MANAGER_MONGO: mongo
