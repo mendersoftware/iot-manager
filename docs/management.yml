@@ -1,9 +1,9 @@
 openapi: 3.0.3
 
 info:
-  title: Azure IoT Manager
+  title: IoT Manager
   description: |
-    API for managing Azure IoT Hub identities.
+    API for managing IoT Cloud integrations.
     Intended for use by the web GUI
 
   version: "1"
@@ -19,267 +19,270 @@ tags:
   - name: Management API
 
 paths:
-  /settings:
-    put:
-      operationId: Replace settings
+  /integrations:
+    get:
+      operationId: List integrations
+      summary: List all configured integrations
       tags:
         - Management API
-      summary: Configure Azure IoT Hub settings.
+      parameters:
+        - name: page
+          in: query
+          description: Page number.
+          required: false
+          schema:
+            type: number
+            format: integer
+            default: 1
+        - name: per_page
+          in: query
+          description: Number of results per page.
+          required: false
+          schema:
+            type: number
+            format: integer
+            default: 20
+      responses:
+        200:
+          description: OK. Returns list of integrations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+        400:
+          $ref: '#/components/responses/InvalidRequestError'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        403:
+          $ref: '#/components/responses/ForbiddenError'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      operationId: Register integration
+      summary: Register a new cloud integration
+      tags:
+        - Management API
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Settings'
+              $ref: '#/components/schemas/Integration'
+      responses:
+        200:
+          description: OK. Returns the registered integration.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+        400:
+          $ref: '#/components/responses/InvalidRequestError'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        403:
+          $ref: '#/components/responses/ForbiddenError'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /integrations/{id}:
+    delete:
+      operationId: Remove integration
+      summary: Remove a cloud integration
+      tags:
+        - Management API
+      parameters:
+        - name: id
+          in: path
+          description: Integration identifier.
+          required: true
+          schema:
+            type: string
       responses:
         204:
-          description: Success, no content
+          description: Integration unregistered successfully.
         400:
-          description: Bad Request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InvalidRequestError'
+          $ref: '#/components/responses/InvalidRequestError'
         401:
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/UnauthorizedError'
+          $ref: '#/components/responses/UnauthorizedError'
         403:
-          description: Forbidden.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/ForbiddenError'
-        404:
-          description: Not Found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/NotFoundError'
+          $ref: '#/components/responses/ForbiddenError'
         500:
-          description: Internal Server Error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
 
-    get:
-      operationId: Get settings
-      tags:
-        - Management API
-      summary: Configure Azure IoT Hub settings.
-      responses:
-        200:
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Settings'
-        401:
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/UnauthorizedError'
-        403:
-          description: Forbidden.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/ForbiddenError'
-        404:
-          description: Not Found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/NotFoundError'
-        500:
-          description: Internal Server Error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InternalServerError'
 
-  /devices/{id}/twin:
+  /integrations/{id}/credentials:
     put:
-      operationId: Replace Twin
+      operationId: Set integration credentials
+      summary: Replace the credentials associated with the integration.
       tags:
         - Management API
-      summary: Replace the device twin desired properties in IoT hub.
       parameters:
-        - in: path
-          name: id
+        - name: id
+          in: path
+          description: Integration identifier.
+          required: true
           schema:
             type: string
-          required: true
-          description: IoT Hub device ID.
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                properties:
-                  type: object
-                  description: >-
-                    The desired device twin properties
-                  additionalProperties: true
-                tags:
-                  description: >-
-                    Device tags only visible to the user
-                  type: object
-                  additionalProperties:
-                    type: string
+              $ref: '#/components/schemas/Credentials'
       responses:
-        200:
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DeviceTwin'
+        204:
+          description: Credentials updated successfully.
         400:
-          description: Bad Request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InvalidRequestError'
+          $ref: '#/components/responses/InvalidRequestError'
         401:
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/UnauthorizedError'
+          $ref: '#/components/responses/UnauthorizedError'
         403:
-          description: Forbidden.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/ForbiddenError'
+          $ref: '#/components/responses/ForbiddenError'
         404:
-          description: Not Found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/NotFoundError'
+          $ref: '#/components/responses/NotFoundError'
         500:
-          description: Internal Server Error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
 
-    patch:
-      operationId: Update Twin
+  /devices/{deviceId}:
+    delete:
+      operationId: Unregister device integrations
+      summary: Removes all associated cloud integrations for the device.
+      description: >-
+        Removes all associated cloud integrations for the device, but
+        does not clean up any external state.
       tags:
         - Management API
-      summary: Update the device twin desired properties in IoT hub.
       parameters:
-        - in: path
-          name: id
+        - name: deviceId
+          in: path
           schema:
             type: string
           required: true
-          description: IoT Hub device ID.
+          description: The unique ID of the device.
+      responses:
+        204:
+          description: OK. Device successfully unregistered.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceState'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        403:
+          $ref: '#/components/responses/ForbiddenError'
+        404:
+          $ref: '#/components/responses/NotFoundError'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /devices/{deviceId}/state:
+    get:
+      operationId: Get Device States
+      summary: Gets the desired and reported state of a device
+      tags:
+        - Management API
+      parameters:
+        - name: deviceId
+          in: path
+          schema:
+            type: string
+          required: true
+          description: The unique ID of the device.
+      responses:
+        200:
+          description: >-
+            OK.
+            Returns device reported and desired states for all integrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: >-
+                  Mapping from integration ID to DeviceState objects
+                  for all applicable integrations.
+                additionalProperties:
+                  $ref: '#/components/schemas/DeviceState'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        404:
+          $ref: '#/components/responses/NotFoundError'
+        403:
+          $ref: '#/components/responses/ForbiddenError'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
+  /devices/{deviceId}/state/{integrationId}:
+    put:
+      operationId: Replace State
+      summary: Replaces the (desired) cloud state of the device for the given integration
+      tags:
+        - Management API
+      parameters:
+        - name: deviceId
+          in: path
+          schema:
+            type: string
+          required: true
+          description: The unique ID of the device.
+        - name: integrationId
+          in: path
+          schema:
+            type: string
+          required: true
+          description: The unique ID of the integration.
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                properties:
-                  type: object
-                  description: >-
-                    The desired device twin properties
-                  additionalProperties: true
-                tags:
-                  description: >-
-                    Device tags only visible to the user
-                  type: object
-                  additionalProperties:
-                    type: string
-
+              $ref: '#/components/schemas/DeviceState'
       responses:
         200:
-          description: Success.
+          description: OK. Returns the updated device state.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceTwin'
+                $ref: '#/components/schemas/DeviceState'
         400:
-          description: Bad Request.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InvalidRequestError'
+          $ref: '#/components/responses/InvalidRequestError'
         401:
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/UnauthorizedError'
+          $ref: '#/components/responses/UnauthorizedError'
         403:
-          description: Forbidden.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/ForbiddenError'
-        404:
-          description: Not Found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/NotFoundError'
+          $ref: '#/components/responses/ForbiddenError'
         500:
-          description: Internal Server Error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
 
     get:
-      operationId: Get Twin
+      operationId: Get Device State
+      summary: Gets the desired and reported state of a device from an integration
       tags:
         - Management API
-      summary: Get the device twin from IoT hub.
       parameters:
-        - in: path
-          name: id
+        - name: deviceId
+          in: path
           schema:
             type: string
           required: true
-          description: IoT Hub device ID.
+          description: The unique ID of the device.
+        - name: integrationId
+          in: path
+          schema:
+            type: string
+          required: true
+          description: The unique ID of the integration.
       responses:
         200:
-          description: Success.
+          description: OK. Returns device reported and desired state for the integration.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DeviceTwin'
+                $ref: '#/components/schemas/DeviceState'
         401:
-          description: Unauthorized.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/UnauthorizedError'
-        403:
-          description: Forbidden.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/ForbiddenError'
+          $ref: '#/components/responses/UnauthorizedError'
         404:
-          description: Not Found.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/NotFoundError'
+          $ref: '#/components/responses/NotFoundError'
+        403:
+          $ref: '#/components/responses/ForbiddenError'
         500:
-          description: Internal Server Error.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/responses/InternalServerError'
+          $ref: '#/components/responses/InternalServerError'
 
 components:
   securitySchemes:
@@ -293,102 +296,66 @@ components:
         The JWT can be alternatively passed as a cookie named "JWT".
 
   schemas:
-    Settings:
+    Integration:
       type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: A unique integration identifier generated by the mender server
+        # rule:
+        #   type: object
+        #   properties:
+        #     kind:
+        #       type: string
+        #     priority:
+        #       type: number
+        #       format: integer
+        #     expression:
+        #       oneOf:
+        #         - '#/components/schemas/DeviceGroup'
+        provider:
+          type: string
+          enum:
+            - "iot-hub"
+        credentials:
+          $ref: '#/components/schemas/Credentials'
+      required:
+        - provider
+        - credentials
+
+    Credentials:
+      oneOf:
+        - $ref: '#/components/schemas/SharedAccessSecret'
+        # - $ref: '#/components/schemas/x509Cert'
+      discriminator:
+        propertyName: type
+        mapping:
+          sas: '#/components/schemas/SharedAccessSecret'
+          # x509: '#/components/schemas/x509Cert'
+
+
+    SharedAccessSecret:
+      type: object
+      description: |
+        Shared Access Secret is an authentication mechanism in the form of a
+        connection string for Azure IoT Hub.
       properties:
         connection_string:
           type: string
-          description: >-
-            Shared access policy connection string for connecting IoT Hub with Mender.
-            The policy requires at least the following permissions: Registry Read,
-            Registry Write and Service Connect.
+      required: [connection_string]
 
-    DeviceTwin:
-      externalDocs:
-        url: >-
-          https://docs.microsoft.com/en-us/rest/api/iothub/service/devices/update-twin#twin
+    DeviceState:
       type: object
-      properties:
-        authenticationType:
-          type: string
-          enum:
-            - certificateAuthority
-            - none
-            - sas
-            - selfSigned
-        capabilities:
-          type: object
-          description: Status of capabilities enabled on the device.
-          properties:
-            iotEdge:
-              type: boolean
-        cloudToDeviceMessageCount:
-          type: number
-          format: integer
-        connectionState:
-          type: string
-          enum: ["Connected", "Disconnected"]
-          description: The connection state of the device
-        deviceEtag:
-          type: string
-        deviceId:
-          type: string
-          description: The unique ID of the device within IoT Hub.
-        deviceScope:
-          type: string
-        etag:
-          type: string
-        lastActivityTime:
-          type: string
-          format: date-time
-        properties:
-          $ref: '#/components/schemas/TwinProperties'
-        status:
-          type: string
-          enum: ["enabled", "disabled"]
-          description: >-
-            The status of the device.
-            If disabled, the device cannot connect to the service.
-        statusReason:
-          type: string
-          description: Reason for last status change, if any.
-        statusUpdateTime:
-          type: string
-          format: date-time
-        tags:
-          type: object
-          description: >-
-            User-defined key/value pairs assigned to the device.
-            The object is allowed to have a maximum depth of 10,
-            and must be less than 4KiB in size.
-          additionalProperties: true
-        version:
-          type: integer
-        X509Thumbprint:
-          $ref: '#/components/schemas/X509Thumbprint'
-
-    TwinProperties:
-      type: object
-      description: >-
-        The desired and reported properties of the device.
-        The objects are allowed to have a maximum depth of 10,
-        and must be less than 4KiB in size.
       properties:
         desired:
-          type: object
+          description: |
+            The desired state for the device, as reported by the cloud/user.
           additionalProperties: true
         reported:
-          type: object
+          description: |
+            State reported by the device, this cannot be changed from the cloud.
           additionalProperties: true
-
-    X509Thumbprint:
-      type: object
-      description: The x509 thumbprint of the device.
-      properties:
-        primaryThumbprint:
-          type: string
-        secondaryThumbprint:
-          type: string
 
     Error:
       type: object
