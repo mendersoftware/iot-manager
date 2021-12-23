@@ -58,6 +58,20 @@ func (_m *DataStore) CreateIntegration(_a0 context.Context, _a1 model.Integratio
 	return r0
 }
 
+// DeleteDevice provides a mock function with given fields: ctx, deviceID
+func (_m *DataStore) DeleteDevice(ctx context.Context, deviceID string) error {
+	ret := _m.Called(ctx, deviceID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, deviceID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetDevice provides a mock function with given fields: ctx, deviceID
 func (_m *DataStore) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
 	ret := _m.Called(ctx, deviceID)
@@ -127,13 +141,13 @@ func (_m *DataStore) GetIntegrationById(_a0 context.Context, _a1 uuid.UUID) (*mo
 	return r0, r1
 }
 
-// GetIntegrations provides a mock function with given fields: _a0
-func (_m *DataStore) GetIntegrations(_a0 context.Context) ([]model.Integration, error) {
-	ret := _m.Called(_a0)
+// GetIntegrations provides a mock function with given fields: _a0, _a1
+func (_m *DataStore) GetIntegrations(_a0 context.Context, _a1 model.IntegrationFilter) ([]model.Integration, error) {
+	ret := _m.Called(_a0, _a1)
 
 	var r0 []model.Integration
-	if rf, ok := ret.Get(0).(func(context.Context) []model.Integration); ok {
-		r0 = rf(_a0)
+	if rf, ok := ret.Get(0).(func(context.Context, model.IntegrationFilter) []model.Integration); ok {
+		r0 = rf(_a0, _a1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.Integration)
@@ -141,8 +155,8 @@ func (_m *DataStore) GetIntegrations(_a0 context.Context) ([]model.Integration, 
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = rf(_a0)
+	if rf, ok := ret.Get(1).(func(context.Context, model.IntegrationFilter) error); ok {
+		r1 = rf(_a0, _a1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -162,4 +176,48 @@ func (_m *DataStore) Ping(ctx context.Context) error {
 	}
 
 	return r0
+}
+
+// RemoveIntegrationFromDevices provides a mock function with given fields: ctx, id
+func (_m *DataStore) RemoveIntegrationFromDevices(ctx context.Context, id uuid.UUID) (int64, error) {
+	ret := _m.Called(ctx, id)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpsertDeviceIntegrations provides a mock function with given fields: ctx, deviceID, integrationIDs
+func (_m *DataStore) UpsertDeviceIntegrations(ctx context.Context, deviceID string, integrationIDs []uuid.UUID) (*model.Device, error) {
+	ret := _m.Called(ctx, deviceID, integrationIDs)
+
+	var r0 *model.Device
+	if rf, ok := ret.Get(0).(func(context.Context, string, []uuid.UUID) *model.Device); ok {
+		r0 = rf(ctx, deviceID, integrationIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Device)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, []uuid.UUID) error); ok {
+		r1 = rf(ctx, deviceID, integrationIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

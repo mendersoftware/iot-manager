@@ -255,11 +255,12 @@ func (a *app) GetDeviceStateIntegration(
 	deviceID string,
 	integrationID uuid.UUID,
 ) (*model.DeviceState, error) {
-	device, err := a.store.GetDeviceByIntegrationID(ctx, deviceID, integrationID)
+	_, err := a.store.GetDeviceByIntegrationID(ctx, deviceID, integrationID)
 	if err != nil {
+		if err == store.ErrObjectNotFound {
+			return nil, ErrIntegrationNotFound
+		}
 		return nil, errors.Wrap(err, "failed to retrieve the device")
-	} else if device == nil {
-		return nil, ErrIntegrationNotFound
 	}
 	integration, err := a.store.GetIntegrationById(ctx, integrationID)
 	if integration == nil && (err == nil || err == store.ErrObjectNotFound) {

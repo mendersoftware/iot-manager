@@ -59,6 +59,11 @@ func TestUUIDEncodeDecode(t *testing.T) {
 		Value: struct {
 			uuid.UUID `bson:",omitempty"`
 		}{},
+	}, {
+		Name: "ok, empty slice",
+		Value: struct {
+			UUIDS []uuid.UUID
+		}{UUIDS: []uuid.UUID{}},
 	}}
 	for i := range testCases {
 		tc := testCases[i]

@@ -20,13 +20,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/mendersoftware/go-lib-micro/mongo/migrate"
 )
 
 type index struct {
-	Keys map[string]int `bson:"key"`
-	Name string         `bson:"name"`
+	Keys bson.D `bson:"key"`
+	Name string `bson:"name"`
 }
 
 func TestMigration_1_0_0(t *testing.T) {
@@ -51,17 +52,50 @@ func TestMigration_1_0_0(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, idxes, 2)
 	for _, idx := range idxes {
-		if _, ok := idx.Keys["_id"]; ok && len(idx.Keys) == 1 {
-			// Skip default index
-			continue
+		if len(idx.Keys) == 1 {
+			if idx.Keys[0].Key == "_id" {
+				// Skip default index
+				continue
+			}
 		}
 		switch idx.Name {
 		case IndexNameIntegrationsGet:
-			assert.Equal(t, map[string]int{
-				KeyTenantID: 1,
-				KeyID:       1,
-				KeyProvider: 1,
+			assert.EqualValues(t, bson.D{
+				{Key: KeyTenantID, Value: int32(1)},
+				{Key: KeyProvider, Value: int32(1)},
+				{Key: KeyID, Value: int32(1)},
 			}, idx.Keys)
+
+		default:
+			assert.Failf(t, "Index name \"%s\" not recognized", idx.Name)
+		}
+	}
+
+	iv = client.Database(DbName).
+		Collection(CollNameDevices).
+		Indexes()
+	cur, err = iv.List(ctx)
+	require.NoError(t, err)
+
+	idxes = []index{}
+	err = cur.All(ctx, &idxes)
+	require.NoError(t, err)
+	require.Len(t, idxes, 2)
+	for _, idx := range idxes {
+		if len(idx.Keys) == 1 {
+			if idx.Keys[0].Key == "_id" {
+				// Skip default index
+				continue
+			}
+		}
+		switch idx.Name {
+		case IndexNameDevices:
+			assert.Equal(t, bson.D{
+				{Key: KeyTenantID, Value: int32(1)},
+				{Key: KeyIntegrationIDs, Value: int32(1)},
+				{Key: KeyID, Value: int32(1)},
+			}, idx.Keys)
+
 		default:
 			assert.Failf(t, "Index name \"%s\" not recognized", idx.Name)
 		}

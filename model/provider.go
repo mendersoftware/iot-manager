@@ -19,6 +19,7 @@ import validation "github.com/go-ozzo/ozzo-validation/v4"
 type Provider string
 
 const (
+	ProviderEmpty  Provider = ""
 	ProviderIoTHub Provider = "iot-hub"
 )
 

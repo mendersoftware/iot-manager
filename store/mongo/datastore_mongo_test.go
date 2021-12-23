@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/store"
@@ -203,7 +204,7 @@ func TestGetIntegrations(t *testing.T) {
 			}
 
 			db := NewDataStoreWithClient(client)
-			integrations, err := db.GetIntegrations(tc.CTX)
+			integrations, err := db.GetIntegrations(tc.CTX, model.IntegrationFilter{}) // TODO
 			if tc.Error != nil {
 				if assert.Error(t, err) {
 					assert.Regexp(t,
@@ -245,6 +246,8 @@ func TestGetDevice(t *testing.T) {
 			CTX: identity.WithContext(context.Background(), &identity.Identity{
 				Tenant: "111111111111111111111111",
 			}),
+
+			Error: store.ErrObjectNotFound,
 		},
 		{
 			Name: "error, context deadline exceeded",
@@ -288,72 +291,6 @@ func TestGetDevice(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.Device, device)
-			}
-		})
-	}
-}
-
-func TestGetDeviceByIntegrationID(t *testing.T) {
-	const deviceID = "1"
-	const tenantID = "123456789012345678901234"
-	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
-	testCases := []struct {
-		Name string
-
-		CTX context.Context
-
-		Device   *model.Device
-		NotFound bool
-	}{
-		{
-			Name: "ok",
-			CTX: identity.WithContext(context.Background(), &identity.Identity{
-				Tenant: tenantID,
-			}),
-			Device: &model.Device{
-				ID:             deviceID,
-				IntegrationIDs: []uuid.UUID{integrationID},
-			},
-		},
-		{
-			Name: "not found",
-			CTX: identity.WithContext(context.Background(), &identity.Identity{
-				Tenant: "111111111111111111111111",
-			}),
-			Device: &model.Device{
-				ID:             deviceID,
-				IntegrationIDs: []uuid.UUID{},
-			},
-			NotFound: true,
-		},
-	}
-	for i := range testCases {
-		tc := testCases[i]
-		t.Run(tc.Name, func(t *testing.T) {
-			db.Wipe()
-			client := db.Client()
-			collDevices := client.
-				Database(DbName).
-				Collection(CollNameDevices)
-
-			ctx := identity.WithContext(context.Background(), &identity.Identity{
-				Tenant: tenantID,
-			})
-
-			if tc.Device != nil {
-				_, err := collDevices.InsertMany(ctx, []interface{}{
-					mstore.WithTenantID(ctx, tc.Device),
-				})
-				assert.NoError(t, err)
-			}
-
-			db := NewDataStoreWithClient(client)
-			device, err := db.GetDeviceByIntegrationID(tc.CTX, deviceID, integrationID)
-			assert.NoError(t, err)
-			if tc.NotFound {
-				assert.Nil(t, device)
-			} else {
 				assert.Equal(t, tc.Device, device)
 			}
 		})
@@ -433,4 +370,91 @@ func TestGetIntegrationById(t *testing.T) {
 			}
 		})
 	}
+}
+
+func testSetDevices() []model.Device {
+
+	newUUID := func(dgst string) string {
+		return uuid.NewSHA1(uuid.NameSpaceOID, []byte(dgst)).String()
+	}
+	return []model.Device{{
+		ID: newUUID("1"),
+		IntegrationIDs: []uuid.UUID{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")),
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("2")),
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("3")),
+		},
+	}, {
+		ID: newUUID("2"),
+		IntegrationIDs: []uuid.UUID{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")),
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("2")),
+		},
+	}, {
+		ID: newUUID("3"),
+		IntegrationIDs: []uuid.UUID{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("2")),
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("3")),
+		},
+	}, {
+		ID: newUUID("4"),
+		IntegrationIDs: []uuid.UUID{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")),
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("3")),
+		},
+	}, {
+		ID: newUUID("5"),
+		IntegrationIDs: []uuid.UUID{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")),
+		},
+	}, {
+		ID: newUUID("6"),
+		IntegrationIDs: []uuid.UUID{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("2")),
+		},
+	}, {
+		ID: newUUID("7"),
+		IntegrationIDs: []uuid.UUID{
+			uuid.NewSHA1(uuid.NameSpaceOID, []byte("3")),
+		},
+	}, {
+		ID:             newUUID("8"),
+		IntegrationIDs: []uuid.UUID{},
+	}}
+}
+
+func insertDevices(ctx context.Context, db *mongo.Database, devices []model.Device) {
+	collDevices := db.Collection(CollNameDevices)
+	for _, device := range devices {
+		_, err := collDevices.InsertOne(ctx, mstore.WithTenantID(ctx, device))
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
+func TestGetDeviceByID(t *testing.T) {
+	t.Parallel()
+	ds := NewDataStoreWithClient(db.Client())
+
+	ctxEmpty := context.Background()
+	ctxTenant := identity.WithContext(ctxEmpty, &identity.Identity{
+		Tenant: "123456789012345678901234",
+	})
+	database := db.Client().Database(DbName)
+	devices := testSetDevices()
+	insertDevices(ctxEmpty, database, devices[:5])
+	insertDevices(ctxTenant, database, devices[5:])
+
+	dev, err := ds.GetDevice(ctxEmpty, uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")).String())
+	assert.NoError(t, err)
+	assert.Equal(t, &devices[0], dev)
+	dev, err = ds.GetDevice(ctxTenant, uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")).String())
+	assert.EqualError(t, err, store.ErrObjectNotFound.Error())
+
+	dev, err = ds.GetDevice(ctxEmpty, uuid.NewSHA1(uuid.NameSpaceOID, []byte("7")).String())
+	assert.EqualError(t, err, store.ErrObjectNotFound.Error())
+	dev, err = ds.GetDevice(ctxTenant, uuid.NewSHA1(uuid.NameSpaceOID, []byte("7")).String())
+	assert.NoError(t, err)
+	assert.Equal(t, &devices[6], dev)
 }

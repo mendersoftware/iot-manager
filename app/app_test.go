@@ -908,6 +908,7 @@ func TestGetDeviceStateIntegration(t *testing.T) {
 			DeviceID:      "1",
 			IntegrationID: integrationID,
 
+			GetDeviceByIntegrationIDError:  store.ErrObjectNotFound,
 			GetDeviceStateIntegrationError: ErrIntegrationNotFound,
 		},
 		{
@@ -975,7 +976,7 @@ func TestGetDeviceStateIntegration(t *testing.T) {
 				tc.GetDeviceByIntegrationID,
 				tc.GetDeviceByIntegrationIDError,
 			)
-			if tc.GetDeviceByIntegrationID != nil && tc.GetDeviceByIntegrationIDError == nil {
+			if tc.GetDeviceByIntegrationIDError == nil {
 				store.On("GetIntegrationById",
 					contextMatcher,
 					tc.IntegrationID,

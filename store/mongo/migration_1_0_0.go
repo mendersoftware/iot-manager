@@ -26,6 +26,7 @@ import (
 
 const (
 	IndexNameIntegrationsGet = KeyTenantID + "_" + KeyProvider + "_" + KeyID
+	IndexNameDevices         = KeyTenantID + "_" + KeyIntegrationIDs + "_" + KeyID
 )
 
 type migration_1_0_0 struct {
@@ -33,11 +34,10 @@ type migration_1_0_0 struct {
 	db     string
 }
 
-// Up creates indexes for fetching by device ID and sorting by timestamp,
-// and a TTL index for evicting expired alerts.
+// Up creates indexes for fetching device and integration documents
 func (m *migration_1_0_0) Up(from migrate.Version) error {
 	ctx := context.Background()
-	indexModels := []mongo.IndexModel{{
+	itgModels := []mongo.IndexModel{{
 		Keys: bson.D{
 			// $match ($eq)
 			{Key: KeyTenantID, Value: 1},
@@ -49,13 +49,32 @@ func (m *migration_1_0_0) Up(from migrate.Version) error {
 		Options: mopts.Index().
 			SetName(IndexNameIntegrationsGet),
 	}}
-	collLogs := m.client.
+	devicesModels := []mongo.IndexModel{{
+		Keys: bson.D{
+			// $match ($eq)
+			{Key: KeyTenantID, Value: 1},
+			// $match ($eq)
+			{Key: KeyIntegrationIDs, Value: 1},
+			// $match or $sort
+			{Key: KeyID, Value: 1},
+		},
+		Options: mopts.Index().
+			SetName(IndexNameDevices),
+	}}
+	idxItg := m.client.
 		Database(m.db).
-		Collection(CollNameIntegrations)
+		Collection(CollNameIntegrations).
+		Indexes()
 
-	idxView := collLogs.Indexes()
+	_, err := idxItg.CreateMany(ctx, itgModels)
+	if err != nil {
+		return err
+	}
+	idxDevices := m.client.Database(m.db).
+		Collection(CollNameDevices).
+		Indexes()
 
-	_, err := idxView.CreateMany(ctx, indexModels)
+	_, err = idxDevices.CreateMany(ctx, devicesModels)
 	return err
 }
 

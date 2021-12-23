@@ -60,3 +60,10 @@ func (s Credentials) Validate() error {
 			validation.When(s.Type == CredentialTypeSAS, validation.Required)),
 	)
 }
+
+type IntegrationFilter struct {
+	Skip     int64
+	Limit    int64
+	Provider Provider
+	IDs      []uuid.UUID
+}
