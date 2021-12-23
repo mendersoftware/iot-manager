@@ -18,6 +18,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
@@ -54,8 +55,10 @@ const (
 //go:generate ../utils/mockgen.sh
 type App interface {
 	HealthCheck(context.Context) error
-	GetSettings(context.Context) (model.Settings, error)
-	SetSettings(context.Context, model.Settings) error
+	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
+	GetIntegrations(context.Context) ([]model.Integration, error)
+	GetIntegrationById(context.Context, string) (model.Integration, error)
+	CreateIntegration(context.Context, model.Integration) error
 	SetDeviceStatus(context.Context, string, Status) error
 	ProvisionDevice(context.Context, string) error
 	DeleteIOTHubDevice(context.Context, string) error
@@ -82,20 +85,42 @@ func (a *app) HealthCheck(ctx context.Context) error {
 	return a.store.Ping(ctx)
 }
 
-func (a *app) GetSettings(ctx context.Context) (model.Settings, error) {
-	return a.store.GetSettings(ctx)
+func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) {
+	return a.store.GetIntegrations(ctx)
 }
 
-func (a *app) SetSettings(ctx context.Context, settings model.Settings) error {
-	return a.store.SetSettings(ctx, settings)
+func (a *app) GetIntegrationById(ctx context.Context, deviceID string) (model.Integration, error) {
+	deviceId, err := uuid.Parse(deviceID)
+	if err != nil {
+		return model.Integration{}, errors.Wrap(err, "failed to parse deviceID")
+	}
+	return a.store.GetIntegrationById(ctx, deviceId)
+}
+
+func (a *app) CreateIntegration(ctx context.Context, integration model.Integration) error {
+	return a.store.CreateIntegration(ctx, integration)
+}
+
+func (a *app) GetDeviceIntegrations(
+	ctx context.Context,
+	deviceID string,
+) ([]model.Integration, error) {
+	// TODO: stub only, needs to be implemented
+	return []model.Integration{}, nil
 }
 
 func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Status) error {
-	settings, err := a.GetSettings(ctx)
+	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve settings")
 	}
-	cs := settings.ConnectionString
+	// TODO: move to GetDeviceIntegrations
+	if len(integrations) > 1 {
+		return errors.Wrap(err, "device can have only one integration")
+	}
+	deviceIntegration := integrations[0]
+
+	cs := deviceIntegration.Credentials.Creds
 	if cs == nil {
 		return ErrNoConnectionString
 	}
@@ -116,11 +141,17 @@ func (a *app) ProvisionDevice(
 	ctx context.Context,
 	deviceID string,
 ) error {
-	settings, err := a.GetSettings(ctx)
+	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve settings")
+		return errors.Wrap(err, "failed to retrieve integration")
 	}
-	cs := settings.ConnectionString
+	// TODO: move to GetDeviceIntegrations
+	if len(integrations) > 1 {
+		return errors.Wrap(err, "device can have only one integration")
+	}
+	deviceIntegration := integrations[0]
+
+	cs := deviceIntegration.Credentials.Creds
 	if cs == nil {
 		return ErrNoConnectionString
 	}
@@ -167,11 +198,20 @@ func (a *app) ProvisionDevice(
 }
 
 func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
-	settings, err := a.GetSettings(ctx)
+	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve settings")
 	}
-	cs := settings.ConnectionString
+	// TODO: move to GetDeviceIntegrations
+	if len(integrations) > 1 {
+		return errors.Wrap(err, "device can have only one integration")
+	}
+	deviceIntegration := integrations[0]
+
+	cs := deviceIntegration.Credentials.Creds
+	if cs == nil {
+		return ErrNoConnectionString
+	}
 	if cs == nil {
 		return ErrNoConnectionString
 	}

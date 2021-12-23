@@ -31,7 +31,6 @@ import (
 	mapp "github.com/mendersoftware/iot-manager/app/mocks"
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -91,9 +90,19 @@ func TestIOTHubExternal(t *testing.T) {
 	const testKey = "_TESTING"
 	mockApp := new(mapp.App)
 	defer mockApp.AssertExpectations(t)
-	mockApp.On("GetSettings", mock.Anything).
-		Return(model.Settings{
-			ConnectionString: externalCS,
+	mockApp.On("GetDeviceIntegrations", contextMatcher).
+		Return([]model.Integration{
+			{
+				Provider: model.AzureIoTHub,
+				Credentials: model.Credentials{
+					Type: "connection_string",
+					Creds: &model.ConnectionString{
+						HostName: "localhost",
+						Key:      []byte("secret"),
+						Name:     "foobar",
+					},
+				},
+			},
 		}, nil)
 	handler := NewRouter(mockApp)
 	srv := httptest.NewServer(handler)

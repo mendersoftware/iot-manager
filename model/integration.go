@@ -12,29 +12,26 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-package store
+package model
 
 import (
-	"context"
-	"errors"
-
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
-	"github.com/mendersoftware/iot-manager/model"
 )
 
-// DataStore interface for DataStore services
-//nolint:lll
-//go:generate ../utils/mockgen.sh
-type DataStore interface {
-	Ping(ctx context.Context) error
-	Close() error
-
-	GetIntegrations(context.Context) ([]model.Integration, error)
-	GetIntegrationById(context.Context, uuid.UUID) (model.Integration, error)
-	CreateIntegration(context.Context, model.Integration) error
+type Integration struct {
+	ID          uuid.UUID   `json:"id" bson:"_id"`
+	Provider    Provider    `json:"provider" bson:"provider"`
+	Credentials Credentials `json:"credentials" bson:"credentials"`
 }
 
-var (
-	ErrSerialization  = errors.New("store: failed to serialize object")
-	ErrObjectNotFound = errors.New("store: object not found")
-)
+type Credentials struct {
+	Type  string            `json:"type" bson:"type"`
+	Creds *ConnectionString `json:"credentials" bson:"credentials"`
+}
+
+func (s Credentials) Validate() error {
+	return validation.ValidateStruct(&s,
+		validation.Field(&s.Creds),
+	)
+}

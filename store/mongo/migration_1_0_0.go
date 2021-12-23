@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	IndexNameSettingsGet = "settings get"
+	IndexNameIntegrationsGet = "integrations get"
 )
 
 type migration_1_0_0 struct {
@@ -43,11 +43,11 @@ func (m *migration_1_0_0) Up(from migrate.Version) error {
 			{Key: KeyTenantID, Value: 1},
 		},
 		Options: mopts.Index().
-			SetName(IndexNameSettingsGet),
+			SetName(IndexNameIntegrationsGet),
 	}}
 	collLogs := m.client.
 		Database(m.db).
-		Collection(CollNameSettings)
+		Collection(CollNameIntegrations)
 
 	idxView := collLogs.Indexes()
 

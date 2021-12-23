@@ -39,9 +39,8 @@ func TestMigration_1_0_0(t *testing.T) {
 
 	err := m.Up(from)
 	require.NoError(t, err)
-
 	iv := client.Database(DbName).
-		Collection(CollNameSettings).
+		Collection(CollNameIntegrations).
 		Indexes()
 	ctx := context.Background()
 	cur, err := iv.List(ctx)
@@ -57,7 +56,7 @@ func TestMigration_1_0_0(t *testing.T) {
 			continue
 		}
 		switch idx.Name {
-		case IndexNameSettingsGet:
+		case IndexNameIntegrationsGet:
 			assert.Equal(t, map[string]int{
 				KeyTenantID: 1,
 			}, idx.Keys)

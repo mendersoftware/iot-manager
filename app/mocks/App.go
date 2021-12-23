@@ -31,6 +31,20 @@ type App struct {
 	mock.Mock
 }
 
+// CreateIntegration provides a mock function with given fields: _a0, _a1
+func (_m *App) CreateIntegration(_a0 context.Context, _a1 model.Integration) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, model.Integration) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeleteIOTHubDevice provides a mock function with given fields: _a0, _a1
 func (_m *App) DeleteIOTHubDevice(_a0 context.Context, _a1 string) error {
 	ret := _m.Called(_a0, _a1)
@@ -45,15 +59,61 @@ func (_m *App) DeleteIOTHubDevice(_a0 context.Context, _a1 string) error {
 	return r0
 }
 
-// GetSettings provides a mock function with given fields: _a0
-func (_m *App) GetSettings(_a0 context.Context) (model.Settings, error) {
+// GetDeviceIntegrations provides a mock function with given fields: _a0, _a1
+func (_m *App) GetDeviceIntegrations(_a0 context.Context, _a1 string) ([]model.Integration, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 []model.Integration
+	if rf, ok := ret.Get(0).(func(context.Context, string) []model.Integration); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Integration)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetIntegrationById provides a mock function with given fields: _a0, _a1
+func (_m *App) GetIntegrationById(_a0 context.Context, _a1 string) (model.Integration, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 model.Integration
+	if rf, ok := ret.Get(0).(func(context.Context, string) model.Integration); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Get(0).(model.Integration)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetIntegrations provides a mock function with given fields: _a0
+func (_m *App) GetIntegrations(_a0 context.Context) ([]model.Integration, error) {
 	ret := _m.Called(_a0)
 
-	var r0 model.Settings
-	if rf, ok := ret.Get(0).(func(context.Context) model.Settings); ok {
+	var r0 []model.Integration
+	if rf, ok := ret.Get(0).(func(context.Context) []model.Integration); ok {
 		r0 = rf(_a0)
 	} else {
-		r0 = ret.Get(0).(model.Settings)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Integration)
+		}
 	}
 
 	var r1 error
@@ -101,20 +161,6 @@ func (_m *App) SetDeviceStatus(_a0 context.Context, _a1 string, _a2 app.Status) 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, app.Status) error); ok {
 		r0 = rf(_a0, _a1, _a2)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SetSettings provides a mock function with given fields: _a0, _a1
-func (_m *App) SetSettings(_a0 context.Context, _a1 model.Settings) error {
-	ret := _m.Called(_a0, _a1)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, model.Settings) error); ok {
-		r0 = rf(_a0, _a1)
 	} else {
 		r0 = ret.Error(0)
 	}

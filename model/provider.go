@@ -14,15 +14,8 @@
 
 package model
 
-import validation "github.com/go-ozzo/ozzo-validation/v4"
+type Provider string
 
-//nolint:lll
-type Settings struct {
-	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
-}
-
-func (s Settings) Validate() error {
-	return validation.ValidateStruct(&s,
-		validation.Field(&s.ConnectionString),
-	)
-}
+const (
+	AzureIoTHub Provider = "azure_iot_hub"
+)

@@ -56,8 +56,8 @@ var (
 // ManagementHandler is the namespace for management API handlers.
 type ManagementHandler APIHandler
 
-// GET /settings
-func (h *ManagementHandler) GetSettings(c *gin.Context) {
+// GET /integrations
+func (h *ManagementHandler) GetIntegrations(c *gin.Context) {
 	var (
 		ctx = c.Request.Context()
 		id  = identity.FromContext(ctx)
@@ -67,7 +67,8 @@ func (h *ManagementHandler) GetSettings(c *gin.Context) {
 		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
 		return
 	}
-	settings, err := h.app.GetSettings(ctx)
+
+	integrations, err := h.app.GetIntegrations(ctx)
 	if err != nil {
 		rest.RenderError(c,
 			http.StatusInternalServerError,
@@ -76,11 +77,11 @@ func (h *ManagementHandler) GetSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, settings)
+	c.JSON(http.StatusOK, integrations)
 }
 
-// PUT /settings
-func (h *ManagementHandler) SetSettings(c *gin.Context) {
+// POST /integrations
+func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 	var (
 		ctx = c.Request.Context()
 		id  = identity.FromContext(ctx)
@@ -91,8 +92,8 @@ func (h *ManagementHandler) SetSettings(c *gin.Context) {
 		return
 	}
 
-	settings := model.Settings{}
-	if err := c.ShouldBindJSON(&settings); err != nil {
+	integration := model.Integration{}
+	if err := c.ShouldBindJSON(&integration); err != nil {
 		rest.RenderError(c,
 			http.StatusBadRequest,
 			errors.Wrap(err, "malformed request body"),
@@ -100,11 +101,11 @@ func (h *ManagementHandler) SetSettings(c *gin.Context) {
 		return
 	}
 
-	// TODO verify that connectionstring has correct permissions
+	// TODO verify that Azure connectionstring / AWS equivalent has correct permissions
 	//      - service
 	//      - registry read/write
 
-	err := h.app.SetSettings(ctx, settings)
+	err := h.app.CreateIntegration(ctx, integration)
 	if err != nil {
 		_ = c.Error(err)
 		rest.RenderError(c,

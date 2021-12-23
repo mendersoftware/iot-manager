@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -36,15 +37,15 @@ import (
 )
 
 const (
-	CollNameSettings = "settings"
-	KeyTenantID      = "tenant_id"
+	CollNameIntegrations = "integrations"
+	KeyTenantID          = "tenant_id"
 
 	ConnectTimeoutSeconds = 10
 	defaultAutomigrate    = false
 )
 
 var (
-	ErrFailedToGetSettings = errors.New("Failed to get settings")
+	ErrFailedToGetIntegrations = errors.New("Failed to get integrations")
 )
 
 type Config struct {
@@ -171,48 +172,65 @@ func (db *DataStoreMongo) Close() error {
 	return err
 }
 
-func (db *DataStoreMongo) SetSettings(ctx context.Context, settings model.Settings) error {
-	collSettings := db.client.Database(DbName).Collection(CollNameSettings)
-	o := mopts.Replace().SetUpsert(true)
-
-	identity := identity.FromContext(ctx)
-	tenantID := ""
-	if identity != nil {
-		tenantID = identity.Tenant
-	}
-
-	_, err := collSettings.ReplaceOne(
-		ctx,
-		bson.D{{Key: KeyTenantID, Value: tenantID}},
-		mstore.WithTenantID(ctx, settings),
-		o,
+func (db *DataStoreMongo) GetIntegrations(ctx context.Context) ([]model.Integration, error) {
+	// TODO: Should I add filter with limit?
+	var (
+		err     error
+		results = []model.Integration{}
 	)
-	if err != nil && err != mongo.ErrNoDocuments {
-		return errors.Wrapf(err, "failed to store settings %v", settings)
-	}
 
-	return err
-}
-
-func (db *DataStoreMongo) GetSettings(ctx context.Context) (model.Settings, error) {
-	var settings model.Settings
-
-	collSettings := db.client.Database(DbName).Collection(CollNameSettings)
+	collIntegrations := db.client.Database(DbName).Collection(CollNameIntegrations)
 	tenantId := ""
 	id := identity.FromContext(ctx)
 	if id != nil {
 		tenantId = id.Tenant
 	}
 
-	if err := collSettings.FindOne(ctx,
+	cur, err := collIntegrations.Find(ctx, bson.M{KeyTenantID: tenantId})
+	if err != nil {
+		return nil, errors.Wrap(err, "error executing integrations collection request")
+	}
+	if err = cur.All(ctx, &results); err != nil {
+		return nil, errors.Wrap(err, "error retrieving integrations collection results")
+	}
+
+	return results, nil
+}
+
+//nolint:lll
+func (db *DataStoreMongo) GetIntegrationById(ctx context.Context, integrationId uuid.UUID) (model.Integration, error) {
+	var integration model.Integration
+
+	collIntegrations := db.client.Database(DbName).Collection(CollNameIntegrations)
+	tenantId := ""
+	id := identity.FromContext(ctx)
+	if id != nil {
+		tenantId = id.Tenant
+	}
+
+	if err := collIntegrations.FindOne(ctx,
 		bson.M{KeyTenantID: tenantId},
-	).Decode(&settings); err != nil {
+	).Decode(&integration); err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
-			return model.Settings{}, nil
+			return model.Integration{}, nil
 		default:
-			return model.Settings{}, errors.Wrap(err, ErrFailedToGetSettings.Error())
+			return model.Integration{}, errors.Wrap(err, ErrFailedToGetIntegrations.Error())
 		}
 	}
-	return settings, nil
+	return integration, nil
+}
+
+//nolint:lll
+func (db *DataStoreMongo) CreateIntegration(ctx context.Context, integration model.Integration) error {
+	collIntegrations := db.client.Database(DbName).Collection(CollNameIntegrations)
+
+	// TODO: check if given tenant has already existing integration, forbid if true
+
+	_, err := collIntegrations.InsertOne(ctx, mstore.WithTenantID(ctx, integration))
+	if err != nil && err != mongo.ErrNoDocuments {
+		return errors.Wrapf(err, "failed to store integration %v", integration)
+	}
+
+	return err
 }

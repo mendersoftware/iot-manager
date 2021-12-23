@@ -47,6 +47,9 @@ const (
 
 	APIURLManagement = "/api/management/v1/iot-manager"
 
+	APIURLIntegrations = "/integrations"
+	APIURLIntegration  = "/integrations/:id"
+
 	APIURLSettings      = "/settings"
 	APIURLDevice        = "/devices/:id"
 	APIURLDeviceTwin    = "/devices/:id/twin"
@@ -108,8 +111,12 @@ func NewRouter(
 	internalAPI.PUT(APIURLTenantBulkStatus, internal.BulkSetDeviceStatus)
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
-	managementAPI.GET(APIURLSettings, management.GetSettings)
-	managementAPI.PUT(APIURLSettings, management.SetSettings)
+	managementAPI.GET(APIURLIntegrations, management.GetIntegrations)
+	// managementAPI.GET(APIURLIntegration, management.app.GetIntegrationById())
+	managementAPI.POST(APIURLIntegrations, management.CreateIntegration)
+
+	// managementAPI.GET(APIURLSettings, management.GetSettings)
+	// managementAPI.PUT(APIURLSettings, management.SetSettings)
 
 	return router
 }
