@@ -59,14 +59,16 @@ func (_m *DataStore) CreateIntegration(_a0 context.Context, _a1 model.Integratio
 }
 
 // GetIntegrationById provides a mock function with given fields: _a0, _a1
-func (_m *DataStore) GetIntegrationById(_a0 context.Context, _a1 uuid.UUID) (model.Integration, error) {
+func (_m *DataStore) GetIntegrationById(_a0 context.Context, _a1 uuid.UUID) (*model.Integration, error) {
 	ret := _m.Called(_a0, _a1)
 
-	var r0 model.Integration
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) model.Integration); ok {
+	var r0 *model.Integration
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) *model.Integration); ok {
 		r0 = rf(_a0, _a1)
 	} else {
-		r0 = ret.Get(0).(model.Integration)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Integration)
+		}
 	}
 
 	var r1 error

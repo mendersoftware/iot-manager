@@ -49,11 +49,6 @@ const (
 
 	APIURLIntegrations = "/integrations"
 	APIURLIntegration  = "/integrations/:id"
-
-	APIURLSettings      = "/settings"
-	APIURLDevice        = "/devices/:id"
-	APIURLDeviceTwin    = "/devices/:id/twin"
-	APIURLDeviceModules = "/devices/:id/modules"
 )
 
 const (

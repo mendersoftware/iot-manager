@@ -34,6 +34,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	APIURLDeviceTwin = "/devices/:id/twin"
+
+	HdrKeyAuthz = "Authorization"
+)
+
 var (
 	externalCS       *model.ConnectionString
 	externalDeviceID string
@@ -93,10 +99,10 @@ func TestIOTHubExternal(t *testing.T) {
 	mockApp.On("GetDeviceIntegrations", contextMatcher).
 		Return([]model.Integration{
 			{
-				Provider: model.AzureIoTHub,
+				Provider: model.ProviderIoTHub,
 				Credentials: model.Credentials{
 					Type: "connection_string",
-					Creds: &model.ConnectionString{
+					ConnectionString: &model.ConnectionString{
 						HostName: "localhost",
 						Key:      []byte("secret"),
 						Name:     "foobar",

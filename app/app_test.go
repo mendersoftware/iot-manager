@@ -133,10 +133,10 @@ func TestCreateIntegration(t *testing.T) {
 			Name: "integration created",
 
 			CreateIntegrationData: model.Integration{
-				Provider: model.AzureIoTHub,
+				Provider: model.ProviderIoTHub,
 				Credentials: model.Credentials{
 					Type: "connection_string",
-					Creds: &model.ConnectionString{
+					ConnectionString: &model.ConnectionString{
 						HostName: "localhost",
 						Key:      []byte("secret"),
 						Name:     "foobar",
