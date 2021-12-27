@@ -112,11 +112,8 @@ func NewRouter(
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
 	managementAPI.GET(APIURLIntegrations, management.GetIntegrations)
-	// managementAPI.GET(APIURLIntegration, management.app.GetIntegrationById())
+	managementAPI.GET(APIURLIntegration, management.GetIntegration)
 	managementAPI.POST(APIURLIntegrations, management.CreateIntegration)
-
-	// managementAPI.GET(APIURLSettings, management.GetSettings)
-	// managementAPI.PUT(APIURLSettings, management.SetSettings)
 
 	return router
 }

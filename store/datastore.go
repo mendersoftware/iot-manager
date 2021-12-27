@@ -31,7 +31,7 @@ type DataStore interface {
 	Close() error
 
 	GetIntegrations(context.Context) ([]model.Integration, error)
-	GetIntegrationById(context.Context, uuid.UUID) (model.Integration, error)
+	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
 	CreateIntegration(context.Context, model.Integration) error
 }
 

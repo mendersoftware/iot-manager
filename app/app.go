@@ -35,6 +35,9 @@ var (
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
 
 	ErrDeviceAlreadyExists = errors.New("device already exists")
+
+	ErrIntegrationNotFound = errors.New("integration not found")
+	ErrIntegrationExists   = errors.New("integration already exists")
 )
 
 const (
@@ -58,7 +61,7 @@ type App interface {
 	HealthCheck(context.Context) error
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
-	GetIntegrationById(context.Context, uuid.UUID) (model.Integration, error)
+	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
 	CreateIntegration(context.Context, model.Integration) error
 	SetDeviceStatus(context.Context, string, Status) error
 	ProvisionDevice(context.Context, string) error
@@ -90,8 +93,17 @@ func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) 
 	return a.store.GetIntegrations(ctx)
 }
 
-func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (model.Integration, error) {
-	return a.store.GetIntegrationById(ctx, id)
+func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (*model.Integration, error) {
+	integration, err := a.store.GetIntegrationById(ctx, id)
+	if err != nil {
+		switch cause := errors.Cause(err); cause {
+		case store.ErrObjectNotFound:
+			return nil, ErrIntegrationNotFound
+		default:
+			return nil, err
+		}
+	}
+	return integration, err
 }
 
 func (a *app) CreateIntegration(ctx context.Context, integration model.Integration) error {

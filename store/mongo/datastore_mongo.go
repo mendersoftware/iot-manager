@@ -200,8 +200,8 @@ func (db *DataStoreMongo) GetIntegrations(ctx context.Context) ([]model.Integrat
 func (db *DataStoreMongo) GetIntegrationById(
 	ctx context.Context,
 	integrationId uuid.UUID,
-) (model.Integration, error) {
-	var integration model.Integration
+) (*model.Integration, error) {
+	var integration = new(model.Integration)
 
 	collIntegrations := db.client.Database(DbName).Collection(CollNameIntegrations)
 	tenantId := ""
@@ -215,9 +215,9 @@ func (db *DataStoreMongo) GetIntegrationById(
 	).Decode(&integration); err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
-			return model.Integration{}, nil
+			return nil, store.ErrObjectNotFound
 		default:
-			return model.Integration{}, errors.Wrap(err, ErrFailedToGetIntegrations.Error())
+			return nil, errors.Wrap(err, ErrFailedToGetIntegrations.Error())
 		}
 	}
 	return integration, nil

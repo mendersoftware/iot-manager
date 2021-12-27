@@ -16,41 +16,23 @@ package http
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
+	"github.com/mendersoftware/iot-manager/app"
 	"github.com/mendersoftware/iot-manager/model"
-)
-
-const (
-	// https://docs.microsoft.com/en-us/rest/api/iothub/service/devices
-	AzureAPIVersion = "2021-04-12"
-
-	AzureURIDeviceTwin    AzureDeviceURI = "/twins/:id"
-	AzureURIDevice        AzureDeviceURI = "/devices/:id"
-	AzureURIDeviceModules AzureDeviceURI = "/devices/:id/modules"
-)
-
-type AzureDeviceURI string
-
-func (s AzureDeviceURI) URI(deviceID string) string {
-	return strings.Replace(string(s), ":id", deviceID, 1)
-}
-
-const (
-	HdrKeyAuthz = "Authorization"
 )
 
 var (
 	ErrMissingUserAuthentication = errors.New(
 		"user identity missing from authorization token",
 	)
-	ErrMissingConnectionString = errors.New("connection string is not configured")
+	ErrIntegrationNotFound = errors.New("integration not found")
 )
 
 // ManagementHandler is the namespace for management API handlers.
@@ -121,4 +103,38 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// GET /integrations/{id}
+func (h *ManagementHandler) GetIntegration(c *gin.Context) {
+	var (
+		ctx = c.Request.Context()
+		id  = identity.FromContext(ctx)
+	)
+
+	if id == nil || !id.IsUser {
+		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
+		return
+	}
+	integrationID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		rest.RenderError(c, http.StatusNotFound, ErrIntegrationNotFound)
+		return
+	}
+
+	integration, err := h.app.GetIntegrationById(ctx, integrationID)
+	if err != nil {
+		switch cause := errors.Cause(err); cause {
+		case app.ErrIntegrationNotFound:
+			rest.RenderError(c, http.StatusNotFound, ErrIntegrationNotFound)
+		default:
+			rest.RenderError(c,
+				http.StatusInternalServerError,
+				errors.New(http.StatusText(http.StatusInternalServerError)),
+			)
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, integration)
 }
