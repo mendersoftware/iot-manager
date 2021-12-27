@@ -18,8 +18,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/uuid"
 	"github.com/mendersoftware/iot-manager/model"
+
+	"github.com/google/uuid"
 )
 
 // DataStore interface for DataStore services

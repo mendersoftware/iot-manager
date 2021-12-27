@@ -25,13 +25,14 @@ type Integration struct {
 	Credentials Credentials `json:"credentials" bson:"credentials"`
 }
 
+//nolint:lll
 type Credentials struct {
-	Type  string            `json:"type" bson:"type"`
-	Creds *ConnectionString `json:"credentials" bson:"credentials"`
+	Type             string            `json:"type" bson:"type"`
+	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
 }
 
 func (s Credentials) Validate() error {
 	return validation.ValidateStruct(&s,
-		validation.Field(&s.Creds),
+		validation.Field(&s.ConnectionString),
 	)
 }

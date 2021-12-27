@@ -17,5 +17,5 @@ package model
 type Provider string
 
 const (
-	AzureIoTHub Provider = "azure_iot_hub"
+	ProviderIoTHub Provider = "azure_iot_hub"
 )

@@ -19,6 +19,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+
 	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
@@ -57,7 +58,7 @@ type App interface {
 	HealthCheck(context.Context) error
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
-	GetIntegrationById(context.Context, string) (model.Integration, error)
+	GetIntegrationById(context.Context, uuid.UUID) (model.Integration, error)
 	CreateIntegration(context.Context, model.Integration) error
 	SetDeviceStatus(context.Context, string, Status) error
 	ProvisionDevice(context.Context, string) error
@@ -89,12 +90,8 @@ func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) 
 	return a.store.GetIntegrations(ctx)
 }
 
-func (a *app) GetIntegrationById(ctx context.Context, deviceID string) (model.Integration, error) {
-	deviceId, err := uuid.Parse(deviceID)
-	if err != nil {
-		return model.Integration{}, errors.Wrap(err, "failed to parse deviceID")
-	}
-	return a.store.GetIntegrationById(ctx, deviceId)
+func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (model.Integration, error) {
+	return a.store.GetIntegrationById(ctx, id)
 }
 
 func (a *app) CreateIntegration(ctx context.Context, integration model.Integration) error {
