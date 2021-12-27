@@ -95,7 +95,11 @@ func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (model.Integ
 }
 
 func (a *app) CreateIntegration(ctx context.Context, integration model.Integration) error {
-	return a.store.CreateIntegration(ctx, integration)
+	err := a.store.CreateIntegration(ctx, integration)
+	if err == store.ErrObjectExists {
+		return ErrIntegrationExists
+	}
+	return err
 }
 
 func (a *app) GetDeviceIntegrations(

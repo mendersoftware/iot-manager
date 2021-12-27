@@ -38,4 +38,6 @@ type DataStore interface {
 var (
 	ErrSerialization  = errors.New("store: failed to serialize object")
 	ErrObjectNotFound = errors.New("store: object not found")
+
+	ErrObjectExists = errors.New("store: the object already exists")
 )

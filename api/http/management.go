@@ -107,11 +107,17 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 
 	err := h.app.CreateIntegration(ctx, integration)
 	if err != nil {
-		_ = c.Error(err)
-		rest.RenderError(c,
-			http.StatusInternalServerError,
-			errors.New(http.StatusText(http.StatusInternalServerError)),
-		)
+		switch cause := errors.Cause(err); cause {
+		case app.ErrIntegrationExists:
+			// NOTE: temporary limitation
+			rest.RenderError(c, http.StatusConflict, cause)
+		default:
+			_ = c.Error(err)
+			rest.RenderError(c,
+				http.StatusInternalServerError,
+				errors.New(http.StatusText(http.StatusInternalServerError)),
+			)
+		}
 		return
 	}
 	c.Status(http.StatusNoContent)
