@@ -14,8 +14,16 @@
 
 package model
 
+import validation "github.com/go-ozzo/ozzo-validation/v4"
+
 type Provider string
 
 const (
-	ProviderIoTHub Provider = "azure_iot_hub"
+	ProviderIoTHub Provider = "iot-hub"
 )
+
+var validateProvider = validation.In(ProviderIoTHub)
+
+func (p Provider) Validate() error {
+	return validateProvider.Validate(p)
+}
