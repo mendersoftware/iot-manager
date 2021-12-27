@@ -115,87 +115,97 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Statu
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve settings")
 	}
-	// TODO: move to GetDeviceIntegrations
-	if len(integrations) > 1 {
-		return errors.Wrap(err, "device can have only one integration")
-	}
-	deviceIntegration := integrations[0]
 
-	cs := deviceIntegration.Credentials.Creds
-	if cs == nil {
-		return ErrNoConnectionString
-	}
-	dev, err := a.hub.GetDevice(ctx, cs, deviceID)
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve device from IoT Hub")
-	} else if dev.Status == iothub.Status(status) {
-		// We're done...
-		return nil
-	}
+	for _, integration := range integrations {
+		switch integration.Provider {
+		case model.ProviderIoTHub:
+			cs := integration.Credentials.ConnectionString
+			if cs == nil {
+				return ErrNoConnectionString
+			}
+			dev, err := a.hub.GetDevice(ctx, cs, deviceID)
+			if err != nil {
+				return errors.Wrap(err, "failed to retrieve device from IoT Hub")
+			} else if dev.Status == iothub.Status(status) {
+				// We're done...
+				return nil
+			}
 
-	dev.Status = iothub.Status(status)
-	_, err = a.hub.UpsertDevice(ctx, cs, deviceID, dev)
-	return errors.Wrap(err, "failed to update IoT Hub device")
+			dev.Status = iothub.Status(status)
+			_, err = a.hub.UpsertDevice(ctx, cs, deviceID, dev)
+			if err != nil {
+				return errors.Wrap(err, "failed to update IoT Hub device")
+			}
+		default:
+			continue
+		}
+	}
+	return nil
 }
 
 func (a *app) ProvisionDevice(
 	ctx context.Context,
 	deviceID string,
 ) error {
-	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
+	integrations, err := a.GetIntegrations(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve integration")
 	}
-	// TODO: move to GetDeviceIntegrations
-	if len(integrations) > 1 {
-		return errors.Wrap(err, "device can have only one integration")
-	}
-	deviceIntegration := integrations[0]
 
-	cs := deviceIntegration.Credentials.Creds
-	if cs == nil {
-		return ErrNoConnectionString
-	}
-
-	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
-	if err != nil {
-		if htErr, ok := err.(client.HTTPError); ok {
-			switch htErr.Code {
-			case http.StatusUnauthorized:
+	for _, integration := range integrations {
+		// NEXT Create device document.
+		// TODO Filter only by integrations that apply to device.
+		switch integration.Provider {
+		case model.ProviderIoTHub:
+			cs := integration.Credentials.ConnectionString
+			if cs == nil {
 				return ErrNoConnectionString
-			case http.StatusConflict:
-				return ErrDeviceAlreadyExists
 			}
-		}
-		return errors.Wrap(err, "failed to update iothub devices")
-	}
-	if dev.Auth == nil || dev.Auth.SymmetricKey == nil {
-		return ErrNoDeviceConnectionString
-	}
-	primKey := &model.ConnectionString{
-		Key:      dev.Auth.SymmetricKey.Primary,
-		DeviceID: dev.DeviceID,
-		HostName: cs.HostName,
-	}
-	secKey := &model.ConnectionString{
-		Key:      dev.Auth.SymmetricKey.Secondary,
-		DeviceID: dev.DeviceID,
-		HostName: cs.HostName,
-	}
 
-	err = a.wf.ProvisionExternalDevice(ctx, dev.DeviceID, map[string]string{
-		confKeyPrimaryKey:   primKey.String(),
-		confKeySecondaryKey: secKey.String(),
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
+			dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
+			if err != nil {
+				if htErr, ok := err.(client.HTTPError); ok {
+					switch htErr.Code {
+					case http.StatusUnauthorized:
+						return ErrNoConnectionString
+					case http.StatusConflict:
+						return ErrDeviceAlreadyExists
+					}
+				}
+				return errors.Wrap(err, "failed to update iothub devices")
+			}
+			if dev.Auth == nil || dev.Auth.SymmetricKey == nil {
+				return ErrNoDeviceConnectionString
+			}
+			primKey := &model.ConnectionString{
+				Key:      dev.Auth.SymmetricKey.Primary,
+				DeviceID: dev.DeviceID,
+				HostName: cs.HostName,
+			}
+			secKey := &model.ConnectionString{
+				Key:      dev.Auth.SymmetricKey.Secondary,
+				DeviceID: dev.DeviceID,
+				HostName: cs.HostName,
+			}
+
+			err = a.wf.ProvisionExternalDevice(ctx, dev.DeviceID, map[string]string{
+				confKeyPrimaryKey:   primKey.String(),
+				confKeySecondaryKey: secKey.String(),
+			})
+			if err != nil {
+				return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
+			}
+			err = a.hub.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
+				Tags: map[string]interface{}{
+					"mender": true,
+				},
+			})
+			return errors.Wrap(err, "failed to tag provisioned iothub device")
+		default:
+			continue
+		}
 	}
-	err = a.hub.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
-		Tags: map[string]interface{}{
-			"mender": true,
-		},
-	})
-	return errors.Wrap(err, "failed to tag provisioned iothub device")
+	return nil
 }
 
 func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
@@ -203,22 +213,21 @@ func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve settings")
 	}
-	// TODO: move to GetDeviceIntegrations
-	if len(integrations) > 1 {
-		return errors.Wrap(err, "device can have only one integration")
-	}
-	deviceIntegration := integrations[0]
 
-	cs := deviceIntegration.Credentials.Creds
-	if cs == nil {
-		return ErrNoConnectionString
-	}
-	if cs == nil {
-		return ErrNoConnectionString
-	}
-	err = a.hub.DeleteDevice(ctx, cs, deviceID)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete IoT Hub device")
+	for _, integration := range integrations {
+		switch integration.Provider {
+		case model.ProviderIoTHub:
+			cs := integration.Credentials.ConnectionString
+			if cs == nil {
+				return ErrNoConnectionString
+			}
+			err = a.hub.DeleteDevice(ctx, cs, deviceID)
+			if err != nil {
+				return errors.Wrap(err, "failed to delete IoT Hub device")
+			}
+		default:
+			continue
+		}
 	}
 	return nil
 }
