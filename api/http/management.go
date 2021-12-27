@@ -15,6 +15,7 @@
 package http
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -35,18 +36,25 @@ var (
 	ErrIntegrationNotFound = errors.New("integration not found")
 )
 
+func getContextAndIdentity(c *gin.Context) (context.Context, *identity.Identity, error) {
+	var (
+		ctx = c.Request.Context()
+		id  = identity.FromContext(ctx)
+	)
+	if id == nil || !id.IsUser {
+		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
+		return nil, nil, ErrMissingUserAuthentication
+	}
+	return ctx, id, nil
+}
+
 // ManagementHandler is the namespace for management API handlers.
 type ManagementHandler APIHandler
 
 // GET /integrations
 func (h *ManagementHandler) GetIntegrations(c *gin.Context) {
-	var (
-		ctx = c.Request.Context()
-		id  = identity.FromContext(ctx)
-	)
-
-	if id == nil || !id.IsUser {
-		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
+	ctx, _, err := getContextAndIdentity(c)
+	if err != nil {
 		return
 	}
 
@@ -64,13 +72,8 @@ func (h *ManagementHandler) GetIntegrations(c *gin.Context) {
 
 // POST /integrations
 func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
-	var (
-		ctx = c.Request.Context()
-		id  = identity.FromContext(ctx)
-	)
-
-	if id == nil || !id.IsUser {
-		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
+	ctx, _, err := getContextAndIdentity(c)
+	if err != nil {
 		return
 	}
 
@@ -87,7 +90,7 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 	//      - service
 	//      - registry read/write
 
-	err := h.app.CreateIntegration(ctx, integration)
+	err = h.app.CreateIntegration(ctx, integration)
 	if err != nil {
 		switch cause := errors.Cause(err); cause {
 		case app.ErrIntegrationExists:
@@ -106,7 +109,7 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 }
 
 // GET /integrations/{id}
-func (h *ManagementHandler) GetIntegration(c *gin.Context) {
+func (h *ManagementHandler) GetIntegrationById(c *gin.Context) {
 	var (
 		ctx = c.Request.Context()
 		id  = identity.FromContext(ctx)

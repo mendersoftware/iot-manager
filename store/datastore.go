@@ -18,9 +18,9 @@ import (
 	"context"
 	"errors"
 
-	"github.com/mendersoftware/iot-manager/model"
-
 	"github.com/google/uuid"
+
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 // DataStore interface for DataStore services
@@ -29,7 +29,8 @@ import (
 type DataStore interface {
 	Ping(ctx context.Context) error
 	Close() error
-
+	GetDevice(ctx context.Context, deviceID string) (*model.Device, error)
+	GetDeviceByIntegrationID(ctx context.Context, deviceID string, integrationID uuid.UUID) (*model.Device, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
 	CreateIntegration(context.Context, model.Integration) error

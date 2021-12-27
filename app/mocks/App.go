@@ -61,6 +61,29 @@ func (_m *App) DeleteIOTHubDevice(_a0 context.Context, _a1 string) error {
 	return r0
 }
 
+// GetDevice provides a mock function with given fields: _a0, _a1
+func (_m *App) GetDevice(_a0 context.Context, _a1 string) (*model.Device, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 *model.Device
+	if rf, ok := ret.Get(0).(func(context.Context, string) *model.Device); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Device)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDeviceIntegrations provides a mock function with given fields: _a0, _a1
 func (_m *App) GetDeviceIntegrations(_a0 context.Context, _a1 string) ([]model.Integration, error) {
 	ret := _m.Called(_a0, _a1)
@@ -77,6 +100,52 @@ func (_m *App) GetDeviceIntegrations(_a0 context.Context, _a1 string) ([]model.I
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetDeviceStateIntegration provides a mock function with given fields: _a0, _a1, _a2
+func (_m *App) GetDeviceStateIntegration(_a0 context.Context, _a1 string, _a2 uuid.UUID) (*model.DeviceState, error) {
+	ret := _m.Called(_a0, _a1, _a2)
+
+	var r0 *model.DeviceState
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) *model.DeviceState); ok {
+		r0 = rf(_a0, _a1, _a2)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.DeviceState)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, uuid.UUID) error); ok {
+		r1 = rf(_a0, _a1, _a2)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetDeviceStateIoTHub provides a mock function with given fields: _a0, _a1, _a2
+func (_m *App) GetDeviceStateIoTHub(_a0 context.Context, _a1 string, _a2 *model.Integration) (*model.DeviceState, error) {
+	ret := _m.Called(_a0, _a1, _a2)
+
+	var r0 *model.DeviceState
+	if rf, ok := ret.Get(0).(func(context.Context, string, *model.Integration) *model.DeviceState); ok {
+		r0 = rf(_a0, _a1, _a2)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.DeviceState)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, *model.Integration) error); ok {
+		r1 = rf(_a0, _a1, _a2)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -156,6 +225,52 @@ func (_m *App) ProvisionDevice(_a0 context.Context, _a1 string) error {
 	}
 
 	return r0
+}
+
+// SetDeviceStateIntegration provides a mock function with given fields: _a0, _a1, _a2, _a3
+func (_m *App) SetDeviceStateIntegration(_a0 context.Context, _a1 string, _a2 uuid.UUID, _a3 *model.DeviceState) (*model.DeviceState, error) {
+	ret := _m.Called(_a0, _a1, _a2, _a3)
+
+	var r0 *model.DeviceState
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, *model.DeviceState) *model.DeviceState); ok {
+		r0 = rf(_a0, _a1, _a2, _a3)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.DeviceState)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, *model.DeviceState) error); ok {
+		r1 = rf(_a0, _a1, _a2, _a3)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// SetDeviceStateIoTHub provides a mock function with given fields: _a0, _a1, _a2, _a3
+func (_m *App) SetDeviceStateIoTHub(_a0 context.Context, _a1 string, _a2 *model.Integration, _a3 *model.DeviceState) (*model.DeviceState, error) {
+	ret := _m.Called(_a0, _a1, _a2, _a3)
+
+	var r0 *model.DeviceState
+	if rf, ok := ret.Get(0).(func(context.Context, string, *model.Integration, *model.DeviceState) *model.DeviceState); ok {
+		r0 = rf(_a0, _a1, _a2, _a3)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.DeviceState)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, *model.Integration, *model.DeviceState) error); ok {
+		r1 = rf(_a0, _a1, _a2, _a3)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // SetDeviceStatus provides a mock function with given fields: _a0, _a1, _a2

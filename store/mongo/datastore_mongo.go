@@ -38,17 +38,21 @@ import (
 
 const (
 	CollNameIntegrations = "integrations"
+	CollNameDevices      = "devices"
 
-	KeyID       = "_id"
-	KeyProvider = "provider"
-	KeyTenantID = "tenant_id"
+	KeyID             = "_id"
+	KeyProvider       = "provider"
+	KeyTenantID       = "tenant_id"
+	KeyIntegrationIDs = "integration_ids"
 
 	ConnectTimeoutSeconds = 10
 	defaultAutomigrate    = false
 )
 
 var (
-	ErrFailedToGetIntegrations = errors.New("Failed to get integrations")
+	ErrFailedToGetIntegrations = errors.New("failed to get integrations")
+	ErrFailedToGetDevice       = errors.New("failed to get device")
+	ErrFailedToGetSettings     = errors.New("failed to get settings")
 )
 
 type Config struct {
@@ -264,4 +268,39 @@ func (db *DataStoreMongo) CreateIntegration(
 	}
 
 	return err
+}
+
+func (db *DataStoreMongo) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
+	return db.GetDeviceByIntegrationID(ctx, deviceID, uuid.Nil)
+}
+
+func (db *DataStoreMongo) GetDeviceByIntegrationID(
+	ctx context.Context,
+	deviceID string,
+	integrationID uuid.UUID,
+) (*model.Device, error) {
+	var device *model.Device
+
+	collDevices := db.client.Database(DbName).Collection(CollNameDevices)
+	tenantId := ""
+	id := identity.FromContext(ctx)
+	if id != nil {
+		tenantId = id.Tenant
+	}
+
+	filter := bson.M{KeyID: deviceID, KeyTenantID: tenantId}
+	if integrationID != uuid.Nil {
+		filter[KeyIntegrationIDs] = integrationID
+	}
+	if err := collDevices.FindOne(ctx,
+		filter,
+	).Decode(&device); err != nil {
+		switch err {
+		case mongo.ErrNoDocuments:
+			return nil, nil
+		default:
+			return nil, errors.Wrap(err, ErrFailedToGetDevice.Error())
+		}
+	}
+	return device, nil
 }

@@ -49,6 +49,10 @@ const (
 
 	APIURLIntegrations = "/integrations"
 	APIURLIntegration  = "/integrations/:id"
+
+	APIURLDevice                 = "/devices/:id"
+	APIURLDeviceState            = APIURLDevice + "/state"
+	APIURLDeviceStateIntegration = APIURLDevice + "/state/:integrationId"
 )
 
 const (
@@ -107,8 +111,12 @@ func NewRouter(
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
 	managementAPI.GET(APIURLIntegrations, management.GetIntegrations)
-	managementAPI.GET(APIURLIntegration, management.GetIntegration)
+	managementAPI.GET(APIURLIntegration, management.GetIntegrationById)
 	managementAPI.POST(APIURLIntegrations, management.CreateIntegration)
+
+	managementAPI.GET(APIURLDeviceState, management.GetDeviceState)
+	managementAPI.GET(APIURLDeviceStateIntegration, management.GetDeviceStateIntegration)
+	managementAPI.PUT(APIURLDeviceStateIntegration, management.SetDeviceStateIntegration)
 
 	return router
 }
