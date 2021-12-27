@@ -311,6 +311,23 @@ func TestCreateIntegration(t *testing.T) {
 
 		RspCode: http.StatusBadRequest,
 		Error:   errors.New("malformed request body: json:"),
+	}, {
+		Name: "error/forbidden",
+
+		RequestBody: map[string]interface{}{
+			"provider": model.ProviderIoTHub,
+		},
+		RequestHdrs: http.Header{
+			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+				Subject: uuid.NewString(),
+				Tenant:  "123456789012345678901234",
+			})},
+		},
+
+		App: func(t *testing.T) *mapp.App { return new(mapp.App) },
+
+		RspCode: http.StatusForbidden,
+		Error:   ErrMissingUserAuthentication,
 	}}
 	for i := range testCases {
 		tc := testCases[i]
@@ -346,6 +363,174 @@ func TestCreateIntegration(t *testing.T) {
 				}
 			} else {
 				assert.Empty(t, w.Body.Bytes(), string(w.Body.Bytes()))
+			}
+		})
+	}
+}
+
+func TestGetIntegration(t *testing.T) {
+	t.Parallel()
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("integration"))
+	type testCase struct {
+		Name string
+
+		IntegrationID string
+		Header        http.Header
+		App           func(t *testing.T, self *testCase) *mapp.App
+
+		Code     int
+		Response interface{}
+	}
+
+	testCases := []testCase{{
+		Name: "ok",
+
+		IntegrationID: integrationID.String(),
+		Header: http.Header{
+			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+				Subject: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}).String(),
+				Tenant:  "123456789012345678901234",
+				IsUser:  true,
+			})},
+		},
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			app := new(mapp.App)
+			app.On("GetIntegrationById", contextMatcher, integrationID).
+				Return(self.Response, nil)
+			return app
+		},
+
+		Code: http.StatusOK,
+		Response: &model.Integration{
+			Provider: model.ProviderIoTHub,
+			Credentials: model.Credentials{
+				Type:             model.CredentialTypeSAS,
+				ConnectionString: validConnString,
+			},
+		},
+	}, {
+		Name: "error/not found",
+
+		IntegrationID: integrationID.String(),
+		Header: http.Header{
+			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+				Subject: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}).String(),
+				Tenant:  "123456789012345678901234",
+				IsUser:  true,
+			})},
+			textproto.CanonicalMIMEHeaderKey(requestid.RequestIdHeader): []string{"test"},
+		},
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			appie := new(mapp.App)
+			appie.On("GetIntegrationById", contextMatcher, integrationID).
+				Return(nil, app.ErrIntegrationNotFound)
+			return appie
+		},
+
+		Code: http.StatusNotFound,
+		Response: rest.Error{
+			Err:       app.ErrIntegrationNotFound.Error(),
+			RequestID: "test",
+		},
+	}, {
+		Name: "error/not a uuid",
+
+		IntegrationID: "not-a-uuid",
+		Header: http.Header{
+			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+				Subject: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}).String(),
+				Tenant:  "123456789012345678901234",
+				IsUser:  true,
+			})},
+			textproto.CanonicalMIMEHeaderKey(requestid.RequestIdHeader): []string{"test"},
+		},
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			return new(mapp.App)
+		},
+
+		Code: http.StatusNotFound,
+		Response: rest.Error{
+			Err:       app.ErrIntegrationNotFound.Error(),
+			RequestID: "test",
+		},
+	}, {
+		Name: "error/not found",
+
+		IntegrationID: integrationID.String(),
+		Header: http.Header{
+			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+				Subject: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}).String(),
+				Tenant:  "123456789012345678901234",
+				IsUser:  true,
+			})},
+			textproto.CanonicalMIMEHeaderKey(requestid.RequestIdHeader): []string{"test"},
+		},
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			app := new(mapp.App)
+			app.On("GetIntegrationById", contextMatcher, integrationID).
+				Return(nil, errors.New("internal error"))
+			return app
+		},
+
+		Code: http.StatusInternalServerError,
+		Response: rest.Error{
+			Err:       http.StatusText(http.StatusInternalServerError),
+			RequestID: "test",
+		},
+	}, {
+		Name: "error/not found",
+
+		IntegrationID: integrationID.String(),
+		Header: http.Header{
+			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+				Subject: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}).String(),
+				Tenant:  "123456789012345678901234",
+			})},
+			textproto.CanonicalMIMEHeaderKey(requestid.RequestIdHeader): []string{"test"},
+		},
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			return new(mapp.App)
+		},
+
+		Code: http.StatusForbidden,
+		Response: rest.Error{
+			Err:       ErrMissingUserAuthentication.Error(),
+			RequestID: "test",
+		},
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			app := tc.App(t, &tc)
+			defer app.AssertExpectations(t)
+			repl := strings.NewReplacer(":id", tc.IntegrationID)
+			req, _ := http.NewRequest(
+				http.MethodGet,
+				"http://localhost"+APIURLManagement+
+					repl.Replace(APIURLIntegration),
+				nil,
+			)
+			for k, v := range tc.Header {
+				req.Header[k] = v
+			}
+
+			w := httptest.NewRecorder()
+			handler := NewRouter(app)
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.Code, w.Code, "invalid HTTP status code")
+			switch expected := tc.Response.(type) {
+			case []byte:
+				assert.Equal(t, expected, w.Body.Bytes(),
+					"HTTP response body does not match expected value",
+				)
+			default:
+				b, err := json.Marshal(expected)
+				require.NoError(t, err, "test case error")
+				assert.JSONEq(t, string(b), w.Body.String(),
+					"HTTP response body does not match expected value",
+				)
 			}
 		})
 	}

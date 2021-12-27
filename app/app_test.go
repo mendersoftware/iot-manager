@@ -19,14 +19,23 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/mendersoftware/iot-manager/model"
+	"github.com/mendersoftware/iot-manager/store"
 	storeMocks "github.com/mendersoftware/iot-manager/store/mocks"
 )
 
-var contextMatcher = mock.MatchedBy(func(ctx context.Context) bool { return true })
+var (
+	contextMatcher  = mock.MatchedBy(func(ctx context.Context) bool { return true })
+	validConnString = &model.ConnectionString{
+		HostName: "localhost:8080",
+		Key:      []byte("not-so-secret-key"),
+		Name:     "foobar",
+	}
+)
 
 func TestHealthCheck(t *testing.T) {
 	testCases := []struct {
@@ -65,62 +74,81 @@ func TestHealthCheck(t *testing.T) {
 		})
 	}
 }
+func TestGetIntegrationByID(t *testing.T) {
+	t.Parallel()
 
-// func TestGetIntegrations(t *testing.T) {
-// 	testCases := []struct {
-// 		Name string
+	integrationID := uuid.New()
+	type testCase struct {
+		Name string
 
-// 		GetIntegrationsData  model.Integration
-// 		GetIntegrationsError error
-// 	}{
-// 		{
-// 			Name: "integration exists",
+		ID    uuid.UUID
+		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
 
-// 			GetIntegrationsData: model.Integration{
-// 				Provider: model.AzureIoTHub,
-// 				Credentials: model.Credentials{
-// 					Type: "connection_string",
-// 					Creds: &model.ConnectionString{
-// 						HostName: "localhost",
-// 						Key:      []byte("secret"),
-// 						Name:     "foobar",
-// 					},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			Name: "integration do not exist",
+		Integration *model.Integration
+		Error       error
+	}
+	testCases := []testCase{{
+		Name: "ok",
 
-// 			GetIntegrationsData: model.Integration{},
-// 		},
-// 		{
-// 			Name: "integration retrieval error",
+		ID: integrationID,
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
+			ds.On("GetIntegrationById", contextMatcher, self.ID).
+				Return(self.Integration, nil)
+			return ds
+		},
 
-// 			GetIntegrationsError: errors.New("error getting the integration"),
-// 		},
-// 	}
-// 	for i := range testCases {
-// 		tc := testCases[i]
-// 		t.Run(tc.Name, func(t *testing.T) {
-// 			store := &storeMocks.DataStore{}
-// 			store.On("GetIntegrations",
-// 				mock.MatchedBy(func(ctx context.Context) bool {
-// 					return true
-// 				}),
-// 			).Return(tc.GetIntegrationsData, tc.GetIntegrationsError)
-// 			app := New(store, nil, nil)
+		Integration: &model.Integration{
+			ID:       integrationID,
+			Provider: model.ProviderIoTHub,
+			Credentials: model.Credentials{
+				Type:             model.CredentialTypeSAS,
+				ConnectionString: validConnString,
+			},
+		},
+	}, {
+		Name: "error/not found",
 
-// 			ctx := context.Background()
-// 			settings, err := app.GetIntegrations(ctx)
-// 			if tc.GetIntegrationsError != nil {
-// 				assert.EqualError(t, err, tc.GetIntegrationsError.Error())
-// 			} else {
-// 				assert.NoError(t, err)
-// 				assert.Equal(t, tc.GetIntegrationsData, settings)
-// 			}
-// 		})
-// 	}
-// }
+		ID: integrationID,
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
+			ds.On("GetIntegrationById", contextMatcher, self.ID).
+				Return(nil, store.ErrObjectNotFound)
+			return ds
+		},
+
+		Error: ErrIntegrationNotFound,
+	}, {
+		Name: "error/internal",
+
+		ID: integrationID,
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
+			ds.On("GetIntegrationById", contextMatcher, self.ID).
+				Return(nil, errors.New("internal error"))
+			return ds
+		},
+
+		Error: errors.New("internal error"),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			store := tc.Store(t, &tc)
+			app := New(store, nil, nil)
+			integration, err := app.GetIntegrationById(context.Background(), tc.ID)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.Integration, integration)
+			}
+		})
+	}
+}
 
 func TestCreateIntegration(t *testing.T) {
 	testCases := []struct {
