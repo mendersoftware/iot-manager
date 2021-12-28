@@ -38,7 +38,10 @@ import (
 
 const (
 	CollNameIntegrations = "integrations"
-	KeyTenantID          = "tenant_id"
+
+	KeyID       = "_id"
+	KeyProvider = "provider"
+	KeyTenantID = "tenant_id"
 
 	ConnectTimeoutSeconds = 10
 	defaultAutomigrate    = false
@@ -179,14 +182,27 @@ func (db *DataStoreMongo) GetIntegrations(ctx context.Context) ([]model.Integrat
 		results = []model.Integration{}
 	)
 
-	collIntegrations := db.client.Database(DbName).Collection(CollNameIntegrations)
+	collIntegrations := db.client.
+		Database(DbName).
+		Collection(CollNameIntegrations)
+	findOpts := mopts.Find().
+		SetSort(bson.D{{
+			Key:   KeyProvider,
+			Value: 1,
+		}, {
+			Key:   KeyID,
+			Value: 1,
+		}})
 	tenantId := ""
 	id := identity.FromContext(ctx)
 	if id != nil {
 		tenantId = id.Tenant
 	}
 
-	cur, err := collIntegrations.Find(ctx, bson.M{KeyTenantID: tenantId})
+	cur, err := collIntegrations.Find(ctx,
+		bson.D{{Key: KeyTenantID, Value: tenantId}},
+		findOpts,
+	)
 	if err != nil {
 		return nil, errors.Wrap(err, "error executing integrations collection request")
 	}

@@ -59,6 +59,8 @@ func TestMigration_1_0_0(t *testing.T) {
 		case IndexNameIntegrationsGet:
 			assert.Equal(t, map[string]int{
 				KeyTenantID: 1,
+				KeyID:       1,
+				KeyProvider: 1,
 			}, idx.Keys)
 		default:
 			assert.Failf(t, "Index name \"%s\" not recognized", idx.Name)
