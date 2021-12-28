@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	IndexNameSettingsGet = "settings get"
+	IndexNameIntegrationsGet = KeyTenantID + "_" + KeyProvider + "_" + KeyID
 )
 
 type migration_1_0_0 struct {
@@ -39,15 +39,19 @@ func (m *migration_1_0_0) Up(from migrate.Version) error {
 	ctx := context.Background()
 	indexModels := []mongo.IndexModel{{
 		Keys: bson.D{
-			// $match
+			// $match ($eq)
 			{Key: KeyTenantID, Value: 1},
+			// $sort (and/or $match)
+			{Key: KeyProvider, Value: 1},
+			// $sort
+			{Key: KeyID, Value: 1},
 		},
 		Options: mopts.Index().
-			SetName(IndexNameSettingsGet),
+			SetName(IndexNameIntegrationsGet),
 	}}
 	collLogs := m.client.
 		Database(m.db).
-		Collection(CollNameSettings)
+		Collection(CollNameIntegrations)
 
 	idxView := collLogs.Indexes()
 

@@ -18,73 +18,86 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/bson"
+	"github.com/google/uuid"
+	"github.com/mendersoftware/iot-manager/model"
 
 	"github.com/mendersoftware/go-lib-micro/identity"
 	mstore "github.com/mendersoftware/go-lib-micro/store/v2"
-
-	"github.com/mendersoftware/iot-manager/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
-func TestSetSettings(t *testing.T) {
+func TestCreateIntegration(t *testing.T) {
 	testCases := []struct {
 		Name string
 
-		CTX      context.Context
-		Settings model.Settings
+		CTX         context.Context
+		Integration model.Integration
 
 		Error error
-	}{
-		{
-			Name: "ok",
+	}{{
+		Name: "ok",
 
-			CTX: identity.WithContext(context.Background(), &identity.Identity{
-				Tenant: "1234567890",
-			}),
-			Settings: model.Settings{
+		CTX: identity.WithContext(context.Background(), &identity.Identity{
+			Tenant: "1234567890",
+		}),
+		Integration: model.Integration{
+			ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte("1234567890")),
+			Provider: model.ProviderIoTHub,
+			Credentials: model.Credentials{
+				Type: "connection_string",
 				ConnectionString: &model.ConnectionString{
 					HostName: "localhost",
-					Key:      []byte("password123"),
-					Name:     "acmeHub",
+					Key:      []byte("secret"),
+					Name:     "foobar",
 				},
 			},
-		}, {
-			Name: "ok, no tenant context",
-
-			CTX: context.Background(),
-			Settings: model.Settings{
-				ConnectionString: &model.ConnectionString{
-					HostName: "localhost",
-					Key:      []byte("password123"),
-					Name:     "acmeHub",
-				},
-			},
-		}, {
-			Name: "error, context canceled",
-
-			CTX: func() context.Context {
-				ctx, cc := context.WithCancel(context.Background())
-				cc()
-				return ctx
-			}(),
-			Settings: model.Settings{
-				ConnectionString: &model.ConnectionString{
-					HostName: "localhost",
-					Key:      []byte("password123"),
-					Name:     "acmeHub",
-				},
-			},
-			Error: context.Canceled,
 		},
-	}
+	}, {
+		Name: "ok, no tenant context",
+
+		CTX: context.Background(),
+		Integration: model.Integration{
+			ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte("")),
+			Provider: model.ProviderIoTHub,
+			Credentials: model.Credentials{
+				Type: "connection_string",
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("secret"),
+					Name:     "foobar",
+				},
+			},
+		},
+	}, {
+		Name: "error, context canceled",
+
+		CTX: func() context.Context {
+			ctx, cc := context.WithCancel(context.Background())
+			cc()
+			return ctx
+		}(),
+		Integration: model.Integration{
+			Provider: model.ProviderIoTHub,
+			Credentials: model.Credentials{
+				Type: "connection_string",
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Key:      []byte("secret"),
+					Name:     "foobar",
+				},
+			},
+		},
+		Error: context.Canceled,
+	}}
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
 			db.Wipe()
 			mgo := db.Client()
 			ds := NewDataStoreWithClient(mgo)
-			err := ds.SetSettings(tc.CTX, tc.Settings)
+			err := ds.CreateIntegration(tc.CTX, tc.Integration)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
 					assert.Regexp(t, tc.Error.Error(), err.Error())
@@ -102,7 +115,7 @@ func TestSetSettings(t *testing.T) {
 
 				var doc bson.Raw
 				err := mgo.Database(DbName).
-					Collection(CollNameSettings).
+					Collection(CollNameIntegrations).
 					FindOne(tc.CTX, fltr).
 					Decode(&doc)
 				if !assert.NoError(t, err) {
@@ -114,42 +127,49 @@ func TestSetSettings(t *testing.T) {
 				assert.True(t, ok, "bson document does not contain tenant_id field")
 				assert.Equal(t, tenantID, actualTID)
 
-				var settings model.Settings
-				bson.Unmarshal(doc, &settings)
-				assert.Equal(t, tc.Settings, settings)
+				var integration model.Integration
+				bson.Unmarshal(doc, &integration)
+				assert.Equal(t, tc.Integration, integration)
 			}
 		})
 	}
 }
 
-func TestGetSettings(t *testing.T) {
+func TestGetIntegrations(t *testing.T) {
 	const tenantID = "123456789012345678901234"
 	testCases := []struct {
 		Name string
 
 		CTX context.Context
 
-		Settings model.Settings
-		Error    error
+		Integrations []model.Integration
+		Error        error
 	}{
 		{
-			Name: "ok got settings",
+			Name: "ok got integration",
 			CTX: identity.WithContext(context.Background(), &identity.Identity{
 				Tenant: tenantID,
 			}),
-			Settings: model.Settings{
-				ConnectionString: &model.ConnectionString{
-					HostName: "localhost",
-					Key:      []byte("password123"),
-					Name:     "acmeHub",
+			Integrations: []model.Integration{
+				{
+					Provider: model.ProviderIoTHub,
+					Credentials: model.Credentials{
+						Type: "connection_string",
+						ConnectionString: &model.ConnectionString{
+							HostName: "localhost",
+							Key:      []byte("secret"),
+							Name:     "foobar",
+						},
+					},
 				},
 			},
 		},
 		{
-			Name: "no settings for tenant",
+			Name: "no integrations for tenant",
 			CTX: identity.WithContext(context.Background(), &identity.Identity{
 				Tenant: "111111111111111111111111",
 			}),
+			Integrations: []model.Integration{},
 		},
 		{
 			Name: "error, context deadline exceeded",
@@ -168,19 +188,21 @@ func TestGetSettings(t *testing.T) {
 			client := db.Client()
 			collAlerts := client.
 				Database(DbName).
-				Collection(CollNameSettings)
+				Collection(CollNameIntegrations)
 
 			ctx := identity.WithContext(context.Background(), &identity.Identity{
 				Tenant: tenantID,
 			})
 
-			_, err := collAlerts.InsertMany(ctx, []interface{}{
-				mstore.WithTenantID(ctx, tc.Settings),
-			})
-			assert.NoError(t, err)
+			for _, integration := range tc.Integrations {
+				_, err := collAlerts.InsertOne(ctx,
+					mstore.WithTenantID(ctx, integration),
+				)
+				require.NoError(t, err)
+			}
 
 			db := NewDataStoreWithClient(client)
-			settings, err := db.GetSettings(tc.CTX)
+			integrations, err := db.GetIntegrations(tc.CTX)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
 					assert.Regexp(t,
@@ -191,7 +213,7 @@ func TestGetSettings(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.Settings, settings)
+				assert.Equal(t, tc.Integrations, integrations)
 			}
 		})
 	}

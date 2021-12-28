@@ -19,6 +19,8 @@ import (
 	"errors"
 
 	"github.com/mendersoftware/iot-manager/model"
+
+	"github.com/google/uuid"
 )
 
 // DataStore interface for DataStore services
@@ -28,11 +30,14 @@ type DataStore interface {
 	Ping(ctx context.Context) error
 	Close() error
 
-	SetSettings(ctx context.Context, settings model.Settings) error
-	GetSettings(ctx context.Context) (model.Settings, error)
+	GetIntegrations(context.Context) ([]model.Integration, error)
+	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
+	CreateIntegration(context.Context, model.Integration) error
 }
 
 var (
 	ErrSerialization  = errors.New("store: failed to serialize object")
 	ErrObjectNotFound = errors.New("store: object not found")
+
+	ErrObjectExists = errors.New("store: the object already exists")
 )

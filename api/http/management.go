@@ -16,48 +16,30 @@ package http
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 
+	"github.com/mendersoftware/iot-manager/app"
 	"github.com/mendersoftware/iot-manager/model"
-)
-
-const (
-	// https://docs.microsoft.com/en-us/rest/api/iothub/service/devices
-	AzureAPIVersion = "2021-04-12"
-
-	AzureURIDeviceTwin    AzureDeviceURI = "/twins/:id"
-	AzureURIDevice        AzureDeviceURI = "/devices/:id"
-	AzureURIDeviceModules AzureDeviceURI = "/devices/:id/modules"
-)
-
-type AzureDeviceURI string
-
-func (s AzureDeviceURI) URI(deviceID string) string {
-	return strings.Replace(string(s), ":id", deviceID, 1)
-}
-
-const (
-	HdrKeyAuthz = "Authorization"
 )
 
 var (
 	ErrMissingUserAuthentication = errors.New(
 		"user identity missing from authorization token",
 	)
-	ErrMissingConnectionString = errors.New("connection string is not configured")
+	ErrIntegrationNotFound = errors.New("integration not found")
 )
 
 // ManagementHandler is the namespace for management API handlers.
 type ManagementHandler APIHandler
 
-// GET /settings
-func (h *ManagementHandler) GetSettings(c *gin.Context) {
+// GET /integrations
+func (h *ManagementHandler) GetIntegrations(c *gin.Context) {
 	var (
 		ctx = c.Request.Context()
 		id  = identity.FromContext(ctx)
@@ -67,7 +49,8 @@ func (h *ManagementHandler) GetSettings(c *gin.Context) {
 		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
 		return
 	}
-	settings, err := h.app.GetSettings(ctx)
+
+	integrations, err := h.app.GetIntegrations(ctx)
 	if err != nil {
 		rest.RenderError(c,
 			http.StatusInternalServerError,
@@ -76,11 +59,11 @@ func (h *ManagementHandler) GetSettings(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, settings)
+	c.JSON(http.StatusOK, integrations)
 }
 
-// PUT /settings
-func (h *ManagementHandler) SetSettings(c *gin.Context) {
+// POST /integrations
+func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 	var (
 		ctx = c.Request.Context()
 		id  = identity.FromContext(ctx)
@@ -91,8 +74,8 @@ func (h *ManagementHandler) SetSettings(c *gin.Context) {
 		return
 	}
 
-	settings := model.Settings{}
-	if err := c.ShouldBindJSON(&settings); err != nil {
+	integration := model.Integration{}
+	if err := c.ShouldBindJSON(&integration); err != nil {
 		rest.RenderError(c,
 			http.StatusBadRequest,
 			errors.Wrap(err, "malformed request body"),
@@ -100,18 +83,58 @@ func (h *ManagementHandler) SetSettings(c *gin.Context) {
 		return
 	}
 
-	// TODO verify that connectionstring has correct permissions
+	// TODO verify that Azure connectionstring / AWS equivalent has correct permissions
 	//      - service
 	//      - registry read/write
 
-	err := h.app.SetSettings(ctx, settings)
+	err := h.app.CreateIntegration(ctx, integration)
 	if err != nil {
-		_ = c.Error(err)
-		rest.RenderError(c,
-			http.StatusInternalServerError,
-			errors.New(http.StatusText(http.StatusInternalServerError)),
-		)
+		switch cause := errors.Cause(err); cause {
+		case app.ErrIntegrationExists:
+			// NOTE: temporary limitation
+			rest.RenderError(c, http.StatusConflict, cause)
+		default:
+			_ = c.Error(err)
+			rest.RenderError(c,
+				http.StatusInternalServerError,
+				errors.New(http.StatusText(http.StatusInternalServerError)),
+			)
+		}
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// GET /integrations/{id}
+func (h *ManagementHandler) GetIntegration(c *gin.Context) {
+	var (
+		ctx = c.Request.Context()
+		id  = identity.FromContext(ctx)
+	)
+
+	if id == nil || !id.IsUser {
+		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
+		return
+	}
+	integrationID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		rest.RenderError(c, http.StatusNotFound, ErrIntegrationNotFound)
+		return
+	}
+
+	integration, err := h.app.GetIntegrationById(ctx, integrationID)
+	if err != nil {
+		switch cause := errors.Cause(err); cause {
+		case app.ErrIntegrationNotFound:
+			rest.RenderError(c, http.StatusNotFound, ErrIntegrationNotFound)
+		default:
+			rest.RenderError(c,
+				http.StatusInternalServerError,
+				errors.New(http.StatusText(http.StatusInternalServerError)),
+			)
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, integration)
 }

@@ -12,17 +12,17 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-package model
+package mongo
 
-import validation "github.com/go-ozzo/ozzo-validation/v4"
+import "go.mongodb.org/mongo-driver/mongo"
 
-//nolint:lll
-type Settings struct {
-	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
-}
+const (
+	errCodeDuplicateKey = 11000
+)
 
-func (s Settings) Validate() error {
-	return validation.ValidateStruct(&s,
-		validation.Field(&s.ConnectionString),
-	)
+func isDuplicateKeyError(err error) bool {
+	if xerr, ok := err.(mongo.ServerError); ok {
+		return xerr.HasErrorCode(errCodeDuplicateKey)
+	}
+	return false
 }
