@@ -368,7 +368,7 @@ func TestCreateIntegration(t *testing.T) {
 	}
 }
 
-func TestGetIntegration(t *testing.T) {
+func TestGetIntegrationById(t *testing.T) {
 	t.Parallel()
 	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("integration"))
 	type testCase struct {

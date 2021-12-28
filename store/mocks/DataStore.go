@@ -58,6 +58,52 @@ func (_m *DataStore) CreateIntegration(_a0 context.Context, _a1 model.Integratio
 	return r0
 }
 
+// GetDevice provides a mock function with given fields: ctx, deviceID
+func (_m *DataStore) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
+	ret := _m.Called(ctx, deviceID)
+
+	var r0 *model.Device
+	if rf, ok := ret.Get(0).(func(context.Context, string) *model.Device); ok {
+		r0 = rf(ctx, deviceID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Device)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, deviceID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetDeviceByIntegrationID provides a mock function with given fields: ctx, deviceID, integrationID
+func (_m *DataStore) GetDeviceByIntegrationID(ctx context.Context, deviceID string, integrationID uuid.UUID) (*model.Device, error) {
+	ret := _m.Called(ctx, deviceID, integrationID)
+
+	var r0 *model.Device
+	if rf, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) *model.Device); ok {
+		r0 = rf(ctx, deviceID, integrationID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.Device)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, string, uuid.UUID) error); ok {
+		r1 = rf(ctx, deviceID, integrationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetIntegrationById provides a mock function with given fields: _a0, _a1
 func (_m *DataStore) GetIntegrationById(_a0 context.Context, _a1 uuid.UUID) (*model.Integration, error) {
 	ret := _m.Called(_a0, _a1)

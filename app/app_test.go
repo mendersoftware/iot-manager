@@ -834,3 +834,278 @@ func TestCreateIntegration(t *testing.T) {
 // 		})
 // 	}
 // }
+
+func TestGetDevice(t *testing.T) {
+	testCases := []struct {
+		Name string
+
+		DeviceID       string
+		GetDevice      *model.Device
+		GetDeviceError error
+	}{
+		{
+			Name: "ok",
+
+			DeviceID: "1",
+			GetDevice: &model.Device{
+				ID: "1",
+			},
+		},
+		{
+			Name: "ok, device doesn't exist",
+
+			DeviceID: "1",
+		},
+		{
+			Name: "ko, device retrieval error",
+
+			DeviceID:       "1",
+			GetDeviceError: errors.New("error getting the settings"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			store := &storeMocks.DataStore{}
+			store.On("GetDevice",
+				mock.MatchedBy(func(ctx context.Context) bool {
+					return true
+				}),
+				tc.DeviceID,
+			).Return(tc.GetDevice, tc.GetDeviceError)
+			app := New(store, nil, nil)
+
+			ctx := context.Background()
+			device, err := app.GetDevice(ctx, tc.DeviceID)
+			if tc.GetDeviceError != nil {
+				assert.EqualError(t, err, tc.GetDeviceError.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.GetDevice, device)
+			}
+		})
+	}
+}
+
+func TestGetDeviceStateIntegration(t *testing.T) {
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+	testCases := []struct {
+		Name string
+
+		DeviceID      string
+		IntegrationID uuid.UUID
+
+		GetDeviceByIntegrationID       *model.Device
+		GetDeviceByIntegrationIDError  error
+		GetIntegration                 *model.Integration
+		GetIntegrationError            error
+		GetDeviceStateIntegration      *model.DeviceState
+		GetDeviceStateIntegrationError error
+	}{
+		{
+			Name: "ko, device not found",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceStateIntegrationError: ErrIntegrationNotFound,
+		},
+		{
+			Name: "ko, failed retrieving the device not found",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationIDError:  errors.New("internal error"),
+			GetDeviceStateIntegrationError: errors.New("failed to retrieve the device: internal error"),
+		},
+		{
+			Name: "ko, integration not found",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID:       &model.Device{},
+			GetDeviceStateIntegrationError: ErrIntegrationNotFound,
+		},
+		{
+			Name: "ko, failed retrieving the integration",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID:       &model.Device{},
+			GetIntegrationError:            errors.New("internal error"),
+			GetDeviceStateIntegrationError: errors.New("failed to retrieve the integration: internal error"),
+		},
+		{
+			Name: "ko, unknown integration",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID: &model.Device{},
+			GetIntegration: &model.Integration{
+				Provider: model.Provider("super-secret-provider"),
+			},
+			GetDeviceStateIntegrationError: ErrUnknownIntegration,
+		},
+		{
+			Name: "ko, no connection string",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID: &model.Device{},
+			GetIntegration: &model.Integration{
+				Provider: model.ProviderIoTHub,
+			},
+			GetDeviceStateIntegrationError: ErrNoConnectionString,
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			store := &storeMocks.DataStore{}
+			store.On("GetDeviceByIntegrationID",
+				contextMatcher,
+				tc.DeviceID,
+				tc.IntegrationID,
+			).Return(
+				tc.GetDeviceByIntegrationID,
+				tc.GetDeviceByIntegrationIDError,
+			)
+			if tc.GetDeviceByIntegrationID != nil && tc.GetDeviceByIntegrationIDError == nil {
+				store.On("GetIntegrationById",
+					contextMatcher,
+					tc.IntegrationID,
+				).Return(
+					tc.GetIntegration,
+					tc.GetIntegrationError,
+				)
+			}
+			app := New(store, nil, nil)
+
+			ctx := context.Background()
+			state, err := app.GetDeviceStateIntegration(ctx, tc.DeviceID, tc.IntegrationID)
+			if tc.GetDeviceStateIntegrationError != nil {
+				assert.EqualError(t, err, tc.GetDeviceStateIntegrationError.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.GetDeviceStateIntegration, state)
+			}
+		})
+	}
+}
+
+func TestSetDeviceStateIntegration(t *testing.T) {
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+	testCases := []struct {
+		Name string
+
+		DeviceID      string
+		IntegrationID uuid.UUID
+
+		GetDeviceByIntegrationID       *model.Device
+		GetDeviceByIntegrationIDError  error
+		GetIntegration                 *model.Integration
+		GetIntegrationError            error
+		SetDeviceStateIntegration      *model.DeviceState
+		SetDeviceStateIntegrationError error
+	}{
+		{
+			Name: "ko, device not found",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			SetDeviceStateIntegrationError: ErrIntegrationNotFound,
+		},
+		{
+			Name: "ko, failed retrieving the device not found",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationIDError:  errors.New("internal error"),
+			SetDeviceStateIntegrationError: errors.New("failed to retrieve the device: internal error"),
+		},
+		{
+			Name: "ko, integration not found",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID:       &model.Device{},
+			SetDeviceStateIntegrationError: ErrIntegrationNotFound,
+		},
+		{
+			Name: "ko, failed retrieving the integration",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID:       &model.Device{},
+			GetIntegrationError:            errors.New("internal error"),
+			SetDeviceStateIntegrationError: errors.New("failed to retrieve the integration: internal error"),
+		},
+		{
+			Name: "ko, unknown integration",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID: &model.Device{},
+			GetIntegration: &model.Integration{
+				Provider: model.Provider("super-secret-provider"),
+			},
+			SetDeviceStateIntegrationError: ErrUnknownIntegration,
+		},
+		{
+			Name: "ko, no connection string",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID: &model.Device{},
+			GetIntegration: &model.Integration{
+				Provider: model.ProviderIoTHub,
+			},
+			SetDeviceStateIntegrationError: ErrNoConnectionString,
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			store := &storeMocks.DataStore{}
+			store.On("GetDeviceByIntegrationID",
+				contextMatcher,
+				tc.DeviceID,
+				tc.IntegrationID,
+			).Return(
+				tc.GetDeviceByIntegrationID,
+				tc.GetDeviceByIntegrationIDError,
+			)
+			if tc.GetDeviceByIntegrationID != nil && tc.GetDeviceByIntegrationIDError == nil {
+				store.On("GetIntegrationById",
+					contextMatcher,
+					tc.IntegrationID,
+				).Return(
+					tc.GetIntegration,
+					tc.GetIntegrationError,
+				)
+			}
+			app := New(store, nil, nil)
+
+			ctx := context.Background()
+			state := &model.DeviceState{}
+			state, err := app.SetDeviceStateIntegration(ctx, tc.DeviceID, tc.IntegrationID, state)
+			if tc.SetDeviceStateIntegrationError != nil {
+				assert.EqualError(t, err, tc.SetDeviceStateIntegrationError.Error())
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.SetDeviceStateIntegration, state)
+			}
+		})
+	}
+}
