@@ -190,6 +190,7 @@ type UpdateProperties struct {
 type DeviceTwinUpdate struct {
 	Properties UpdateProperties       `json:"properties,omitempty"`
 	Tags       map[string]interface{} `json:"tags,omitempty"`
+	ETag       string                 `json:"-"`
 	Replace    bool                   `json:"-"`
 }
 

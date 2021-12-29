@@ -52,12 +52,18 @@ func (a *app) SetDeviceStateIoTHub(
 	if cs == nil {
 		return nil, ErrNoConnectionString
 	}
-	update := &iothub.DeviceTwinUpdate{
-		Properties: iothub.UpdateProperties{
-			Desired: state.Desired,
-		},
+	twin, err := a.hub.GetDeviceTwin(ctx, cs, deviceID)
+	if err == nil {
+		update := &iothub.DeviceTwinUpdate{
+			Tags: twin.Tags,
+			Properties: iothub.UpdateProperties{
+				Desired: state.Desired,
+			},
+			ETag:    twin.ETag,
+			Replace: true,
+		}
+		err = a.hub.UpdateDeviceTwin(ctx, cs, deviceID, update)
 	}
-	err := a.hub.UpdateDeviceTwin(ctx, cs, deviceID, update)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to update the device twin")
 	}

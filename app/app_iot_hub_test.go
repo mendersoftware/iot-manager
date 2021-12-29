@@ -156,16 +156,40 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
 				hub := &mocks_iothub.Client{}
 
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					integration.Credentials.ConnectionString,
+					"1",
+				).Return(&iothub.DeviceTwin{
+					ETag: "etag",
+					Tags: map[string]interface{}{
+						"tag": "value",
+					},
+					Properties: iothub.TwinProperties{
+						Desired: map[string]interface{}{
+							"another-key": "another-value",
+						},
+						Reported: map[string]interface{}{
+							"another-key": "another-value",
+						},
+					},
+				}, nil).Once()
+
 				hub.On("UpdateDeviceTwin",
 					contextMatcher,
 					integration.Credentials.ConnectionString,
 					"1",
 					&iothub.DeviceTwinUpdate{
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
 						Properties: iothub.UpdateProperties{
 							Desired: map[string]interface{}{
 								"key": "value",
 							},
 						},
+						ETag:    "etag",
+						Replace: true,
 					},
 				).Return(nil)
 
@@ -174,6 +198,9 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 					integration.Credentials.ConnectionString,
 					"1",
 				).Return(&iothub.DeviceTwin{
+					Tags: map[string]interface{}{
+						"tag": "value",
+					},
 					Properties: iothub.TwinProperties{
 						Desired: map[string]interface{}{
 							"key": "value",
@@ -182,7 +209,7 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 							"another-key": "another-value",
 						},
 					},
-				}, nil)
+				}, nil).Once()
 
 				return hub
 			},
@@ -217,16 +244,40 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
 				hub := &mocks_iothub.Client{}
 
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					integration.Credentials.ConnectionString,
+					"1",
+				).Return(&iothub.DeviceTwin{
+					ETag: "etag",
+					Tags: map[string]interface{}{
+						"tag": "value",
+					},
+					Properties: iothub.TwinProperties{
+						Desired: map[string]interface{}{
+							"another-key": "another-value",
+						},
+						Reported: map[string]interface{}{
+							"another-key": "another-value",
+						},
+					},
+				}, nil).Once()
+
 				hub.On("UpdateDeviceTwin",
 					contextMatcher,
 					integration.Credentials.ConnectionString,
 					"1",
 					&iothub.DeviceTwinUpdate{
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
 						Properties: iothub.UpdateProperties{
 							Desired: map[string]interface{}{
 								"key": "value",
 							},
 						},
+						ETag:    "etag",
+						Replace: true,
 					},
 				).Return(errors.New("internal error"))
 
