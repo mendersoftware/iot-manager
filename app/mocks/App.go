@@ -233,6 +233,20 @@ func (_m *App) ProvisionDevice(_a0 context.Context, _a1 string) error {
 	return r0
 }
 
+// RemoveIntegration provides a mock function with given fields: _a0, _a1
+func (_m *App) RemoveIntegration(_a0 context.Context, _a1 uuid.UUID) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // SetDeviceStateIntegration provides a mock function with given fields: _a0, _a1, _a2, _a3
 func (_m *App) SetDeviceStateIntegration(_a0 context.Context, _a1 string, _a2 uuid.UUID, _a3 *model.DeviceState) (*model.DeviceState, error) {
 	ret := _m.Called(_a0, _a1, _a2, _a3)
@@ -285,6 +299,20 @@ func (_m *App) SetDeviceStatus(_a0 context.Context, _a1 string, _a2 model.Status
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, string, model.Status) error); ok {
+		r0 = rf(_a0, _a1, _a2)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetIntegrationCredentials provides a mock function with given fields: _a0, _a1, _a2
+func (_m *App) SetIntegrationCredentials(_a0 context.Context, _a1 uuid.UUID, _a2 model.Credentials) error {
+	ret := _m.Called(_a0, _a1, _a2)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, model.Credentials) error); ok {
 		r0 = rf(_a0, _a1, _a2)
 	} else {
 		r0 = ret.Error(0)

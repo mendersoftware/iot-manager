@@ -81,6 +81,27 @@ func (_m *DataStore) DeleteDevice(ctx context.Context, deviceID string) error {
 	return r0
 }
 
+// DoDevicesExistByIntegrationID provides a mock function with given fields: _a0, _a1
+func (_m *DataStore) DoDevicesExistByIntegrationID(_a0 context.Context, _a1 uuid.UUID) (bool, error) {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDevice provides a mock function with given fields: ctx, deviceID
 func (_m *DataStore) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
 	ret := _m.Called(ctx, deviceID)
@@ -187,25 +208,32 @@ func (_m *DataStore) Ping(ctx context.Context) error {
 	return r0
 }
 
-// RemoveIntegrationFromDevices provides a mock function with given fields: ctx, id
-func (_m *DataStore) RemoveIntegrationFromDevices(ctx context.Context, id uuid.UUID) (int64, error) {
-	ret := _m.Called(ctx, id)
+// RemoveIntegration provides a mock function with given fields: _a0, _a1
+func (_m *DataStore) RemoveIntegration(_a0 context.Context, _a1 uuid.UUID) error {
+	ret := _m.Called(_a0, _a1)
 
-	var r0 int64
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
-		r0 = rf(ctx, id)
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = rf(_a0, _a1)
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Error(0)
 	}
 
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = rf(ctx, id)
+	return r0
+}
+
+// SetIntegrationCredentials provides a mock function with given fields: _a0, _a1, _a2
+func (_m *DataStore) SetIntegrationCredentials(_a0 context.Context, _a1 uuid.UUID, _a2 model.Credentials) error {
+	ret := _m.Called(_a0, _a1, _a2)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID, model.Credentials) error); ok {
+		r0 = rf(_a0, _a1, _a2)
 	} else {
-		r1 = ret.Error(1)
+		r0 = ret.Error(0)
 	}
 
-	return r0, r1
+	return r0
 }
 
 // UpsertDeviceIntegrations provides a mock function with given fields: ctx, deviceID, integrationIDs

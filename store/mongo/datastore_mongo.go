@@ -44,6 +44,7 @@ const (
 	KeyIntegrationIDs = "integration_ids"
 	KeyProvider       = "provider"
 	KeyTenantID       = "tenant_id"
+	KeyCredentials    = "credentials"
 
 	ConnectTimeoutSeconds = 10
 	defaultAutomigrate    = false
@@ -306,6 +307,79 @@ func (db *DataStoreMongo) CreateIntegration(
 	return &integration, err
 }
 
+func (db *DataStoreMongo) SetIntegrationCredentials(
+	ctx context.Context,
+	integrationId uuid.UUID,
+	credentials model.Credentials,
+) error {
+	collIntegrations := db.client.Database(*db.DbName).Collection(CollNameIntegrations)
+
+	fltr := bson.D{{
+		Key:   KeyID,
+		Value: integrationId,
+	}}
+
+	update := bson.M{
+		"$set": bson.D{
+			{
+				Key:   KeyCredentials,
+				Value: credentials,
+			},
+		},
+	}
+
+	result, err := collIntegrations.UpdateOne(ctx,
+		mstore.WithTenantID(ctx, fltr),
+		update,
+	)
+	if result.MatchedCount == 0 {
+		return store.ErrObjectNotFound
+	}
+
+	return errors.Wrap(err, "mongo: failed to set integration credentials")
+}
+
+func (db *DataStoreMongo) RemoveIntegration(ctx context.Context, integrationId uuid.UUID) error {
+	collIntegrations := db.client.Database(*db.DbName).Collection(CollNameIntegrations)
+	fltr := bson.D{{
+		Key:   KeyID,
+		Value: integrationId,
+	}}
+	res, err := collIntegrations.DeleteOne(ctx, mstore.WithTenantID(ctx, fltr))
+	if err != nil {
+		return err
+	} else if res.DeletedCount == 0 {
+		return store.ErrObjectNotFound
+	}
+	return nil
+}
+
+// DoDevicesExistByIntegrationID checks if there is at least one device connected
+// with given integration ID
+func (db *DataStoreMongo) DoDevicesExistByIntegrationID(
+	ctx context.Context,
+	integrationID uuid.UUID,
+) (bool, error) {
+	var (
+		err error
+	)
+	collDevices := db.client.Database(*db.DbName).Collection(CollNameDevices)
+
+	fltr := bson.D{
+		{
+			Key: KeyIntegrationIDs, Value: integrationID,
+		},
+	}
+	if err = collDevices.FindOne(ctx, mstore.WithTenantID(ctx, fltr)).Err(); err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
 func (db *DataStoreMongo) GetDeviceByIntegrationID(
 	ctx context.Context,
 	deviceID string,
@@ -390,35 +464,6 @@ func (db *DataStoreMongo) DeleteDevice(ctx context.Context, deviceID string) err
 		return store.ErrObjectNotFound
 	}
 	return nil
-}
-
-func (db *DataStoreMongo) RemoveIntegrationFromDevices(
-	ctx context.Context,
-	integrationID uuid.UUID,
-) (int64, error) {
-	var tenantID string
-	if id := identity.FromContext(ctx); id != nil {
-		tenantID = id.Tenant
-	}
-	filter := bson.D{{
-		Key: KeyTenantID, Value: tenantID,
-	}, {
-		Key: KeyIntegrationIDs, Value: integrationID,
-	}}
-	update := bson.D{{
-		Key: "$pull", Value: bson.D{{
-			Key: KeyIntegrationIDs, Value: integrationID,
-		}},
-	}}
-
-	collDevices := db.client.Database(*db.DbName).
-		Collection(CollNameDevices)
-
-	res, err := collDevices.UpdateMany(ctx, filter, update)
-	if res != nil {
-		return res.ModifiedCount, err
-	}
-	return 0, errors.Wrap(err, "mongo: failed to delete devices")
 }
 
 func (db *DataStoreMongo) UpsertDeviceIntegrations(

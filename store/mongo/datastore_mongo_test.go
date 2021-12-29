@@ -46,6 +46,8 @@ func castInterfaceSlice(sliceIn interface{}) (sliceOut []interface{}) {
 }
 
 func TestCreateIntegration(t *testing.T) {
+	t.Parallel()
+	dbClient := db.Client()
 	testCases := []struct {
 		Name string
 
@@ -109,11 +111,13 @@ func TestCreateIntegration(t *testing.T) {
 		Error: context.Canceled,
 	}}
 	for i := range testCases {
+		dbName := fmt.Sprintf("%s-%d", t.Name(), i)
+		ds := NewDataStoreWithClient(dbClient, NewConfig().
+			SetDbName(dbName))
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			db.Wipe()
-			mgo := db.Client()
-			ds := NewDataStoreWithClient(mgo)
+			t.Parallel()
+			defer dbClient.Database(dbName).Drop(context.Background())
 			_, err := ds.CreateIntegration(tc.CTX, tc.Integration)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -131,7 +135,7 @@ func TestCreateIntegration(t *testing.T) {
 				}}
 
 				var doc bson.Raw
-				err := mgo.Database(DbName).
+				err := dbClient.Database(dbName).
 					Collection(CollNameIntegrations).
 					FindOne(tc.CTX, fltr).
 					Decode(&doc)
@@ -153,6 +157,8 @@ func TestCreateIntegration(t *testing.T) {
 }
 
 func TestGetIntegrations(t *testing.T) {
+	t.Parallel()
+	dbClient := db.Client()
 	const tenantID = "123456789012345678901234"
 	type testCase struct {
 		Name string
@@ -382,19 +388,20 @@ func TestGetIntegrations(t *testing.T) {
 		},
 	}
 	for i := range testCases {
+		dbName := fmt.Sprintf("%s-%d", t.Name(), i)
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			db.Wipe()
-			client := db.Client()
-			collIntegrations := client.
-				Database(DbName).
+			t.Parallel()
+			defer dbClient.Database(dbName).Drop(context.Background())
+			collIntegrations := dbClient.
+				Database(dbName).
 				Collection(CollNameIntegrations)
 
 			if tc.InitDatabase != nil {
 				tc.InitDatabase(&tc, collIntegrations)
 			}
-
-			db := NewDataStoreWithClient(client)
+			db := NewDataStoreWithClient(dbClient, NewConfig().
+				SetDbName(dbName))
 			integrations, err := db.GetIntegrations(tc.CTX, tc.IntegrationFilter)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -413,6 +420,8 @@ func TestGetIntegrations(t *testing.T) {
 }
 
 func TestGetDevice(t *testing.T) {
+	t.Parallel()
+	dbClient := db.Client()
 	const deviceID = "1"
 	const tenantID = "123456789012345678901234"
 	testCases := []struct {
@@ -451,12 +460,13 @@ func TestGetDevice(t *testing.T) {
 		},
 	}
 	for i := range testCases {
+		dbName := fmt.Sprintf("%s-%d", t.Name(), i)
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			db.Wipe()
-			client := db.Client()
-			collDevices := client.
-				Database(DbName).
+			t.Parallel()
+			defer dbClient.Database(dbName).Drop(context.Background())
+			collDevices := dbClient.
+				Database(dbName).
 				Collection(CollNameDevices)
 
 			ctx := identity.WithContext(context.Background(), &identity.Identity{
@@ -470,7 +480,8 @@ func TestGetDevice(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			db := NewDataStoreWithClient(client)
+			db := NewDataStoreWithClient(dbClient, NewConfig().
+				SetDbName(dbName))
 			device, err := db.GetDevice(tc.CTX, deviceID)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -489,6 +500,8 @@ func TestGetDevice(t *testing.T) {
 }
 
 func TestGetIntegrationById(t *testing.T) {
+	t.Parallel()
+	dbClient := db.Client()
 	const tenantID = "123456789012345678901234"
 	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
 	testCases := []struct {
@@ -526,12 +539,14 @@ func TestGetIntegrationById(t *testing.T) {
 		},
 	}
 	for i := range testCases {
+		dbName := fmt.Sprintf("%s-%d", t.Name(), i)
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			db.Wipe()
+			t.Parallel()
+			defer dbClient.Database(dbName).Drop(context.Background())
 			client := db.Client()
 			collIntegrations := client.
-				Database(DbName).
+				Database(dbName).
 				Collection(CollNameIntegrations)
 
 			ctx := identity.WithContext(context.Background(), &identity.Identity{
@@ -545,7 +560,8 @@ func TestGetIntegrationById(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			db := NewDataStoreWithClient(client)
+			db := NewDataStoreWithClient(dbClient, NewConfig().
+				SetDbName(dbName))
 			integration, err := db.GetIntegrationById(tc.CTX, integrationID)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -558,6 +574,250 @@ func TestGetIntegrationById(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.Integration, integration)
+			}
+		})
+	}
+}
+
+func TestSetIntegrationCredentials(t *testing.T) {
+	t.Parallel()
+	dbClient := db.Client()
+	const tenantID = "123456789012345678901234"
+	integrationID := uuid.New()
+	testCases := []struct {
+		Name string
+
+		CTX           context.Context
+		Credentials   *model.Credentials
+		IntegrationID uuid.UUID
+		Error         error
+	}{
+		{
+			Name: "ok",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+
+			Credentials: &model.Credentials{
+				Type: model.CredentialTypeSAS,
+				ConnectionString: &model.ConnectionString{
+					HostName: "test-update.azure-devices.net",
+					Name:     "new-test-policy",
+					Key:      []byte("new-key"),
+				},
+			},
+			IntegrationID: integrationID,
+		},
+		{
+			Name: "error, integration not found",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			IntegrationID: uuid.New(),
+			Credentials: &model.Credentials{
+				Type: model.CredentialTypeSAS,
+				ConnectionString: &model.ConnectionString{
+					HostName: "test-update.azure-devices.net",
+					Name:     "new-test-policy",
+					Key:      []byte("new-key"),
+				},
+			},
+			Error: store.ErrObjectNotFound,
+		},
+	}
+	for i := range testCases {
+		dbName := fmt.Sprintf("%s-%d", t.Name(), i)
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			defer dbClient.Database(dbName).Drop(context.Background())
+			collIntegrations := dbClient.Database(dbName).Collection(CollNameIntegrations)
+
+			ctx := identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			})
+
+			if tc.Credentials != nil {
+				_, err := collIntegrations.InsertMany(ctx, []interface{}{
+					mstore.WithTenantID(ctx, model.Integration{
+						ID: integrationID,
+						Credentials: model.Credentials{
+							Type: model.CredentialTypeSAS,
+							ConnectionString: &model.ConnectionString{
+								HostName: "test.azure-devices.net",
+								Name:     "test-policy",
+								Key:      []byte("eMB7VENgpPsIl+aVeAYjstMpuIyoQxY2eOqpzpqI/LF8="),
+							},
+						},
+					}),
+				})
+				assert.NoError(t, err)
+			}
+
+			db := NewDataStoreWithClient(dbClient, NewConfig().SetDbName(dbName))
+			err := db.SetIntegrationCredentials(tc.CTX, tc.IntegrationID, *tc.Credentials)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t,
+						tc.Error.Error(),
+						err.Error(),
+						"error did not match expected expression",
+					)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestRemoveIntegration(t *testing.T) {
+	t.Parallel()
+	dbClient := db.Client()
+	const tenantID = "123456789012345678901234"
+	integrationID := uuid.New()
+	testCases := []struct {
+		Name string
+
+		CTX           context.Context
+		IntegrationID uuid.UUID
+		Error         error
+	}{
+		{
+			Name: "ok",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			IntegrationID: integrationID,
+		},
+		{
+			Name: "error: object not found",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			IntegrationID: uuid.New(),
+			Error:         store.ErrObjectNotFound,
+		},
+	}
+	for i := range testCases {
+		dbName := fmt.Sprintf("%s-%d", t.Name(), i)
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			defer dbClient.Database(dbName).Drop(context.Background())
+			client := db.Client()
+			collIntegrations := client.Database(dbName).Collection(CollNameIntegrations)
+
+			ctx := identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			})
+
+			_, err := collIntegrations.InsertMany(ctx, []interface{}{
+				mstore.WithTenantID(ctx, model.Integration{
+					ID:          integrationID,
+					Provider:    model.ProviderIoTHub,
+					Credentials: model.Credentials{},
+				}),
+			})
+			assert.NoError(t, err)
+
+			db := NewDataStoreWithClient(dbClient, NewConfig().SetDbName(dbName))
+			err = db.RemoveIntegration(tc.CTX, tc.IntegrationID)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t,
+						tc.Error.Error(),
+						err.Error(),
+						"error did not match expected expression",
+					)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDoDevicesExistByIntegrationID(t *testing.T) {
+	t.Parallel()
+	dbClient := db.Client()
+	const tenantID = "123456789012345678901234"
+	integrationID := uuid.New()
+	testCases := []struct {
+		Name string
+
+		CTX            context.Context
+		Devices        []*model.Device
+		IntegrationID  uuid.UUID
+		Integration    *model.Integration
+		ExpectedResult bool
+		Error          error
+	}{
+		{
+			Name: "ok, devices exist",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			IntegrationID: integrationID,
+			Integration: &model.Integration{
+				ID: integrationID,
+			},
+			Devices: []*model.Device{{
+				ID:             uuid.NewString(),
+				IntegrationIDs: []uuid.UUID{integrationID},
+			}},
+			ExpectedResult: true,
+		},
+		{
+			Name: "ok, no devices with given integration ID",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			IntegrationID: integrationID,
+			Integration: &model.Integration{
+				ID: integrationID,
+			},
+			ExpectedResult: false,
+		},
+	}
+	for i := range testCases {
+		dbName := fmt.Sprintf("%s-%d", t.Name(), i)
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			defer dbClient.Database(dbName).Drop(context.Background())
+			collIntegrations := dbClient.Database(dbName).Collection(CollNameIntegrations)
+			collDevices := dbClient.Database(dbName).Collection(CollNameDevices)
+
+			ctx := identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			})
+
+			if tc.Integration != nil {
+				_, err := collIntegrations.InsertMany(ctx, []interface{}{
+					mstore.WithTenantID(ctx, tc.Integration),
+				})
+				assert.NoError(t, err)
+			}
+
+			if tc.Devices != nil {
+				_, err := collDevices.InsertMany(ctx, []interface{}{
+					mstore.WithTenantID(ctx, model.Device{
+						ID:             uuid.NewString(),
+						IntegrationIDs: []uuid.UUID{tc.IntegrationID},
+					}),
+				})
+				assert.NoError(t, err)
+			}
+
+			db := NewDataStoreWithClient(dbClient, NewConfig().SetDbName(dbName))
+			result, err := db.DoDevicesExistByIntegrationID(tc.CTX, tc.IntegrationID)
+			if tc.Error != nil {
+				assert.Equal(t, tc.ExpectedResult, result)
+				assert.Equal(t, tc.Error, err)
+			} else {
+				assert.Equal(t, tc.ExpectedResult, result)
+				assert.NoError(t, err)
 			}
 		})
 	}

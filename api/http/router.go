@@ -47,8 +47,9 @@ const (
 
 	APIURLManagement = "/api/management/v1/iot-manager"
 
-	APIURLIntegrations = "/integrations"
-	APIURLIntegration  = "/integrations/:id"
+	APIURLIntegrations           = "/integrations"
+	APIURLIntegration            = "/integrations/:id"
+	APIURLIntegrationCredentials = APIURLIntegration + "/credentials"
 
 	APIURLDevice                 = "/devices/:id"
 	APIURLDeviceState            = APIURLDevice + "/state"
@@ -113,6 +114,8 @@ func NewRouter(
 	managementAPI.GET(APIURLIntegrations, management.GetIntegrations)
 	managementAPI.GET(APIURLIntegration, management.GetIntegrationById)
 	managementAPI.POST(APIURLIntegrations, management.CreateIntegration)
+	managementAPI.PUT(APIURLIntegrationCredentials, management.SetIntegrationCredentials)
+	managementAPI.DELETE(APIURLIntegration, management.RemoveIntegration)
 
 	managementAPI.GET(APIURLDeviceState, management.GetDeviceState)
 	managementAPI.GET(APIURLDeviceStateIntegration, management.GetDeviceStateIntegration)
