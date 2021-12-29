@@ -16,19 +16,34 @@ package mongo
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/mendersoftware/go-lib-micro/identity"
 	mstore "github.com/mendersoftware/go-lib-micro/store/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/store"
 )
+
+func castInterfaceSlice(sliceIn interface{}) (sliceOut []interface{}) {
+	rSlice := reflect.ValueOf(sliceIn)
+	if rSlice.Kind() != reflect.Slice {
+		panic("[PROG ERR] sliceIn is not a Slice")
+	}
+	l := rSlice.Len()
+	sliceOut = make([]interface{}, l)
+	for i := 0; i < l; i++ {
+		sliceOut[i] = rSlice.Index(i).Interface()
+	}
+	return sliceOut
+}
 
 func TestCreateIntegration(t *testing.T) {
 	testCases := []struct {
@@ -139,19 +154,36 @@ func TestCreateIntegration(t *testing.T) {
 
 func TestGetIntegrations(t *testing.T) {
 	const tenantID = "123456789012345678901234"
-	testCases := []struct {
+	type testCase struct {
 		Name string
 
 		CTX context.Context
 
+		InitDatabase func(self *testCase, coll *mongo.Collection)
+
+		IntegrationFilter model.IntegrationFilter
+
 		Integrations []model.Integration
 		Error        error
-	}{
+	}
+	testCases := []testCase{
 		{
 			Name: "ok got integration",
 			CTX: identity.WithContext(context.Background(), &identity.Identity{
 				Tenant: tenantID,
 			}),
+			InitDatabase: func(
+				self *testCase,
+				coll *mongo.Collection,
+			) {
+				docFace := castInterfaceSlice(self.Integrations)
+				docs := mstore.ArrayWithTenantID(self.CTX, docFace)
+				_, err := coll.InsertMany(context.Background(), docs)
+				if err != nil {
+					panic(err)
+				}
+			},
+
 			Integrations: []model.Integration{
 				{
 					Provider: model.ProviderIoTHub,
@@ -167,11 +199,177 @@ func TestGetIntegrations(t *testing.T) {
 			},
 		},
 		{
+			Name: "ok filter by many IDs",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			InitDatabase: func(
+				self *testCase,
+				coll *mongo.Collection,
+			) {
+				docFace := castInterfaceSlice(append(self.Integrations,
+					model.Integration{
+						ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte{'3'}),
+						Provider: model.ProviderIoTHub,
+						Credentials: model.Credentials{
+							Type: "connection_string",
+							ConnectionString: &model.ConnectionString{
+								HostName: "localhost",
+								Key:      []byte("secret"),
+								Name:     "idk",
+							},
+						},
+					},
+					model.Integration{
+						ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte{'4'}),
+						Provider: model.ProviderIoTHub,
+						Credentials: model.Credentials{
+							Type: "connection_string",
+							ConnectionString: &model.ConnectionString{
+								HostName: "localhost",
+								Key:      []byte("secret"),
+								Name:     "srsly/idk",
+							},
+						},
+					},
+				))
+				docs := mstore.ArrayWithTenantID(self.CTX, docFace)
+				_, err := coll.InsertMany(context.Background(), docs)
+				if err != nil {
+					panic(err)
+				}
+			},
+
+			IntegrationFilter: model.IntegrationFilter{
+				IDs: []uuid.UUID{
+					uuid.NewSHA1(uuid.NameSpaceOID, []byte{'0'}),
+					uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+					uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}),
+				},
+			},
+
+			Integrations: []model.Integration{{
+				ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type: "connection_string",
+					ConnectionString: &model.ConnectionString{
+						HostName: "localhost",
+						Key:      []byte("supersecret"),
+						Name:     "barbaz",
+					},
+				},
+			}, {
+				ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type: "connection_string",
+					ConnectionString: &model.ConnectionString{
+						HostName: "localhost",
+						Key:      []byte("secret"),
+						Name:     "foobar",
+					},
+				},
+			}},
+		},
+		{
+			Name: "ok filter by ID",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			InitDatabase: func(
+				self *testCase,
+				coll *mongo.Collection,
+			) {
+				docFace := castInterfaceSlice(append(self.Integrations,
+					model.Integration{
+						ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte{'3'}),
+						Provider: model.ProviderIoTHub,
+						Credentials: model.Credentials{
+							Type: "connection_string",
+							ConnectionString: &model.ConnectionString{
+								HostName: "localhost",
+								Key:      []byte("secret"),
+								Name:     "idk",
+							},
+						},
+					},
+					model.Integration{
+						ID:       uuid.NewSHA1(uuid.NameSpaceOID, []byte{'4'}),
+						Provider: model.ProviderIoTHub,
+						Credentials: model.Credentials{
+							Type: "connection_string",
+							ConnectionString: &model.ConnectionString{
+								HostName: "localhost",
+								Key:      []byte("secret"),
+								Name:     "srsly/idk",
+							},
+						},
+					},
+				))
+				docs := mstore.ArrayWithTenantID(self.CTX, docFace)
+				_, err := coll.InsertMany(context.Background(), docs)
+				if err != nil {
+					panic(err)
+				}
+			},
+
+			IntegrationFilter: model.IntegrationFilter{
+				IDs:      []uuid.UUID{uuid.Nil},
+				Provider: model.ProviderIoTHub,
+				Limit:    1,
+			},
+
+			Integrations: []model.Integration{{
+				ID:       uuid.Nil,
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type: "connection_string",
+					ConnectionString: &model.ConnectionString{
+						HostName: "localhost",
+						Key:      []byte("supersecret"),
+						Name:     "barbaz",
+					},
+				},
+			}},
+		},
+		{
+			Name: "ok/noop",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+
+			IntegrationFilter: model.IntegrationFilter{
+				IDs: []uuid.UUID{},
+			},
+			Integrations: []model.Integration{},
+		},
+		{
 			Name: "no integrations for tenant",
 			CTX: identity.WithContext(context.Background(), &identity.Identity{
 				Tenant: "111111111111111111111111",
 			}),
 			Integrations: []model.Integration{},
+		},
+		{
+			Name: "error/foul document",
+			CTX: identity.WithContext(context.Background(), &identity.Identity{
+				Tenant: tenantID,
+			}),
+			InitDatabase: func(
+				self *testCase,
+				coll *mongo.Collection,
+			) {
+				doc := mstore.WithTenantID(self.CTX, map[string]interface{}{
+					"_id":         "1234567890",
+					"credentials": "correcthorsebatterystaple",
+				})
+				_, err := coll.InsertOne(context.Background(), doc)
+				if err != nil {
+					panic(err)
+				}
+			},
+			Error: errors.New("error retrieving integrations collection results"),
 		},
 		{
 			Name: "error, context deadline exceeded",
@@ -192,19 +390,12 @@ func TestGetIntegrations(t *testing.T) {
 				Database(DbName).
 				Collection(CollNameIntegrations)
 
-			ctx := identity.WithContext(context.Background(), &identity.Identity{
-				Tenant: tenantID,
-			})
-
-			for _, integration := range tc.Integrations {
-				_, err := collIntegrations.InsertOne(ctx,
-					mstore.WithTenantID(ctx, integration),
-				)
-				require.NoError(t, err)
+			if tc.InitDatabase != nil {
+				tc.InitDatabase(&tc, collIntegrations)
 			}
 
 			db := NewDataStoreWithClient(client)
-			integrations, err := db.GetIntegrations(tc.CTX, model.IntegrationFilter{}) // TODO
+			integrations, err := db.GetIntegrations(tc.CTX, tc.IntegrationFilter)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
 					assert.Regexp(t,
@@ -433,15 +624,20 @@ func insertDevices(ctx context.Context, db *mongo.Database, devices []model.Devi
 	}
 }
 
-func TestGetDeviceByID(t *testing.T) {
+func TestGetAndDeleteDevice(t *testing.T) {
 	t.Parallel()
-	ds := NewDataStoreWithClient(db.Client())
+	dbName := t.Name()
+	ds := NewDataStoreWithClient(
+		db.Client(),
+		NewConfig().SetDbName(dbName),
+	)
 
 	ctxEmpty := context.Background()
 	ctxTenant := identity.WithContext(ctxEmpty, &identity.Identity{
 		Tenant: "123456789012345678901234",
 	})
-	database := db.Client().Database(DbName)
+	database := db.Client().Database(dbName)
+	defer database.Drop(ctxEmpty)
 	devices := testSetDevices()
 	insertDevices(ctxEmpty, database, devices[:5])
 	insertDevices(ctxTenant, database, devices[5:])
@@ -452,9 +648,262 @@ func TestGetDeviceByID(t *testing.T) {
 	dev, err = ds.GetDevice(ctxTenant, uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")).String())
 	assert.EqualError(t, err, store.ErrObjectNotFound.Error())
 
-	dev, err = ds.GetDevice(ctxEmpty, uuid.NewSHA1(uuid.NameSpaceOID, []byte("7")).String())
+	err = ds.DeleteDevice(ctxEmpty, uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")).String())
+	assert.NoError(t, err)
+	err = ds.DeleteDevice(ctxEmpty, uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")).String())
 	assert.EqualError(t, err, store.ErrObjectNotFound.Error())
+	dev, err = ds.GetDevice(ctxEmpty, uuid.NewSHA1(uuid.NameSpaceOID, []byte("1")).String())
+	assert.EqualError(t, err, store.ErrObjectNotFound.Error())
+
+	// Context with identity
 	dev, err = ds.GetDevice(ctxTenant, uuid.NewSHA1(uuid.NameSpaceOID, []byte("7")).String())
 	assert.NoError(t, err)
 	assert.Equal(t, &devices[6], dev)
+
+	err = ds.DeleteDevice(ctxTenant, uuid.NewSHA1(uuid.NameSpaceOID, []byte("7")).String())
+	assert.NoError(t, err)
+	err = ds.DeleteDevice(ctxTenant, uuid.NewSHA1(uuid.NameSpaceOID, []byte("7")).String())
+	assert.EqualError(t, err, store.ErrObjectNotFound.Error())
+
+	dev, err = ds.GetDevice(ctxTenant, uuid.NewSHA1(uuid.NameSpaceOID, []byte("7")).String())
+	assert.EqualError(t, err, store.ErrObjectNotFound.Error())
+
+	ctxCancelled, cancel := context.WithCancel(ctxTenant)
+	cancel()
+	err = ds.DeleteDevice(ctxCancelled,
+		uuid.NewSHA1(uuid.NameSpaceOID, []byte("6")).String(),
+	)
+	assert.Error(t, err)
+
+}
+
+func TestGetDeviceByIntegrationID(tp *testing.T) {
+	tp.Parallel()
+	testCases := []struct {
+		Name string
+
+		CTX           context.Context
+		DeviceID      string
+		IntegrationID uuid.UUID
+
+		Device *model.Device
+		Error  error
+	}{{
+		Name: "ok",
+
+		CTX: identity.WithContext(context.Background(),
+			&identity.Identity{
+				Tenant: "123456789012345678901234",
+			},
+		),
+		DeviceID:      uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}).String(),
+		IntegrationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+
+		Device: &testSetDevices()[0],
+	}, {
+		Name: "ok/no tenant",
+
+		CTX:           context.Background(),
+		DeviceID:      uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}).String(),
+		IntegrationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+
+		Device: &testSetDevices()[0],
+	}, {
+		Name: "error/not found",
+
+		CTX: identity.WithContext(context.Background(),
+			&identity.Identity{
+				Tenant: "123456789012345678901234",
+			},
+		),
+		DeviceID:      uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}).String(),
+		IntegrationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'9'}),
+
+		Error: store.ErrObjectNotFound,
+	}, {
+		Name: "error/context cancelled",
+
+		CTX: func() context.Context {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			return ctx
+		}(),
+		DeviceID:      uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}).String(),
+		IntegrationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte{'9'}),
+
+		Error: context.Canceled,
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		ti := i
+		tp.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			dbName := fmt.Sprintf("%s-%d", tp.Name(), ti)
+			ds := NewDataStoreWithClient(
+				db.Client(),
+				NewConfig().SetDbName(dbName),
+			)
+			database := db.Client().Database(dbName)
+			defer database.Drop(context.Background())
+
+			id := identity.FromContext(tc.CTX)
+			ctx := identity.WithContext(context.Background(), id)
+			insertDevices(ctx, database, testSetDevices())
+
+			dev, err := ds.GetDeviceByIntegrationID(
+				tc.CTX,
+				tc.DeviceID,
+				tc.IntegrationID,
+			)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error(),
+						"error did not match expected expression",
+					)
+				}
+			} else {
+				if assert.NoError(t, err) {
+					assert.Equal(t, tc.Device, dev)
+				}
+			}
+		})
+	}
+}
+
+func TestUpsertDeviceIntegrations(t *testing.T) {
+	t.Parallel()
+	client := db.Client()
+	type testCase struct {
+		Name string
+
+		CTX          context.Context
+		InitDatabase func(self *testCase, coll *mongo.Collection)
+		UpsertDevice model.Device
+
+		Device *model.Device
+		Error  error
+	}
+	testCases := []testCase{{
+		Name: "ok/create devices",
+
+		CTX: context.Background(),
+		UpsertDevice: model.Device{
+			ID: uuid.Nil.String(),
+			IntegrationIDs: []uuid.UUID{
+				uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+			},
+		},
+
+		Device: &model.Device{
+			ID: uuid.Nil.String(),
+			IntegrationIDs: []uuid.UUID{
+				uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+			},
+		},
+	}, {
+		Name: "ok/add integration",
+
+		CTX: identity.WithContext(context.Background(),
+			&identity.Identity{Tenant: "123456789012345678901234"},
+		),
+		InitDatabase: func(self *testCase, coll *mongo.Collection) {
+			doc := mstore.WithTenantID(self.CTX, model.Device{
+				ID: uuid.Nil.String(),
+				IntegrationIDs: []uuid.UUID{
+					uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+				},
+			})
+			_, err := coll.InsertOne(self.CTX, doc)
+			if err != nil {
+				panic(err)
+			}
+		},
+		UpsertDevice: model.Device{
+			ID: uuid.Nil.String(),
+			IntegrationIDs: []uuid.UUID{
+				uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}),
+			},
+		},
+
+		Device: &model.Device{
+			ID: uuid.Nil.String(),
+			IntegrationIDs: []uuid.UUID{
+				uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+				uuid.NewSHA1(uuid.NameSpaceOID, []byte{'2'}),
+			},
+		},
+	}, {
+		Name: "ok/noop",
+
+		CTX: identity.WithContext(context.Background(),
+			&identity.Identity{Tenant: "123456789012345678901234"},
+		),
+		InitDatabase: func(self *testCase, coll *mongo.Collection) {
+			doc := mstore.WithTenantID(self.CTX, model.Device{
+				ID: uuid.Nil.String(),
+				IntegrationIDs: []uuid.UUID{
+					uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+				},
+			})
+			_, err := coll.InsertOne(self.CTX, doc)
+			if err != nil {
+				panic(err)
+			}
+		},
+		UpsertDevice: model.Device{
+			ID: uuid.Nil.String(),
+		},
+
+		Device: &model.Device{
+			ID: uuid.Nil.String(),
+			IntegrationIDs: []uuid.UUID{
+				uuid.NewSHA1(uuid.NameSpaceOID, []byte{'1'}),
+			},
+		},
+	}, {
+		Name: "error/context canceled",
+
+		CTX: func() context.Context {
+			ctx, cancel := context.WithCancel(context.Background())
+			cancel()
+			return ctx
+		}(),
+		UpsertDevice: model.Device{
+			ID: uuid.Nil.String(),
+		},
+
+		Error: context.Canceled,
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		ds := NewDataStoreWithClient(client, NewConfig().
+			SetDbName(fmt.Sprintf("%s-%d", t.Name(), i)),
+		)
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			if tc.InitDatabase != nil {
+				collDevs := client.Database(*ds.DbName).
+					Collection(CollNameDevices)
+				tc.InitDatabase(&tc, collDevs)
+			}
+
+			new, err := ds.UpsertDeviceIntegrations(tc.CTX,
+				tc.UpsertDevice.ID,
+				tc.UpsertDevice.IntegrationIDs,
+			)
+
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error(),
+						"error did not match expected expression",
+					)
+				}
+			} else {
+				if assert.NoError(t, err) {
+					assert.Equal(t, tc.Device, new)
+				}
+			}
+		})
+	}
 }
