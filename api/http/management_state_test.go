@@ -663,6 +663,48 @@ func TestSetDeviceStateIntegration(t *testing.T) {
 			},
 		},
 		{
+			Name: "error, conflict set device state integration",
+
+			Headers: http.Header{
+				textproto.CanonicalMIMEHeaderKey(requestid.RequestIdHeader): []string{
+					"829cbefb-70e7-438f-9ac5-35fd131c2111",
+				},
+				"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+					IsUser:  true,
+					Subject: "829cbefb-70e7-438f-9ac5-35fd131c2111",
+					Tenant:  "123456789012345678901234",
+				})},
+			},
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+			RequestBody: map[string]interface{}{
+				"desired": map[string]string{
+					"key": "value",
+				},
+			},
+
+			App: func(t *testing.T) *mapp.App {
+				mapp := new(mapp.App)
+				mapp.On("SetDeviceStateIntegration",
+					contextMatcher,
+					"1",
+					integrationID,
+					&model.DeviceState{
+						Desired: map[string]interface{}{
+							"key": "value",
+						},
+					},
+				).Return(nil, app.ErrDeviceStateConflict)
+				return mapp
+			},
+
+			StatusCode: http.StatusConflict,
+			Response: rest.Error{
+				Err:       app.ErrDeviceStateConflict.Error(),
+				RequestID: "829cbefb-70e7-438f-9ac5-35fd131c2111",
+			},
+		},
+		{
 			Name: "error, invalid payload",
 
 			Headers: http.Header{

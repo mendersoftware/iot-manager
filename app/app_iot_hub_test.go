@@ -16,8 +16,10 @@ package app
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
+	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	mocks_iothub "github.com/mendersoftware/iot-manager/client/iothub/mocks"
 	"github.com/mendersoftware/iot-manager/model"
@@ -284,6 +286,61 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 				return hub
 			},
 			SetDeviceStateIoTHubError: errors.New("failed to update the device twin: internal error"),
+		},
+		{
+			Name: "ko, error conflict setting the device twin",
+
+			DeviceID:    "1",
+			Integration: integration,
+			DeviceState: &model.DeviceState{
+				Desired: map[string]interface{}{
+					"key": "value",
+				},
+			},
+
+			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
+				hub := &mocks_iothub.Client{}
+
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					integration.Credentials.ConnectionString,
+					"1",
+				).Return(&iothub.DeviceTwin{
+					ETag: "etag",
+					Tags: map[string]interface{}{
+						"tag": "value",
+					},
+					Properties: iothub.TwinProperties{
+						Desired: map[string]interface{}{
+							"another-key": "another-value",
+						},
+						Reported: map[string]interface{}{
+							"another-key": "another-value",
+						},
+					},
+				}, nil).Once()
+
+				hub.On("UpdateDeviceTwin",
+					contextMatcher,
+					integration.Credentials.ConnectionString,
+					"1",
+					&iothub.DeviceTwinUpdate{
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
+						Properties: iothub.UpdateProperties{
+							Desired: map[string]interface{}{
+								"key": "value",
+							},
+						},
+						ETag:    "etag",
+						Replace: true,
+					},
+				).Return(client.HTTPError{Code: http.StatusPreconditionFailed})
+
+				return hub
+			},
+			SetDeviceStateIoTHubError: ErrDeviceStateConflict,
 		},
 	}
 	for i := range testCases {

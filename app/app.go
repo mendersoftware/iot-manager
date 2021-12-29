@@ -35,6 +35,7 @@ var (
 
 	ErrDeviceAlreadyExists = errors.New("device already exists")
 	ErrDeviceNotFound      = errors.New("device not found")
+	ErrDeviceStateConflict = errors.New("conflict when updating the device state")
 )
 
 const (

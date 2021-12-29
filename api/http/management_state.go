@@ -138,6 +138,9 @@ func (h *ManagementHandler) SetDeviceStateIntegration(c *gin.Context) {
 	if err == app.ErrIntegrationNotFound || err == app.ErrUnknownIntegration {
 		rest.RenderError(c, http.StatusNotFound, err)
 		return
+	} else if err == app.ErrDeviceStateConflict {
+		rest.RenderError(c, http.StatusConflict, err)
+		return
 	} else if err != nil {
 		rest.RenderError(c, http.StatusInternalServerError, err)
 		return
