@@ -101,17 +101,13 @@ func SetupDataStore(conf *Config) (store.DataStore, error) {
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("failed to connect to db: %v", err))
 	}
-	err = doMigrations(ctx, dbClient, *conf.Automigrate)
-	if err != nil {
-		return nil, err
-	}
-	dataStore := NewDataStoreWithClient(dbClient)
-	return dataStore, nil
+	dataStore := NewDataStoreWithClient(dbClient, conf)
+
+	return dataStore, dataStore.Migrate(ctx)
 }
 
-func doMigrations(ctx context.Context, client *mongo.Client,
-	automigrate bool) error {
-	return Migrate(ctx, DbName, DbVersion, client, automigrate)
+func (ds *DataStoreMongo) Migrate(ctx context.Context) error {
+	return Migrate(ctx, *ds.DbName, DbVersion, ds.client, *ds.Automigrate)
 }
 
 // NewClient returns a mongo client
@@ -173,7 +169,7 @@ type DataStoreMongo struct {
 }
 
 // NewDataStoreWithClient initializes a DataStore object
-func NewDataStoreWithClient(client *mongo.Client, conf ...*Config) store.DataStore {
+func NewDataStoreWithClient(client *mongo.Client, conf ...*Config) *DataStoreMongo {
 	return &DataStoreMongo{
 		client: client,
 		Config: mergeConfig(conf...),
