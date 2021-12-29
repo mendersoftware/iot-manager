@@ -323,6 +323,10 @@ func (c *client) UpdateDeviceTwin(
 	if err != nil {
 		return errors.Wrap(err, "iothub: failed to prepare request")
 	}
+	etag := r.ETag
+	if etag != "" {
+		req.Header.Set("If-Match", `"`+etag+`"`)
+	}
 	rsp, err := c.Do(req)
 	if err != nil {
 		return errors.Wrap(err, "iothub: failed to submit device twin update")
