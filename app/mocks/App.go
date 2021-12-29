@@ -19,11 +19,8 @@ package mocks
 import (
 	context "context"
 
-	app "github.com/mendersoftware/iot-manager/app"
-
-	mock "github.com/stretchr/testify/mock"
-
 	model "github.com/mendersoftware/iot-manager/model"
+	mock "github.com/stretchr/testify/mock"
 
 	uuid "github.com/google/uuid"
 )
@@ -274,11 +271,11 @@ func (_m *App) SetDeviceStateIoTHub(_a0 context.Context, _a1 string, _a2 *model.
 }
 
 // SetDeviceStatus provides a mock function with given fields: _a0, _a1, _a2
-func (_m *App) SetDeviceStatus(_a0 context.Context, _a1 string, _a2 app.Status) error {
+func (_m *App) SetDeviceStatus(_a0 context.Context, _a1 string, _a2 model.Status) error {
 	ret := _m.Called(_a0, _a1, _a2)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, string, app.Status) error); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, string, model.Status) error); ok {
 		r0 = rf(_a0, _a1, _a2)
 	} else {
 		r0 = ret.Error(0)

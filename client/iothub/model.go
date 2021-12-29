@@ -88,6 +88,15 @@ const (
 	StatusDisabled Status = "disabled"
 )
 
+func NewStatusFromMenderStatus(status model.Status) Status {
+	switch status {
+	case model.StatusAccepted, model.StatusPreauthorized:
+		return StatusEnabled
+	default:
+		return StatusDisabled
+	}
+}
+
 func (s *Status) UnmarshalText(b []byte) error {
 	*s = Status(bytes.ToLower(b))
 	return s.Validate()
