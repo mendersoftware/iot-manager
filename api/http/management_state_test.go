@@ -146,13 +146,13 @@ func TestGetDeviceState(t *testing.T) {
 				mapp.On("GetDevice",
 					contextMatcher,
 					"1",
-				).Return(nil, nil)
+				).Return(nil, app.ErrDeviceNotFound)
 				return mapp
 			},
 
 			StatusCode: http.StatusNotFound,
 			Response: rest.Error{
-				Err:       ErrDeviceNotFound.Error(),
+				Err:       app.ErrDeviceNotFound.Error(),
 				RequestID: "829cbefb-70e7-438f-9ac5-35fd131c2111",
 			},
 		},

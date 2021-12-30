@@ -217,7 +217,11 @@ func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
 }
 
 func (a *app) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
-	return a.store.GetDevice(ctx, deviceID)
+	device, err := a.store.GetDevice(ctx, deviceID)
+	if err == store.ErrObjectNotFound {
+		return nil, ErrDeviceNotFound
+	}
+	return device, err
 }
 
 func (a *app) GetDeviceStateIntegration(

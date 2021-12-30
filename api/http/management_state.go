@@ -34,7 +34,6 @@ const (
 
 var (
 	ErrEmptyDeviceID        = errors.New("device ID is empty")
-	ErrDeviceNotFound       = errors.New("device not found")
 	ErrInvalidIntegrationID = errors.New("integration ID is not a valid UUID")
 )
 
@@ -52,11 +51,11 @@ func (h *ManagementHandler) GetDeviceState(c *gin.Context) {
 	}
 
 	device, err := h.app.GetDevice(ctx, deviceID)
-	if err != nil {
-		rest.RenderError(c, http.StatusInternalServerError, err)
+	if err == app.ErrDeviceNotFound {
+		rest.RenderError(c, http.StatusNotFound, app.ErrDeviceNotFound)
 		return
-	} else if device == nil {
-		rest.RenderError(c, http.StatusNotFound, ErrDeviceNotFound)
+	} else if err != nil {
+		rest.RenderError(c, http.StatusInternalServerError, err)
 		return
 	}
 
