@@ -67,7 +67,7 @@ func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
 	}
 }
 
-func (h *InternalHandler) DecomissionDevice(c *gin.Context) {
+func (h *InternalHandler) DecommissionDevice(c *gin.Context) {
 	deviceID := c.Param(ParamDeviceID)
 	tenantID := c.Param(ParamTenantID)
 
@@ -79,6 +79,8 @@ func (h *InternalHandler) DecomissionDevice(c *gin.Context) {
 	switch errors.Cause(err) {
 	case nil, app.ErrNoConnectionString:
 		c.Status(http.StatusNoContent)
+	case app.ErrDeviceNotFound:
+		rest.RenderError(c, http.StatusNotFound, err)
 	default:
 		rest.RenderError(c, http.StatusInternalServerError, err)
 	}

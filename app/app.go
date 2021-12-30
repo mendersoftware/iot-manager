@@ -135,7 +135,7 @@ func (a *app) GetDeviceIntegrations(
 func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
 	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve settings")
+		return err
 	}
 
 	for _, integration := range integrations {
@@ -194,7 +194,7 @@ func (a *app) ProvisionDevice(
 func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
 	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve settings")
+		return err
 	}
 
 	for _, integration := range integrations {
