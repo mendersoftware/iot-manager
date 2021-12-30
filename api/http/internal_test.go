@@ -219,6 +219,23 @@ func TestDecommissionDevice(t *testing.T) {
 
 		StatusCode: http.StatusNoContent,
 	}, {
+		Name: "error/not found",
+
+		TenantID: "123456789012345678901234",
+		DeviceID: "a8d77d55-ebaa-4ace-b9d4-a2bb581d87f8",
+
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			mock := new(mapp.App)
+			mock.On("DeleteIOTHubDevice",
+				validateTenantIDCtx(self.TenantID),
+				self.DeviceID).
+				Return(app.ErrDeviceNotFound)
+			return mock
+		},
+
+		StatusCode: http.StatusNotFound,
+		Error:      app.ErrDeviceNotFound,
+	}, {
 		Name: "error/internal failure",
 
 		TenantID: "123456789012345678901234",

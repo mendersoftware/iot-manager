@@ -114,7 +114,7 @@ func TestCreateIntegration(t *testing.T) {
 			db.Wipe()
 			mgo := db.Client()
 			ds := NewDataStoreWithClient(mgo)
-			err := ds.CreateIntegration(tc.CTX, tc.Integration)
+			_, err := ds.CreateIntegration(tc.CTX, tc.Integration)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
 					assert.Regexp(t, tc.Error.Error(), err.Error())

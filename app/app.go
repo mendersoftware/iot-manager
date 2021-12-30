@@ -35,10 +35,11 @@ var (
 
 	ErrDeviceAlreadyExists = errors.New("device already exists")
 	ErrDeviceNotFound      = errors.New("device not found")
+	ErrDeviceStateConflict = errors.New("conflict when updating the device state")
 )
 
 const (
-	confKeyPrimaryKey = "$azure.primaryKey"
+	confKeyPrimaryKey = "$azure.connectionString"
 )
 
 type DeviceUpdate iothub.Device
@@ -51,7 +52,7 @@ type App interface {
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
-	CreateIntegration(context.Context, model.Integration) error
+	CreateIntegration(context.Context, model.Integration) (*model.Integration, error)
 	SetDeviceStatus(context.Context, string, model.Status) error
 	GetDevice(context.Context, string) (*model.Device, error)
 	GetDeviceStateIntegration(context.Context, string, uuid.UUID) (*model.DeviceState, error)
@@ -100,12 +101,15 @@ func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (*model.Inte
 	return integration, err
 }
 
-func (a *app) CreateIntegration(ctx context.Context, integration model.Integration) error {
-	err := a.store.CreateIntegration(ctx, integration)
+func (a *app) CreateIntegration(
+	ctx context.Context,
+	integration model.Integration,
+) (*model.Integration, error) {
+	result, err := a.store.CreateIntegration(ctx, integration)
 	if err == store.ErrObjectExists {
-		return ErrIntegrationExists
+		return nil, ErrIntegrationExists
 	}
-	return err
+	return result, err
 }
 
 func (a *app) GetDeviceIntegrations(
@@ -131,7 +135,7 @@ func (a *app) GetDeviceIntegrations(
 func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
 	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve settings")
+		return err
 	}
 
 	for _, integration := range integrations {
@@ -190,7 +194,7 @@ func (a *app) ProvisionDevice(
 func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
 	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve settings")
+		return err
 	}
 
 	for _, integration := range integrations {
@@ -216,7 +220,11 @@ func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
 }
 
 func (a *app) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
-	return a.store.GetDevice(ctx, deviceID)
+	device, err := a.store.GetDevice(ctx, deviceID)
+	if err == store.ErrObjectNotFound {
+		return nil, ErrDeviceNotFound
+	}
+	return device, err
 }
 
 func (a *app) GetDeviceStateIntegration(

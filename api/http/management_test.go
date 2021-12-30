@@ -196,6 +196,7 @@ func TestGetIntegrations(t *testing.T) {
 
 func TestCreateIntegration(t *testing.T) {
 	t.Parallel()
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("integration"))
 	var jitter string
 	for i := 0; i < 4096; i++ {
 		jitter += "1"
@@ -233,11 +234,18 @@ func TestCreateIntegration(t *testing.T) {
 			a.On("CreateIntegration",
 				contextMatcher,
 				mock.AnythingOfType("model.Integration")).
-				Return(nil)
+				Return(&model.Integration{
+					ID:       integrationID,
+					Provider: model.ProviderIoTHub,
+					Credentials: model.Credentials{
+						Type:             model.CredentialTypeSAS,
+						ConnectionString: validConnString,
+					},
+				}, nil)
 			return a
 		},
 
-		RspCode: http.StatusNoContent,
+		RspCode: http.StatusCreated,
 	}, {
 		Name: "duplicate integration",
 
@@ -259,7 +267,7 @@ func TestCreateIntegration(t *testing.T) {
 		App: func(t *testing.T) *mapp.App {
 			a := new(mapp.App)
 			a.On("CreateIntegration", contextMatcher, mock.AnythingOfType("model.Integration")).
-				Return(app.ErrIntegrationExists)
+				Return(nil, app.ErrIntegrationExists)
 			return a
 		},
 
@@ -286,7 +294,7 @@ func TestCreateIntegration(t *testing.T) {
 		App: func(t *testing.T) *mapp.App {
 			a := new(mapp.App)
 			a.On("CreateIntegration", contextMatcher, mock.AnythingOfType("model.Integration")).
-				Return(errors.New("internal error"))
+				Return(nil, errors.New("internal error"))
 			return a
 		},
 
@@ -362,7 +370,10 @@ func TestCreateIntegration(t *testing.T) {
 					assert.Regexp(t, tc.Error.Error(), erro.Error())
 				}
 			} else {
-				assert.Empty(t, w.Body.Bytes(), string(w.Body.Bytes()))
+				assert.Empty(t, w.Body.Bytes())
+				location := w.Header().Get(hdrLocation)
+				expectedLocation := APIURLManagement + "/integrations/" + integrationID.String()
+				assert.Equal(t, expectedLocation, location)
 			}
 		})
 	}

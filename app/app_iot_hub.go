@@ -111,7 +111,9 @@ func (a *app) SetDeviceStateIoTHub(
 		}
 		err = a.hub.UpdateDeviceTwin(ctx, cs, deviceID, update)
 	}
-	if err != nil {
+	if errHTTP, ok := err.(client.HTTPError); ok && errHTTP.Code == http.StatusPreconditionFailed {
+		return nil, ErrDeviceStateConflict
+	} else if err != nil {
 		return nil, errors.Wrap(err, "failed to update the device twin")
 	}
 	return a.GetDeviceStateIoTHub(ctx, deviceID, integration)

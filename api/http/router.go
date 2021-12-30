@@ -106,7 +106,7 @@ func NewRouter(
 	internalAPI.GET(APIURLHealth, handler.Health)
 
 	internalAPI.POST(APIURLTenantDevices, internal.ProvisionDevice)
-	internalAPI.DELETE(APIURLTenantDevice, internal.DecomissionDevice)
+	internalAPI.DELETE(APIURLTenantDevice, internal.DecommissionDevice)
 	internalAPI.PUT(APIURLTenantBulkStatus, internal.BulkSetDeviceStatus)
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())

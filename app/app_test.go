@@ -187,11 +187,11 @@ func TestCreateIntegration(t *testing.T) {
 					return true
 				}),
 				mock.AnythingOfType("model.Integration"),
-			).Return(tc.SetSettingsError)
+			).Return(nil, tc.SetSettingsError)
 			app := New(store, nil, nil)
 
 			ctx := context.Background()
-			err := app.CreateIntegration(ctx, tc.CreateIntegrationData)
+			_, err := app.CreateIntegration(ctx, tc.CreateIntegrationData)
 			if tc.SetSettingsError != nil {
 				assert.EqualError(t, err, tc.SetSettingsError.Error())
 			} else {
@@ -842,6 +842,7 @@ func TestGetDevice(t *testing.T) {
 		DeviceID       string
 		GetDevice      *model.Device
 		GetDeviceError error
+		Error          error
 	}{
 		{
 			Name: "ok",
@@ -854,13 +855,16 @@ func TestGetDevice(t *testing.T) {
 		{
 			Name: "ok, device doesn't exist",
 
-			DeviceID: "1",
+			DeviceID:       "1",
+			GetDeviceError: store.ErrObjectNotFound,
+			Error:          ErrDeviceNotFound,
 		},
 		{
 			Name: "ko, device retrieval error",
 
 			DeviceID:       "1",
-			GetDeviceError: errors.New("error getting the settings"),
+			GetDeviceError: errors.New("error getting the device"),
+			Error:          errors.New("error getting the device"),
 		},
 	}
 	for i := range testCases {
@@ -877,8 +881,8 @@ func TestGetDevice(t *testing.T) {
 
 			ctx := context.Background()
 			device, err := app.GetDevice(ctx, tc.DeviceID)
-			if tc.GetDeviceError != nil {
-				assert.EqualError(t, err, tc.GetDeviceError.Error())
+			if tc.Error != nil {
+				assert.EqualError(t, err, tc.Error.Error())
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.GetDevice, device)

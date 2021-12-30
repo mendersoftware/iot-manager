@@ -19,17 +19,18 @@ import "github.com/pkg/errors"
 type Status string
 
 const (
-	StatusAccepted      Status = "accepted"
-	StatusNoAuth        Status = "noauth"
-	StatusPending       Status = "pending"
-	StatusPreauthorized Status = "preauthorized"
-	StatusRejected      Status = "rejected"
+	StatusAccepted       Status = "accepted"
+	StatusNoAuth         Status = "noauth"
+	StatusPending        Status = "pending"
+	StatusPreauthorized  Status = "preauthorized"
+	StatusRejected       Status = "rejected"
+	StatusDecommissioned Status = "decommissioned"
 )
 
 func (stat Status) Validate() error {
 	switch stat {
 	case StatusAccepted, StatusPending, StatusRejected,
-		StatusNoAuth, StatusPreauthorized:
+		StatusNoAuth, StatusPreauthorized, StatusDecommissioned:
 		return nil
 	default:
 		return errors.Errorf("invalid status '%s'", stat)
