@@ -52,7 +52,7 @@ type App interface {
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
-	CreateIntegration(context.Context, model.Integration) error
+	CreateIntegration(context.Context, model.Integration) (*model.Integration, error)
 	SetDeviceStatus(context.Context, string, model.Status) error
 	GetDevice(context.Context, string) (*model.Device, error)
 	GetDeviceStateIntegration(context.Context, string, uuid.UUID) (*model.DeviceState, error)
@@ -101,12 +101,15 @@ func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (*model.Inte
 	return integration, err
 }
 
-func (a *app) CreateIntegration(ctx context.Context, integration model.Integration) error {
-	err := a.store.CreateIntegration(ctx, integration)
+func (a *app) CreateIntegration(
+	ctx context.Context,
+	integration model.Integration,
+) (*model.Integration, error) {
+	result, err := a.store.CreateIntegration(ctx, integration)
 	if err == store.ErrObjectExists {
-		return ErrIntegrationExists
+		return nil, ErrIntegrationExists
 	}
-	return err
+	return result, err
 }
 
 func (a *app) GetDeviceIntegrations(

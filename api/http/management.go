@@ -17,6 +17,7 @@ package http
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -35,6 +36,8 @@ var (
 	)
 	ErrIntegrationNotFound = errors.New("integration not found")
 )
+
+const hdrLocation = "Location"
 
 func getContextAndIdentity(c *gin.Context) (context.Context, *identity.Identity, error) {
 	var (
@@ -90,7 +93,7 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 	//      - service
 	//      - registry read/write
 
-	err = h.app.CreateIntegration(ctx, integration)
+	inserted, err := h.app.CreateIntegration(ctx, integration)
 	if err != nil {
 		switch cause := errors.Cause(err); cause {
 		case app.ErrIntegrationExists:
@@ -105,7 +108,11 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 		}
 		return
 	}
-	c.Status(http.StatusNoContent)
+
+	path := strings.Replace(APIURLIntegration, ":id", inserted.ID.String(), 1)
+	c.Header(hdrLocation, APIURLManagement+path)
+	c.Status(http.StatusCreated)
+
 }
 
 // GET /integrations/{id}

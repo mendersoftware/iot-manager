@@ -187,11 +187,11 @@ func TestCreateIntegration(t *testing.T) {
 					return true
 				}),
 				mock.AnythingOfType("model.Integration"),
-			).Return(tc.SetSettingsError)
+			).Return(nil, tc.SetSettingsError)
 			app := New(store, nil, nil)
 
 			ctx := context.Background()
-			err := app.CreateIntegration(ctx, tc.CreateIntegrationData)
+			_, err := app.CreateIntegration(ctx, tc.CreateIntegrationData)
 			if tc.SetSettingsError != nil {
 				assert.EqualError(t, err, tc.SetSettingsError.Error())
 			} else {

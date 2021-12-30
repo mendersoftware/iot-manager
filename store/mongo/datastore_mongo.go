@@ -282,7 +282,7 @@ func (db *DataStoreMongo) GetIntegrationById(
 func (db *DataStoreMongo) CreateIntegration(
 	ctx context.Context,
 	integration model.Integration,
-) error {
+) (*model.Integration, error) {
 	var tenantID string
 	if id := identity.FromContext(ctx); id != nil {
 		tenantID = id.Tenant
@@ -298,12 +298,12 @@ func (db *DataStoreMongo) CreateIntegration(
 		InsertOne(ctx, mstore.WithTenantID(ctx, integration))
 	if err != nil {
 		if isDuplicateKeyError(err) {
-			return store.ErrObjectExists
+			return nil, store.ErrObjectExists
 		}
-		return errors.Wrapf(err, "failed to store integration %v", integration)
+		return nil, errors.Wrapf(err, "failed to store integration %v", integration)
 	}
 
-	return err
+	return &integration, err
 }
 
 func (db *DataStoreMongo) GetDeviceByIntegrationID(
