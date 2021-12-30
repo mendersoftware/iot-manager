@@ -19,6 +19,7 @@ import (
 
 	"github.com/mendersoftware/iot-manager/app"
 	"github.com/mendersoftware/iot-manager/client"
+	"github.com/mendersoftware/iot-manager/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mendersoftware/go-lib-micro/identity"
@@ -101,11 +102,15 @@ const (
 	maxBulkItems = 100
 )
 
-// PUT /tenants/:tenant_id/bulk/devices/status
+// PUT /tenants/:tenant_id/devices/status/{status}
 func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
-	var schema struct {
-		DeviceIDs []string   `json:"device_ids"`
-		Status    app.Status `json:"status"`
+	var schema []struct {
+		DeviceID string `json:"id"`
+	}
+	status := model.Status(c.Param("status"))
+	if err := status.Validate(); err != nil {
+		rest.RenderError(c, http.StatusBadRequest, err)
+		return
 	}
 	if err := c.ShouldBindJSON(&schema); err != nil {
 		rest.RenderError(c,
@@ -113,7 +118,7 @@ func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 			errors.Wrap(err, "invalid request body"),
 		)
 		return
-	} else if len(schema.DeviceIDs) > maxBulkItems {
+	} else if len(schema) > maxBulkItems {
 		rest.RenderError(c,
 			http.StatusBadRequest,
 			errors.New("too many bulk items: max 100 items per request"),
@@ -128,13 +133,13 @@ func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 	)
 	res := BulkResult{
 		Error: false,
-		Items: make([]BulkItem, len(schema.DeviceIDs)),
+		Items: make([]BulkItem, len(schema)),
 	}
-	for i, id := range schema.DeviceIDs {
+	for i, item := range schema {
 		res.Items[i].Parameters = map[string]interface{}{
-			"device_id": schema.DeviceIDs[i],
+			"id": item.DeviceID,
 		}
-		err := h.app.SetDeviceStatus(ctx, id, schema.Status)
+		err := h.app.SetDeviceStatus(ctx, item.DeviceID, status)
 		if err != nil {
 			res.Error = true
 			if e, ok := errors.Cause(err).(client.HTTPError); ok {

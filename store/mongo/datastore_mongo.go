@@ -37,13 +37,13 @@ import (
 )
 
 const (
-	CollNameIntegrations = "integrations"
 	CollNameDevices      = "devices"
+	CollNameIntegrations = "integrations"
 
 	KeyID             = "_id"
+	KeyIntegrationIDs = "integration_ids"
 	KeyProvider       = "provider"
 	KeyTenantID       = "tenant_id"
-	KeyIntegrationIDs = "integration_ids"
 
 	ConnectTimeoutSeconds = 10
 	defaultAutomigrate    = false
@@ -57,11 +57,14 @@ var (
 
 type Config struct {
 	Automigrate *bool
+	DbName      *string
 }
 
 func NewConfig() *Config {
 	conf := new(Config)
-	return conf.SetAutomigrate(defaultAutomigrate)
+	return conf.
+		SetAutomigrate(defaultAutomigrate).
+		SetDbName(DbName)
 }
 
 func (c *Config) SetAutomigrate(migrate bool) *Config {
@@ -69,11 +72,22 @@ func (c *Config) SetAutomigrate(migrate bool) *Config {
 	return c
 }
 
-func mergeConfig(configs []*Config) *Config {
+func (c *Config) SetDbName(name string) *Config {
+	c.DbName = &name
+	return c
+}
+
+func mergeConfig(configs ...*Config) *Config {
 	config := NewConfig()
 	for _, c := range configs {
+		if c == nil {
+			continue
+		}
 		if c.Automigrate != nil {
 			config.SetAutomigrate(*c.Automigrate)
+		}
+		if c.DbName != nil {
+			config.DbName = c.DbName
 		}
 	}
 	return config
@@ -81,23 +95,19 @@ func mergeConfig(configs []*Config) *Config {
 
 // SetupDataStore returns the mongo data store and optionally runs migrations
 func SetupDataStore(conf *Config) (store.DataStore, error) {
-	conf = mergeConfig([]*Config{conf})
+	conf = mergeConfig(conf)
 	ctx := context.Background()
 	dbClient, err := NewClient(ctx, config.Config)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("failed to connect to db: %v", err))
 	}
-	err = doMigrations(ctx, dbClient, *conf.Automigrate)
-	if err != nil {
-		return nil, err
-	}
-	dataStore := NewDataStoreWithClient(dbClient)
-	return dataStore, nil
+	dataStore := NewDataStoreWithClient(dbClient, conf)
+
+	return dataStore, dataStore.Migrate(ctx)
 }
 
-func doMigrations(ctx context.Context, client *mongo.Client,
-	automigrate bool) error {
-	return Migrate(ctx, DbName, DbVersion, client, automigrate)
+func (ds *DataStoreMongo) Migrate(ctx context.Context) error {
+	return Migrate(ctx, *ds.DbName, DbVersion, ds.client, *ds.Automigrate)
 }
 
 // NewClient returns a mongo client
@@ -159,16 +169,16 @@ type DataStoreMongo struct {
 }
 
 // NewDataStoreWithClient initializes a DataStore object
-func NewDataStoreWithClient(client *mongo.Client, conf ...*Config) store.DataStore {
+func NewDataStoreWithClient(client *mongo.Client, conf ...*Config) *DataStoreMongo {
 	return &DataStoreMongo{
 		client: client,
-		Config: mergeConfig(conf),
+		Config: mergeConfig(conf...),
 	}
 }
 
 // Ping verifies the connection to the database
 func (db *DataStoreMongo) Ping(ctx context.Context) error {
-	res := db.client.Database(DbName).RunCommand(ctx, bson.M{"ping": 1})
+	res := db.client.Database(*db.DbName).RunCommand(ctx, bson.M{"ping": 1})
 	return res.Err()
 }
 
@@ -179,15 +189,22 @@ func (db *DataStoreMongo) Close() error {
 	return err
 }
 
-func (db *DataStoreMongo) GetIntegrations(ctx context.Context) ([]model.Integration, error) {
-	// TODO: Should I add filter with limit?
+func (db *DataStoreMongo) GetIntegrations(
+	ctx context.Context,
+	fltr model.IntegrationFilter,
+) ([]model.Integration, error) {
 	var (
-		err     error
-		results = []model.Integration{}
+		err      error
+		tenantID string
+		results  = []model.Integration{}
 	)
+	id := identity.FromContext(ctx)
+	if id != nil {
+		tenantID = id.Tenant
+	}
 
 	collIntegrations := db.client.
-		Database(DbName).
+		Database(*db.DbName).
 		Collection(CollNameIntegrations)
 	findOpts := mopts.Find().
 		SetSort(bson.D{{
@@ -196,15 +213,33 @@ func (db *DataStoreMongo) GetIntegrations(ctx context.Context) ([]model.Integrat
 		}, {
 			Key:   KeyID,
 			Value: 1,
-		}})
-	tenantId := ""
-	id := identity.FromContext(ctx)
-	if id != nil {
-		tenantId = id.Tenant
+		}}).SetSkip(fltr.Skip)
+	if fltr.Limit > 0 {
+		findOpts.SetLimit(fltr.Limit)
+	}
+
+	fltrDoc := make(bson.D, 0, 3)
+	fltrDoc = append(fltrDoc, bson.E{Key: KeyTenantID, Value: tenantID})
+	if fltr.Provider != model.ProviderEmpty {
+		fltrDoc = append(fltrDoc, bson.E{Key: KeyProvider, Value: fltr.Provider})
+	}
+	if fltr.IDs != nil {
+		switch len(fltr.IDs) {
+		case 0:
+			// Won't match anything, let's save the request
+			return results, nil
+		case 1:
+			fltrDoc = append(fltrDoc, bson.E{Key: KeyID, Value: fltr.IDs[0]})
+
+		default:
+			fltrDoc = append(fltrDoc, bson.E{Key: KeyID, Value: bson.D{{
+				Key: "$in", Value: fltr.IDs,
+			}}})
+		}
 	}
 
 	cur, err := collIntegrations.Find(ctx,
-		bson.D{{Key: KeyTenantID, Value: tenantId}},
+		fltrDoc,
 		findOpts,
 	)
 	if err != nil {
@@ -223,7 +258,8 @@ func (db *DataStoreMongo) GetIntegrationById(
 ) (*model.Integration, error) {
 	var integration = new(model.Integration)
 
-	collIntegrations := db.client.Database(DbName).Collection(CollNameIntegrations)
+	collIntegrations := db.client.Database(*db.DbName).
+		Collection(CollNameIntegrations)
 	tenantId := ""
 	id := identity.FromContext(ctx)
 	if id != nil {
@@ -252,7 +288,7 @@ func (db *DataStoreMongo) CreateIntegration(
 		tenantID = id.Tenant
 	}
 	collIntegrations := db.client.
-		Database(DbName).
+		Database(*db.DbName).
 		Collection(CollNameIntegrations)
 
 	// Force a single integration per tenant by utilizing unique '_id' index
@@ -270,10 +306,6 @@ func (db *DataStoreMongo) CreateIntegration(
 	return err
 }
 
-func (db *DataStoreMongo) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
-	return db.GetDeviceByIntegrationID(ctx, deviceID, uuid.Nil)
-}
-
 func (db *DataStoreMongo) GetDeviceByIntegrationID(
 	ctx context.Context,
 	deviceID string,
@@ -281,26 +313,147 @@ func (db *DataStoreMongo) GetDeviceByIntegrationID(
 ) (*model.Device, error) {
 	var device *model.Device
 
-	collDevices := db.client.Database(DbName).Collection(CollNameDevices)
+	collDevices := db.client.Database(*db.DbName).
+		Collection(CollNameDevices)
 	tenantId := ""
 	id := identity.FromContext(ctx)
 	if id != nil {
 		tenantId = id.Tenant
 	}
 
-	filter := bson.M{KeyID: deviceID, KeyTenantID: tenantId}
-	if integrationID != uuid.Nil {
-		filter[KeyIntegrationIDs] = integrationID
-	}
+	filter := bson.D{{
+		Key: KeyTenantID, Value: tenantId,
+	}, {
+		Key: KeyID, Value: deviceID,
+	}, {
+		Key: KeyIntegrationIDs, Value: integrationID,
+	}}
 	if err := collDevices.FindOne(ctx,
 		filter,
 	).Decode(&device); err != nil {
 		switch err {
 		case mongo.ErrNoDocuments:
-			return nil, nil
+			return nil, store.ErrObjectNotFound
 		default:
 			return nil, errors.Wrap(err, ErrFailedToGetDevice.Error())
 		}
 	}
 	return device, nil
+}
+
+func (db *DataStoreMongo) GetDevice(
+	ctx context.Context,
+	deviceID string,
+) (*model.Device, error) {
+	var (
+		tenantID string
+		result   *model.Device = new(model.Device)
+	)
+	if id := identity.FromContext(ctx); id != nil {
+		tenantID = id.Tenant
+	}
+	filter := bson.D{{
+		Key: KeyID, Value: deviceID,
+	}, {
+		Key: KeyTenantID, Value: tenantID,
+	}}
+	collDevices := db.client.Database(*db.DbName).
+		Collection(CollNameDevices)
+
+	err := collDevices.FindOne(ctx, filter).
+		Decode(result)
+	if err == mongo.ErrNoDocuments {
+		return nil, store.ErrObjectNotFound
+	}
+	return result, err
+}
+
+func (db *DataStoreMongo) DeleteDevice(ctx context.Context, deviceID string) error {
+	var tenantID string
+	if id := identity.FromContext(ctx); id != nil {
+		tenantID = id.Tenant
+	}
+	collDevices := db.client.
+		Database(*db.DbName).
+		Collection(CollNameDevices)
+
+	filter := bson.D{{
+		Key: KeyID, Value: deviceID,
+	}, {
+		Key: KeyTenantID, Value: tenantID,
+	}}
+
+	res, err := collDevices.DeleteOne(ctx, filter)
+	if err != nil {
+		return err
+	} else if res.DeletedCount == 0 {
+		return store.ErrObjectNotFound
+	}
+	return nil
+}
+
+func (db *DataStoreMongo) RemoveIntegrationFromDevices(
+	ctx context.Context,
+	integrationID uuid.UUID,
+) (int64, error) {
+	var tenantID string
+	if id := identity.FromContext(ctx); id != nil {
+		tenantID = id.Tenant
+	}
+	filter := bson.D{{
+		Key: KeyTenantID, Value: tenantID,
+	}, {
+		Key: KeyIntegrationIDs, Value: integrationID,
+	}}
+	update := bson.D{{
+		Key: "$pull", Value: bson.D{{
+			Key: KeyIntegrationIDs, Value: integrationID,
+		}},
+	}}
+
+	collDevices := db.client.Database(*db.DbName).
+		Collection(CollNameDevices)
+
+	res, err := collDevices.UpdateMany(ctx, filter, update)
+	if res != nil {
+		return res.ModifiedCount, err
+	}
+	return 0, errors.Wrap(err, "mongo: failed to delete devices")
+}
+
+func (db *DataStoreMongo) UpsertDeviceIntegrations(
+	ctx context.Context,
+	deviceID string,
+	integrationIDs []uuid.UUID,
+) (*model.Device, error) {
+	var (
+		tenantID string
+		result   = new(model.Device)
+	)
+	if id := identity.FromContext(ctx); id != nil {
+		tenantID = id.Tenant
+	}
+	if integrationIDs == nil {
+		integrationIDs = []uuid.UUID{}
+	}
+	filter := bson.D{{
+		Key: KeyID, Value: deviceID,
+	}, {
+		Key: KeyTenantID, Value: tenantID,
+	}}
+	update := bson.D{{
+		Key: "$addToSet", Value: bson.D{{
+			Key: KeyIntegrationIDs, Value: bson.D{{
+				Key: "$each", Value: integrationIDs,
+			}},
+		}},
+	}}
+	updateOpts := mopts.FindOneAndUpdate().
+		SetUpsert(true).
+		SetReturnDocument(mopts.After)
+	collDevices := db.client.Database(*db.DbName).
+		Collection(CollNameDevices)
+	err := collDevices.FindOneAndUpdate(ctx, filter, update, updateOpts).
+		Decode(result)
+	return result, err
 }

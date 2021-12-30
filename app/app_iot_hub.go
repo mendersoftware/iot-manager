@@ -16,12 +16,59 @@ package app
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/pkg/errors"
 
+	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/model"
 )
+
+func (a *app) provisionIoTHubDevice(
+	ctx context.Context,
+	deviceID string,
+	integration model.Integration,
+) error {
+	cs := integration.Credentials.ConnectionString
+	if cs == nil {
+		return ErrNoConnectionString
+	}
+
+	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
+	if err != nil {
+		if htErr, ok := err.(client.HTTPError); ok {
+			switch htErr.Code {
+			case http.StatusUnauthorized:
+				return ErrNoConnectionString
+			case http.StatusConflict:
+				return ErrDeviceAlreadyExists
+			}
+		}
+		return errors.Wrap(err, "failed to update iothub devices")
+	}
+	if dev.Auth == nil || dev.Auth.SymmetricKey == nil {
+		return ErrNoDeviceConnectionString
+	}
+	primKey := &model.ConnectionString{
+		Key:      dev.Auth.SymmetricKey.Primary,
+		DeviceID: dev.DeviceID,
+		HostName: cs.HostName,
+	}
+
+	err = a.wf.ProvisionExternalDevice(ctx, dev.DeviceID, map[string]string{
+		confKeyPrimaryKey: primKey.String(),
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
+	}
+	err = a.hub.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
+		Tags: map[string]interface{}{
+			"mender": true,
+		},
+	})
+	return errors.Wrap(err, "failed to tag provisioned iothub device")
+}
 
 func (a *app) GetDeviceStateIoTHub(
 	ctx context.Context,

@@ -23,9 +23,3 @@ type Device struct {
 	// Integrations contains the list of integrations for this device
 	IntegrationIDs []uuid.UUID `json:"integration_ids" bson:"integration_ids"`
 }
-
-// DeviceIntegration stores the integration details for a specific device
-type DeviceIntegration struct {
-	// ID is the integration ID
-	ID string `json:"id" bson:"id"`
-}

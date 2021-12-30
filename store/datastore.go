@@ -29,11 +29,25 @@ import (
 type DataStore interface {
 	Ping(ctx context.Context) error
 	Close() error
-	GetDevice(ctx context.Context, deviceID string) (*model.Device, error)
-	GetDeviceByIntegrationID(ctx context.Context, deviceID string, integrationID uuid.UUID) (*model.Device, error)
-	GetIntegrations(context.Context) ([]model.Integration, error)
+
+	GetIntegrations(context.Context, model.IntegrationFilter) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
 	CreateIntegration(context.Context, model.Integration) error
+	GetDevice(ctx context.Context, deviceID string) (*model.Device, error)
+	GetDeviceByIntegrationID(
+		ctx context.Context,
+		deviceID string,
+		integrationID uuid.UUID,
+	) (*model.Device, error)
+	// RemoveDevicesFromIntegration integration with given id from all devices
+	// belonging to the tenant within the context.
+	RemoveIntegrationFromDevices(ctx context.Context, id uuid.UUID) (count int64, err error)
+	UpsertDeviceIntegrations(
+		ctx context.Context,
+		deviceID string,
+		integrationIDs []uuid.UUID,
+	) (newDevice *model.Device, err error)
+	DeleteDevice(ctx context.Context, deviceID string) error
 }
 
 var (

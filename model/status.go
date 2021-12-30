@@ -14,17 +14,24 @@
 
 package model
 
-import validation "github.com/go-ozzo/ozzo-validation/v4"
+import "github.com/pkg/errors"
 
-type Provider string
+type Status string
 
 const (
-	ProviderEmpty  Provider = ""
-	ProviderIoTHub Provider = "iot-hub"
+	StatusAccepted      Status = "accepted"
+	StatusNoAuth        Status = "noauth"
+	StatusPending       Status = "pending"
+	StatusPreauthorized Status = "preauthorized"
+	StatusRejected      Status = "rejected"
 )
 
-var validateProvider = validation.In(ProviderIoTHub)
-
-func (p Provider) Validate() error {
-	return validateProvider.Validate(p)
+func (stat Status) Validate() error {
+	switch stat {
+	case StatusAccepted, StatusPending, StatusRejected,
+		StatusNoAuth, StatusPreauthorized:
+		return nil
+	default:
+		return errors.Errorf("invalid status '%s'", stat)
+	}
 }

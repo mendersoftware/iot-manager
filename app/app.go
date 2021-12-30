@@ -16,12 +16,10 @@ package app
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
 	"github.com/mendersoftware/iot-manager/model"
@@ -34,22 +32,16 @@ var (
 	ErrUnknownIntegration       = errors.New("unknown integration provider")
 	ErrNoConnectionString       = errors.New("no connection string configured for tenant")
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
-	ErrDeviceAlreadyExists      = errors.New("device already exists")
+
+	ErrDeviceAlreadyExists = errors.New("device already exists")
+	ErrDeviceNotFound      = errors.New("device not found")
 )
 
 const (
-	confKeyPrimaryKey   = "$azure.primaryKey"
-	confKeySecondaryKey = "$azure.secondaryKey"
+	confKeyPrimaryKey = "$azure.primaryKey"
 )
 
 type DeviceUpdate iothub.Device
-
-type Status iothub.Status
-
-const (
-	StatusEnabled  = Status(iothub.StatusEnabled)
-	StatusDisabled = Status(iothub.StatusDisabled)
-)
 
 // App interface describes app objects
 //nolint:lll
@@ -60,7 +52,7 @@ type App interface {
 	GetIntegrations(context.Context) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
 	CreateIntegration(context.Context, model.Integration) error
-	SetDeviceStatus(context.Context, string, Status) error
+	SetDeviceStatus(context.Context, string, model.Status) error
 	GetDevice(context.Context, string) (*model.Device, error)
 	GetDeviceStateIntegration(context.Context, string, uuid.UUID) (*model.DeviceState, error)
 	SetDeviceStateIntegration(context.Context, string, uuid.UUID, *model.DeviceState) (*model.DeviceState, error)
@@ -92,7 +84,7 @@ func (a *app) HealthCheck(ctx context.Context) error {
 }
 
 func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) {
-	return a.store.GetIntegrations(ctx)
+	return a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 }
 
 func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (*model.Integration, error) {
@@ -120,11 +112,23 @@ func (a *app) GetDeviceIntegrations(
 	ctx context.Context,
 	deviceID string,
 ) ([]model.Integration, error) {
-	// TODO: stub only, needs to be implemented
+	device, err := a.store.GetDevice(ctx, deviceID)
+	if err != nil {
+		if err == store.ErrObjectNotFound {
+			return nil, ErrDeviceNotFound
+		}
+		return nil, errors.Wrap(err, "app: failed to get device integrations")
+	}
+	if len(device.IntegrationIDs) > 0 {
+		integrations, err := a.store.GetIntegrations(ctx,
+			model.IntegrationFilter{IDs: device.IntegrationIDs},
+		)
+		return integrations, errors.Wrap(err, "app: failed to get device integrations")
+	}
 	return []model.Integration{}, nil
 }
 
-func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Status) error {
+func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
 	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve settings")
@@ -137,15 +141,16 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status Statu
 			if cs == nil {
 				return ErrNoConnectionString
 			}
+			azureStatus := iothub.NewStatusFromMenderStatus(status)
 			dev, err := a.hub.GetDevice(ctx, cs, deviceID)
 			if err != nil {
 				return errors.Wrap(err, "failed to retrieve device from IoT Hub")
-			} else if dev.Status == iothub.Status(status) {
+			} else if dev.Status == azureStatus {
 				// We're done...
 				return nil
 			}
 
-			dev.Status = iothub.Status(status)
+			dev.Status = azureStatus
 			_, err = a.hub.UpsertDevice(ctx, cs, deviceID, dev)
 			if err != nil {
 				return errors.Wrap(err, "failed to update IoT Hub device")
@@ -165,61 +170,21 @@ func (a *app) ProvisionDevice(
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve integration")
 	}
-
+	integrationIDs := make([]uuid.UUID, 0, len(integrations))
 	for _, integration := range integrations {
-		// NEXT Create device document.
-		// TODO Filter only by integrations that apply to device.
 		switch integration.Provider {
 		case model.ProviderIoTHub:
-			cs := integration.Credentials.ConnectionString
-			if cs == nil {
-				return ErrNoConnectionString
-			}
-
-			dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
-			if err != nil {
-				if htErr, ok := err.(client.HTTPError); ok {
-					switch htErr.Code {
-					case http.StatusUnauthorized:
-						return ErrNoConnectionString
-					case http.StatusConflict:
-						return ErrDeviceAlreadyExists
-					}
-				}
-				return errors.Wrap(err, "failed to update iothub devices")
-			}
-			if dev.Auth == nil || dev.Auth.SymmetricKey == nil {
-				return ErrNoDeviceConnectionString
-			}
-			primKey := &model.ConnectionString{
-				Key:      dev.Auth.SymmetricKey.Primary,
-				DeviceID: dev.DeviceID,
-				HostName: cs.HostName,
-			}
-			secKey := &model.ConnectionString{
-				Key:      dev.Auth.SymmetricKey.Secondary,
-				DeviceID: dev.DeviceID,
-				HostName: cs.HostName,
-			}
-
-			err = a.wf.ProvisionExternalDevice(ctx, dev.DeviceID, map[string]string{
-				confKeyPrimaryKey:   primKey.String(),
-				confKeySecondaryKey: secKey.String(),
-			})
-			if err != nil {
-				return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
-			}
-			err = a.hub.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
-				Tags: map[string]interface{}{
-					"mender": true,
-				},
-			})
-			return errors.Wrap(err, "failed to tag provisioned iothub device")
+			err = a.provisionIoTHubDevice(ctx, deviceID, integration)
 		default:
 			continue
 		}
+		if err != nil {
+			return err
+		}
+		integrationIDs = append(integrationIDs, integration.ID)
 	}
-	return nil
+	_, err = a.store.UpsertDeviceIntegrations(ctx, deviceID, integrationIDs)
+	return err
 }
 
 func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
@@ -243,7 +208,11 @@ func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
 			continue
 		}
 	}
-	return nil
+	err = a.store.DeleteDevice(ctx, deviceID)
+	if err == store.ErrObjectNotFound {
+		return ErrDeviceNotFound
+	}
+	return err
 }
 
 func (a *app) GetDevice(ctx context.Context, deviceID string) (*model.Device, error) {
@@ -255,11 +224,12 @@ func (a *app) GetDeviceStateIntegration(
 	deviceID string,
 	integrationID uuid.UUID,
 ) (*model.DeviceState, error) {
-	device, err := a.store.GetDeviceByIntegrationID(ctx, deviceID, integrationID)
+	_, err := a.store.GetDeviceByIntegrationID(ctx, deviceID, integrationID)
 	if err != nil {
+		if err == store.ErrObjectNotFound {
+			return nil, ErrIntegrationNotFound
+		}
 		return nil, errors.Wrap(err, "failed to retrieve the device")
-	} else if device == nil {
-		return nil, ErrIntegrationNotFound
 	}
 	integration, err := a.store.GetIntegrationById(ctx, integrationID)
 	if integration == nil && (err == nil || err == store.ErrObjectNotFound) {
