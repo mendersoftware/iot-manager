@@ -39,7 +39,7 @@ var (
 )
 
 const (
-	confKeyPrimaryKey = "$azure.primaryKey"
+	confKeyPrimaryKey = "$azure.connectionString"
 )
 
 type DeviceUpdate iothub.Device
