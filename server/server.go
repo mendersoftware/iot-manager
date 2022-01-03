@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 		Handler: router,
 	}
 
-	l.Info("Azure IoT Manager service starting up")
+	l.Info("IoT Manager service starting up")
 	l.Infof("listening on %s", listen)
 
 	go func() {

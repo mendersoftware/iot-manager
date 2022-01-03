@@ -3,8 +3,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/mendersoftware/iot-manager)](https://goreportcard.com/report/github.com/mendersoftware/iot-manager)
 [![Docker pulls](https://img.shields.io/docker/pulls/mendersoftware/iot-manager.svg?maxAge=3600)](https://hub.docker.com/r/mendersoftware/iot-manager/)
 
-Mender: Azure IoT Manager: use Azure IoT with Mender
-=============================
+Mender: IoT Manager: use IoT Cloud platforms with Mender
+========================================================
 
 ## General
 
@@ -12,7 +12,7 @@ Mender is an open source over-the-air (OTA) software updater for embedded Linux
 devices. Mender comprises a client running at the embedded device, as well as
 a server that manages deployments across many devices.
 
-This repository contains the Azure IoT Manager microservice, which is part
+This repository contains the IoT Manager microservice, which is part
 of the Mender server. The Mender server is designed as a microservices architecture
 and comprises several repositories.
 
@@ -28,7 +28,7 @@ repositories to be built to be fully functional. If you are testing the Mender s
 is therefore easier to follow the getting started section above as it integrates these
 services.
 
-If you would like to build the Azure IoT Manager microservice independently, you can follow
+If you would like to build the IoT Manager microservice independently, you can follow
 these steps:
 
 ```
