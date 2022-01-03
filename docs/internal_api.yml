@@ -1,9 +1,9 @@
 openapi: 3.0.3
 
 info:
-  title: Azure Iot Manager
+  title: IoT Manager
   description: |
-    Internal API for managing devices on Azure IoT Hub.
+    Internal API for managing IoT Cloud integrations.
 
   version: "1"
 
