@@ -7,7 +7,7 @@ RUN mkdir -p /go/src/github.com/mendersoftware/iot-manager
 COPY . /go/src/github.com/mendersoftware/iot-manager
 RUN cd /go/src/github.com/mendersoftware/iot-manager && env CGO_ENABLED=1 go build
 
-FROM alpine:3.14.2
+FROM alpine:3.15.0
 RUN apk add --no-cache ca-certificates xz
 RUN mkdir -p /etc/iot-manager
 COPY ./config.yaml /etc/iot-manager
