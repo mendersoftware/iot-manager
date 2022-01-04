@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -190,6 +190,13 @@ func (db *DataStoreMongo) Close() error {
 	return err
 }
 
+func (db *DataStoreMongo) Collection(
+	name string,
+	opts ...*mopts.CollectionOptions,
+) *mongo.Collection {
+	return db.client.Database(*db.DbName).Collection(name, opts...)
+}
+
 func (db *DataStoreMongo) GetIntegrations(
 	ctx context.Context,
 	fltr model.IntegrationFilter,
@@ -204,9 +211,7 @@ func (db *DataStoreMongo) GetIntegrations(
 		tenantID = id.Tenant
 	}
 
-	collIntegrations := db.client.
-		Database(*db.DbName).
-		Collection(CollNameIntegrations)
+	collIntegrations := db.Collection(CollNameIntegrations)
 	findOpts := mopts.Find().
 		SetSort(bson.D{{
 			Key:   KeyProvider,
@@ -259,8 +264,7 @@ func (db *DataStoreMongo) GetIntegrationById(
 ) (*model.Integration, error) {
 	var integration = new(model.Integration)
 
-	collIntegrations := db.client.Database(*db.DbName).
-		Collection(CollNameIntegrations)
+	collIntegrations := db.Collection(CollNameIntegrations)
 	tenantId := ""
 	id := identity.FromContext(ctx)
 	if id != nil {
@@ -288,9 +292,7 @@ func (db *DataStoreMongo) CreateIntegration(
 	if id := identity.FromContext(ctx); id != nil {
 		tenantID = id.Tenant
 	}
-	collIntegrations := db.client.
-		Database(*db.DbName).
-		Collection(CollNameIntegrations)
+	collIntegrations := db.Collection(CollNameIntegrations)
 
 	// Force a single integration per tenant by utilizing unique '_id' index
 	integration.ID = uuid.NewSHA1(uuid.NameSpaceOID, []byte(tenantID))
@@ -387,8 +389,7 @@ func (db *DataStoreMongo) GetDeviceByIntegrationID(
 ) (*model.Device, error) {
 	var device *model.Device
 
-	collDevices := db.client.Database(*db.DbName).
-		Collection(CollNameDevices)
+	collDevices := db.Collection(CollNameDevices)
 	tenantId := ""
 	id := identity.FromContext(ctx)
 	if id != nil {
@@ -431,8 +432,7 @@ func (db *DataStoreMongo) GetDevice(
 	}, {
 		Key: KeyTenantID, Value: tenantID,
 	}}
-	collDevices := db.client.Database(*db.DbName).
-		Collection(CollNameDevices)
+	collDevices := db.Collection(CollNameDevices)
 
 	err := collDevices.FindOne(ctx, filter).
 		Decode(result)
@@ -447,9 +447,7 @@ func (db *DataStoreMongo) DeleteDevice(ctx context.Context, deviceID string) err
 	if id := identity.FromContext(ctx); id != nil {
 		tenantID = id.Tenant
 	}
-	collDevices := db.client.
-		Database(*db.DbName).
-		Collection(CollNameDevices)
+	collDevices := db.Collection(CollNameDevices)
 
 	filter := bson.D{{
 		Key: KeyID, Value: deviceID,
@@ -464,6 +462,34 @@ func (db *DataStoreMongo) DeleteDevice(ctx context.Context, deviceID string) err
 		return store.ErrObjectNotFound
 	}
 	return nil
+}
+
+func (db *DataStoreMongo) RemoveIntegrationFromDevices(
+	ctx context.Context,
+	integrationID uuid.UUID,
+) (int64, error) {
+	var tenantID string
+	if id := identity.FromContext(ctx); id != nil {
+		tenantID = id.Tenant
+	}
+	filter := bson.D{{
+		Key: KeyTenantID, Value: tenantID,
+	}, {
+		Key: KeyIntegrationIDs, Value: integrationID,
+	}}
+	update := bson.D{{
+		Key: "$pull", Value: bson.D{{
+			Key: KeyIntegrationIDs, Value: integrationID,
+		}},
+	}}
+
+	collDevices := db.Collection(CollNameDevices)
+
+	res, err := collDevices.UpdateMany(ctx, filter, update)
+	if res != nil {
+		return res.ModifiedCount, err
+	}
+	return 0, errors.Wrap(err, "mongo: failed to delete devices")
 }
 
 func (db *DataStoreMongo) UpsertDeviceIntegrations(
@@ -496,9 +522,19 @@ func (db *DataStoreMongo) UpsertDeviceIntegrations(
 	updateOpts := mopts.FindOneAndUpdate().
 		SetUpsert(true).
 		SetReturnDocument(mopts.After)
-	collDevices := db.client.Database(*db.DbName).
-		Collection(CollNameDevices)
+	collDevices := db.Collection(CollNameDevices)
 	err := collDevices.FindOneAndUpdate(ctx, filter, update, updateOpts).
 		Decode(result)
 	return result, err
+}
+
+func (db *DataStoreMongo) GetAllDevices(ctx context.Context) (store.Iterator, error) {
+	collDevs := db.Collection(CollNameDevices)
+
+	return collDevs.Find(ctx,
+		bson.D{},
+		mopts.Find().
+			SetSort(bson.D{{Key: KeyTenantID, Value: 1}}),
+	)
+
 }

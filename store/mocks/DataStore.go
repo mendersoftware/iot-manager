@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import (
 
 	model "github.com/mendersoftware/iot-manager/model"
 	mock "github.com/stretchr/testify/mock"
+
+	store "github.com/mendersoftware/iot-manager/store"
 
 	uuid "github.com/google/uuid"
 )
@@ -95,6 +97,29 @@ func (_m *DataStore) DoDevicesExistByIntegrationID(_a0 context.Context, _a1 uuid
 	var r1 error
 	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
 		r1 = rf(_a0, _a1)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetAllDevices provides a mock function with given fields: ctx
+func (_m *DataStore) GetAllDevices(ctx context.Context) (store.Iterator, error) {
+	ret := _m.Called(ctx)
+
+	var r0 store.Iterator
+	if rf, ok := ret.Get(0).(func(context.Context) store.Iterator); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(store.Iterator)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = rf(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -220,6 +245,27 @@ func (_m *DataStore) RemoveIntegration(_a0 context.Context, _a1 uuid.UUID) error
 	}
 
 	return r0
+}
+
+// RemoveIntegrationFromDevices provides a mock function with given fields: ctx, id
+func (_m *DataStore) RemoveIntegrationFromDevices(ctx context.Context, id uuid.UUID) (int64, error) {
+	ret := _m.Called(ctx, id)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
+		r0 = rf(ctx, id)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // SetIntegrationCredentials provides a mock function with given fields: _a0, _a1, _a2
