@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+
+	"github.com/mendersoftware/go-lib-micro/identity"
 
 	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/devauth"
@@ -67,6 +69,8 @@ type App interface {
 	SetDeviceStateIoTHub(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
 	ProvisionDevice(context.Context, string) error
 	DecommissionDevice(context.Context, string) error
+
+	SyncDevices(context.Context, int) error
 }
 
 // app is an app object
@@ -238,6 +242,143 @@ func (a *app) ProvisionDevice(
 	}
 	_, err = a.store.UpsertDeviceIntegrations(ctx, deviceID, integrationIDs)
 	return err
+}
+
+func (a *app) syncBatch(
+	ctx context.Context,
+	devices []model.Device,
+	integCache map[uuid.UUID]*model.Integration,
+) error {
+	// FIXME(alf): should be able to continue on (partial) error
+	var err error
+
+	deviceMap := make(map[uuid.UUID][]string, len(integCache))
+	for _, dev := range devices {
+		for _, id := range dev.IntegrationIDs {
+			deviceMap[id] = append(deviceMap[id], dev.ID)
+		}
+	}
+
+	for integID, deviceIDs := range deviceMap {
+		integration, ok := integCache[integID]
+		if !ok {
+			// (Data race) Try again to fetch the integration
+			integration, err = a.store.GetIntegrationById(ctx, integID)
+			if err != nil {
+				if err == store.ErrObjectNotFound {
+					integCache[integID] = nil
+				} else {
+					return err
+				}
+			} else {
+				integCache[integID] = integration
+			}
+		}
+		if integration == nil {
+			// Should not occur, but is not impossible since mongo client
+			// caches batches of results.
+			_, err := a.store.RemoveIntegrationFromDevices(ctx, integID)
+			if err != nil {
+				return errors.Wrap(err, "failed to remove integration from devices")
+			}
+			continue
+		}
+
+		switch integration.Provider {
+		case model.ProviderIoTHub:
+			err := a.syncIoTHubDevices(ctx, deviceIDs, *integration)
+			if err != nil {
+				return err
+			}
+		default:
+			// Invalid integration
+			// FIXME(alf) what to do?
+		}
+	}
+
+	return nil
+}
+
+func (a app) syncCacheIntegrations(ctx context.Context) (map[uuid.UUID]*model.Integration, error) {
+	// NOTE At the time of writing this, we don't allow more than one
+	//      integration per tenant so this const doesn't matter.
+	// TODO Will we need a more sophisticated cache data structure?
+	const MaxIntegrationsToCache = 20
+	// Cache integrations for the given tenant
+	integrations, err := a.store.GetIntegrations(
+		ctx, model.IntegrationFilter{Limit: MaxIntegrationsToCache},
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get integrations for tenant")
+	}
+	integCache := make(map[uuid.UUID]*model.Integration, len(integrations))
+	for i := range integrations {
+		integCache[integrations[i].ID] = &integrations[i]
+	}
+	return integCache, nil
+}
+
+func (a *app) SyncDevices(
+	ctx context.Context,
+	batchSize int,
+) error {
+	type DeviceWithTenantID struct {
+		model.Device `bson:",inline"`
+		TenantID     string `bson:"tenant_id"`
+	}
+	iter, err := a.store.GetAllDevices(ctx)
+	if err != nil {
+		return err
+	}
+	defer iter.Close(ctx)
+
+	var (
+		deviceBatch        = make([]model.Device, 0, batchSize)
+		tenantID    string = ""
+		integCache  map[uuid.UUID]*model.Integration
+	)
+	tCtx := identity.WithContext(ctx, &identity.Identity{
+		Tenant: tenantID,
+	})
+	integCache, err = a.syncCacheIntegrations(tCtx)
+	if err != nil {
+		return err
+	}
+	for iter.Next(ctx) {
+		dev := DeviceWithTenantID{}
+		err := iter.Decode(&dev)
+		if err != nil {
+			return err
+		}
+		if len(deviceBatch) == cap(deviceBatch) ||
+			(tenantID != dev.TenantID && len(deviceBatch) > 0) {
+			err := a.syncBatch(tCtx, deviceBatch, integCache)
+			if err != nil {
+				return err
+			}
+			deviceBatch = deviceBatch[:0]
+		}
+		if tenantID != dev.TenantID {
+			tCtx = identity.WithContext(ctx, &identity.Identity{
+				Tenant: tenantID,
+			})
+			tenantID = dev.TenantID
+
+			integCache, err = a.syncCacheIntegrations(tCtx)
+			if err != nil {
+				return err
+			}
+
+		}
+		deviceBatch = append(deviceBatch, dev.Device)
+	}
+	if len(deviceBatch) > 0 {
+		err := a.syncBatch(tCtx, deviceBatch, integCache)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {

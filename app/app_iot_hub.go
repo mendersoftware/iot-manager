@@ -20,6 +20,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/mendersoftware/go-lib-micro/log"
+
 	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/crypto"
@@ -30,13 +32,14 @@ func (a *app) provisionIoTHubDevice(
 	ctx context.Context,
 	deviceID string,
 	integration model.Integration,
+	deviceUpdate ...*iothub.Device,
 ) error {
 	cs := integration.Credentials.ConnectionString
 	if cs == nil {
 		return ErrNoConnectionString
 	}
 
-	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
+	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID, deviceUpdate...)
 	if err != nil {
 		if htErr, ok := err.(client.HTTPError); ok {
 			switch htErr.Code() {
@@ -69,6 +72,97 @@ func (a *app) provisionIoTHubDevice(
 		},
 	})
 	return errors.Wrap(err, "failed to tag provisioned iothub device")
+}
+
+func (a *app) syncIoTHubDevices(
+	ctx context.Context,
+	deviceIDs []string,
+	integration model.Integration,
+) error {
+	l := log.FromContext(ctx)
+	cs := integration.Credentials.ConnectionString
+
+	// Get device authentication
+	devAuths, err := a.devauth.GetDevices(ctx, deviceIDs)
+	if err != nil {
+		return errors.Wrap(err, "app: failed to lookup device authentication")
+	}
+
+	statuses := make(map[string]iothub.Status, len(deviceIDs))
+	for _, auth := range devAuths {
+		statuses[auth.ID] = iothub.NewStatusFromMenderStatus(auth.Status)
+	}
+	// Find devices that shouldn't exist
+	var (
+		i int
+		j int = len(deviceIDs)
+	)
+	for i < j {
+		id := deviceIDs[i]
+		if _, ok := statuses[id]; !ok {
+			l.Warnf("Device '%s' does not have an auth set: deleting device", id)
+			err := a.DecommissionDevice(ctx, id)
+			if err != nil && err != ErrDeviceNotFound {
+				return errors.Wrap(err, "failed to decommission device")
+			}
+			// swap(deviceIDs[i], deviceIDs[j])
+			j--
+			tmp := deviceIDs[i]
+			deviceIDs[i] = deviceIDs[j]
+			deviceIDs[j] = tmp
+		} else {
+			i++
+		}
+	}
+
+	// Fetch IoT Hub device twins
+	hubDevs, err := a.hub.GetDeviceTwins(ctx, cs, deviceIDs[:j])
+	if err != nil {
+		return errors.Wrap(err, "app: failed to get devices from IoT Hub")
+	}
+
+	// Set of device IDs in iot hub
+	devicesInHub := make(map[string]struct{}, len(hubDevs))
+
+	// Check if devices (statuses) are in sync
+	for _, twin := range hubDevs {
+		devicesInHub[twin.DeviceID] = struct{}{}
+		if stat, ok := statuses[twin.DeviceID]; ok {
+			if stat == twin.Status {
+				continue
+			}
+			l.Warnf("Device '%s' status does not match Mender auth status, updating status",
+				twin.DeviceID)
+			// Update the device's status
+			// NOTE need to fetch device identity first
+			dev, err := a.hub.GetDevice(ctx, cs, twin.DeviceID)
+			if err != nil {
+				return err
+			}
+			dev.Status = stat
+			_, err = a.hub.UpsertDevice(ctx, cs, twin.DeviceID, dev)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Find devices not present in IoT Hub
+	for id, status := range statuses {
+		if _, ok := devicesInHub[id]; !ok {
+			l.Warnf("Found device not existing in IoT Hub '%s': provisioning device", id)
+			// Device inconsistency
+			// Device exist in Mender but not in IoT Hub
+			err := a.provisionIoTHubDevice(ctx, id, integration, &iothub.Device{
+				DeviceID: id,
+				Status:   status,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (a *app) GetDeviceStateIoTHub(

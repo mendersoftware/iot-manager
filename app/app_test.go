@@ -16,6 +16,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -24,8 +25,8 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/mendersoftware/iot-manager/client/iothub"
-	miothub "github.com/mendersoftware/iot-manager/client/iothub/mocks"
-	mworkflows "github.com/mendersoftware/iot-manager/client/workflows/mocks"
+	hubMocks "github.com/mendersoftware/iot-manager/client/iothub/mocks"
+	wfMocks "github.com/mendersoftware/iot-manager/client/workflows/mocks"
 	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/store"
@@ -40,6 +41,22 @@ var (
 		Name:     "foobar",
 	}
 )
+
+type JSONIterator json.Decoder
+
+func (iter *JSONIterator) Next(ctx context.Context) bool {
+	dec := (*json.Decoder)(iter)
+	return dec.More()
+}
+
+func (iter *JSONIterator) Decode(v interface{}) error {
+	dec := (*json.Decoder)(iter)
+	return dec.Decode(v)
+}
+
+func (iter *JSONIterator) Close(ctx context.Context) error {
+	return nil
+}
 
 func TestHealthCheck(t *testing.T) {
 	testCases := []struct {
@@ -451,8 +468,8 @@ func TestProvisionDevice(t *testing.T) {
 		DeviceID string
 
 		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
-		Hub   func(t *testing.T, self *testCase) *miothub.Client
-		Wf    func(t *testing.T, self *testCase) *mworkflows.Client
+		Hub   func(t *testing.T, self *testCase) *hubMocks.Client
+		Wf    func(t *testing.T, self *testCase) *wfMocks.Client
 
 		Error error
 	}
@@ -481,8 +498,8 @@ func TestProvisionDevice(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				hub.On("UpsertDevice", contextMatcher, connString, self.DeviceID).
 					Return(&iothub.Device{
 						DeviceID: self.DeviceID,
@@ -501,8 +518,8 @@ func TestProvisionDevice(t *testing.T) {
 					Return(nil)
 				return hub
 			},
-			Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-				wf := new(mworkflows.Client)
+			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+				wf := new(wfMocks.Client)
 				primKey := &model.ConnectionString{
 					Key:      crypto.String("key1"),
 					DeviceID: self.DeviceID,
@@ -536,8 +553,8 @@ func TestProvisionDevice(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				hub.On("UpsertDevice", contextMatcher, connString, self.DeviceID).
 					Return(&iothub.Device{
 						DeviceID: self.DeviceID,
@@ -547,8 +564,8 @@ func TestProvisionDevice(t *testing.T) {
 					}, nil)
 				return hub
 			},
-			Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-				return new(mworkflows.Client)
+			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+				return new(wfMocks.Client)
 			},
 
 			Error: ErrNoDeviceConnectionString,
@@ -572,14 +589,14 @@ func TestProvisionDevice(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				hub.On("UpsertDevice", contextMatcher, connString, self.DeviceID).
 					Return(nil, errors.New("internal error"))
 				return hub
 			},
-			Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-				return new(mworkflows.Client)
+			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+				return new(wfMocks.Client)
 			},
 
 			Error: errors.New("failed to update iothub devices: internal error"),
@@ -595,11 +612,11 @@ func TestProvisionDevice(t *testing.T) {
 					Return([]model.Integration{}, errors.New("wut?"))
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				return new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				return new(hubMocks.Client)
 			},
-			Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-				return new(mworkflows.Client)
+			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+				return new(wfMocks.Client)
 			},
 
 			Error: errors.New("failed to retrieve integrations: wut?"),
@@ -644,7 +661,7 @@ func TestDecommissionDevice(t *testing.T) {
 		DeviceID string
 
 		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
-		Hub   func(t *testing.T, self *testCase) *miothub.Client
+		Hub   func(t *testing.T, self *testCase) *hubMocks.Client
 
 		Error error
 	}
@@ -653,8 +670,8 @@ func TestDecommissionDevice(t *testing.T) {
 			Name:     "error: device not found in db in GetDeviceIntegrations",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				return hub
 			},
 			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
@@ -669,8 +686,8 @@ func TestDecommissionDevice(t *testing.T) {
 			Name:     "ok",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				hub.On("DeleteDevice", contextMatcher, connString, self.DeviceID).
 					Return(nil)
 				return hub
@@ -703,8 +720,8 @@ func TestDecommissionDevice(t *testing.T) {
 			Name:     "error: no connection string",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				return hub
 			},
 			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
@@ -731,8 +748,8 @@ func TestDecommissionDevice(t *testing.T) {
 			Name:     "error: device not found",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				hub.On("DeleteDevice", contextMatcher, connString, self.DeviceID).
 					Return(nil)
 				return hub
@@ -766,8 +783,8 @@ func TestDecommissionDevice(t *testing.T) {
 			Name:     "error: hub failure",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				hub.On("DeleteDevice", contextMatcher, connString, self.DeviceID).
 					Return(errors.New("failed to delete IoT Hub device: store: unexpected error"))
 				return hub
@@ -836,7 +853,7 @@ func TestSetDeviceStatus(t *testing.T) {
 		Status   model.Status
 
 		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
-		Hub   func(t *testing.T, self *testCase) *miothub.Client
+		Hub   func(t *testing.T, self *testCase) *hubMocks.Client
 
 		Error error
 	}
@@ -867,8 +884,8 @@ func TestSetDeviceStatus(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				dev := &iothub.Device{
 					DeviceID: "foobar",
 					Status:   iothub.StatusDisabled,
@@ -909,8 +926,8 @@ func TestSetDeviceStatus(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				dev := &iothub.Device{
 					DeviceID: self.DeviceID,
 					Status:   iothub.StatusDisabled,
@@ -946,8 +963,8 @@ func TestSetDeviceStatus(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				dev := &iothub.Device{
 					DeviceID: self.DeviceID,
 					Status:   iothub.StatusDisabled,
@@ -989,8 +1006,8 @@ func TestSetDeviceStatus(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				hub.On("GetDevice", contextMatcher, connString, self.DeviceID).
 					Return(nil, errors.New("failed to retrieve device from IoT Hub: hub: unexpected error"))
 				return hub
@@ -1022,8 +1039,8 @@ func TestSetDeviceStatus(t *testing.T) {
 					}, nil)
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				return hub
 			},
 			Error: ErrNoConnectionString,
@@ -1046,8 +1063,8 @@ func TestSetDeviceStatus(t *testing.T) {
 					Return(nil, errors.New("failed to retrieve device integrations: unexpected error"))
 				return store
 			},
-			Hub: func(t *testing.T, self *testCase) *miothub.Client {
-				hub := new(miothub.Client)
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
 				return hub
 			},
 			Error: errors.New("failed to retrieve device integrations: unexpected error"),

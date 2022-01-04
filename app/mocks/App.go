@@ -320,3 +320,17 @@ func (_m *App) SetIntegrationCredentials(_a0 context.Context, _a1 uuid.UUID, _a2
 
 	return r0
 }
+
+// SyncDevices provides a mock function with given fields: _a0, _a1
+func (_m *App) SyncDevices(_a0 context.Context, _a1 int) error {
+	ret := _m.Called(_a0, _a1)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
+		r0 = rf(_a0, _a1)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}

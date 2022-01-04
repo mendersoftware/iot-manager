@@ -15,19 +15,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
-	"github.com/mendersoftware/go-lib-micro/config"
-	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
-
+	"github.com/mendersoftware/iot-manager/app"
+	"github.com/mendersoftware/iot-manager/client/devauth"
+	"github.com/mendersoftware/iot-manager/client/iothub"
+	"github.com/mendersoftware/iot-manager/client/workflows"
 	"github.com/mendersoftware/iot-manager/cmd"
 	dconfig "github.com/mendersoftware/iot-manager/config"
 	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/server"
 	store "github.com/mendersoftware/iot-manager/store/mongo"
+
+	"github.com/mendersoftware/go-lib-micro/config"
+	log "github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 func main() {
@@ -69,6 +75,18 @@ func doMain(args []string) {
 				Name:   "re-encrypt",
 				Usage:  "Re-encrypt the secrets using the (new) encryption key",
 				Action: cmdReencrypt,
+			},
+			{
+				Name:   "sync-devices",
+				Usage:  "Synchronize device state across IoT platforms.",
+				Action: cmdSync,
+				Flags: []cli.Flag{
+					&cli.IntFlag{
+						Name:  "batch-size",
+						Usage: "Maximum number of devices to sync in a batch",
+						Value: 50,
+					},
+				},
 			},
 		},
 	}
@@ -132,4 +150,41 @@ func cmdReencrypt(args *cli.Context) error {
 	}
 	defer dataStore.Close()
 	return cmd.Reencrypt(dataStore)
+}
+
+func cmdSync(args *cli.Context) error {
+	if bs := args.Int("batch-size"); bs <= 0 {
+		return cli.NewExitError(
+			"invalid flag 'batch-size': must be a positive integer", 1,
+		)
+	} else if bs > 500 {
+		// This is the max page size from deviceauth
+		return cli.NewExitError(
+			"invalid flag 'batch-size': must be less than 500", 1,
+		)
+	}
+	httpClient := new(http.Client)
+	ctx := context.Background()
+
+	wf := workflows.NewClient(
+		config.Config.GetString(dconfig.SettingWorkflowsURL),
+		workflows.NewOptions().SetClient(httpClient),
+	)
+	hub := iothub.NewClient(iothub.NewOptions().SetClient(httpClient))
+	mgoConfig := store.NewConfig()
+	devauth, err := devauth.NewClient(devauth.Config{
+		Client:         httpClient,
+		DevauthAddress: config.Config.GetString(dconfig.SettingDeviceauthURL),
+	})
+	if err != nil {
+		return err
+	}
+
+	ds, err := store.SetupDataStore(mgoConfig)
+	if err != nil {
+		return err
+	}
+	defer ds.Close()
+	app := app.New(ds, hub, wf, devauth)
+	return app.SyncDevices(ctx, args.Int("batch-size"))
 }
