@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ func TestGetDeviceStateIoTHub(t *testing.T) {
 				defer client.AssertExpectations(t)
 				iotHubClient = client
 			}
-			app := New(nil, iotHubClient, nil)
+			app := New(nil, iotHubClient, nil, nil)
 
 			ctx := context.Background()
 			state, err := app.GetDeviceStateIoTHub(ctx, tc.DeviceID, tc.Integration)
@@ -352,7 +352,7 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 				defer client.AssertExpectations(t)
 				iotHubClient = client
 			}
-			app := New(nil, iotHubClient, nil)
+			app := New(nil, iotHubClient, nil, nil)
 
 			ctx := context.Background()
 			state, err := app.SetDeviceStateIoTHub(ctx, tc.DeviceID, tc.Integration, tc.DeviceState)

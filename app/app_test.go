@@ -66,7 +66,7 @@ func TestHealthCheck(t *testing.T) {
 					return true
 				}),
 			).Return(tc.PingReturn)
-			app := New(store, nil, nil)
+			app := New(store, nil, nil, nil)
 
 			ctx := context.Background()
 			err := app.HealthCheck(ctx)
@@ -126,7 +126,7 @@ func TestGetIntegrations(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			app := New(tc.Store(t, &tc), nil, nil)
+			app := New(tc.Store(t, &tc), nil, nil, nil)
 
 			ctx := context.Background()
 			res, err := app.GetIntegrations(ctx)
@@ -202,7 +202,7 @@ func TestGetIntegrationByID(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 			store := tc.Store(t, &tc)
-			app := New(store, nil, nil)
+			app := New(store, nil, nil, nil)
 			integration, err := app.GetIntegrationById(context.Background(), tc.ID)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -272,7 +272,14 @@ func TestCreateIntegration(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			app := New(tc.Store(t, &tc), nil, nil)
+			store := &storeMocks.DataStore{}
+			store.On("CreateIntegration",
+				mock.MatchedBy(func(ctx context.Context) bool {
+					return true
+				}),
+				mock.AnythingOfType("model.Integration"),
+			).Return(nil, tc.Error)
+			app := New(store, nil, nil, nil)
 
 			ctx := context.Background()
 			_, err := app.CreateIntegration(ctx, tc.CreateIntegrationData)
@@ -332,7 +339,7 @@ func TestSetIntegrationCredentials(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			app := New(tc.Store(t, &tc), nil, nil)
+			app := New(tc.Store(t, &tc), nil, nil, nil)
 
 			ctx := context.Background()
 			err := app.SetIntegrationCredentials(ctx, integrationID, tc.Credentials)
@@ -418,7 +425,7 @@ func TestRemoveIntegration(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			app := New(tc.Store(t, &tc), nil, nil)
+			app := New(tc.Store(t, &tc), nil, nil, nil)
 
 			ctx := context.Background()
 			err := app.RemoveIntegration(ctx, integrationID)
@@ -610,7 +617,7 @@ func TestProvisionDevice(t *testing.T) {
 			defer hub.AssertExpectations(t)
 			defer wf.AssertExpectations(t)
 
-			app := New(ds, hub, wf)
+			app := New(ds, hub, wf, nil)
 			err := app.ProvisionDevice(ctx, tc.DeviceID)
 
 			if tc.Error != nil {
@@ -799,7 +806,7 @@ func TestDeleteIOTHubDevice(t *testing.T) {
 			defer ds.AssertExpectations(t)
 			defer hub.AssertExpectations(t)
 
-			app := New(ds, hub, nil)
+			app := New(ds, hub, nil, nil)
 			err := app.DeleteIOTHubDevice(ctx, tc.DeviceID)
 
 			if tc.Error != nil {
@@ -1056,7 +1063,7 @@ func TestSetDeviceStatus(t *testing.T) {
 			defer ds.AssertExpectations(t)
 			defer hub.AssertExpectations(t)
 
-			app := New(ds, hub, nil)
+			app := New(ds, hub, nil, nil)
 			err := app.SetDeviceStatus(ctx, tc.DeviceID, tc.Status)
 
 			if tc.Error != nil {
@@ -1112,7 +1119,7 @@ func TestGetDevice(t *testing.T) {
 				}),
 				tc.DeviceID,
 			).Return(tc.GetDevice, tc.GetDeviceError)
-			app := New(store, nil, nil)
+			app := New(store, nil, nil, nil)
 
 			ctx := context.Background()
 			device, err := app.GetDevice(ctx, tc.DeviceID)
@@ -1224,7 +1231,7 @@ func TestGetDeviceStateIntegration(t *testing.T) {
 					tc.GetIntegrationError,
 				)
 			}
-			app := New(store, nil, nil)
+			app := New(store, nil, nil, nil)
 
 			ctx := context.Background()
 			state, err := app.GetDeviceStateIntegration(ctx, tc.DeviceID, tc.IntegrationID)
@@ -1335,7 +1342,7 @@ func TestSetDeviceStateIntegration(t *testing.T) {
 					tc.GetIntegrationError,
 				)
 			}
-			app := New(store, nil, nil)
+			app := New(store, nil, nil, nil)
 
 			ctx := context.Background()
 			state := &model.DeviceState{}

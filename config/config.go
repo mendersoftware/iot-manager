@@ -58,10 +58,14 @@ const (
 	// SettingAESEncryptionKey stores the 32 bytes long key used to encrypt and
 	// decrypt sensitive data
 	SettingAESEncryptionKey = "aes_encryption_key"
-
 	// SettingAESEncryptionFallbackKey stores the 32 bytes long fallback key used
 	// to decrypt sensitive data when performing key-rotation
 	SettingAESEncryptionFallbackKey = "aes_encryption_fallback_key"
+
+	// SettingDeviceauthURL configures the deviceauth URL
+	SettingDeviceauthURL = "deviceauth_url"
+	// SettingDeviceauthURL defines the default deviceauth URL
+	SettingDeviceauthURLDefault = "http://mender-device-auth:8080"
 
 	// SettingDebugLog is the config key for the turning on the debug log
 	SettingDebugLog = "debug_log"
@@ -79,5 +83,6 @@ var (
 		{Key: SettingDbSSLSkipVerify, Value: SettingDbSSLSkipVerifyDefault},
 		{Key: SettingDebugLog, Value: SettingDebugLogDefault},
 		{Key: SettingWorkflowsURL, Value: SettingWorkflowsURLDefault},
+		{Key: SettingDeviceauthURL, Value: SettingDeviceauthURLDefault},
 	}
 )

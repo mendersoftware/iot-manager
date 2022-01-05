@@ -20,6 +20,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/mendersoftware/iot-manager/client/devauth"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
 	"github.com/mendersoftware/iot-manager/model"
@@ -68,17 +69,19 @@ type App interface {
 
 // app is an app object
 type app struct {
-	store store.DataStore
-	hub   iothub.Client
-	wf    workflows.Client
+	store   store.DataStore
+	hub     iothub.Client
+	wf      workflows.Client
+	devauth devauth.Client
 }
 
 // NewApp initialize a new iot-manager App
-func New(ds store.DataStore, hub iothub.Client, wf workflows.Client) App {
+func New(ds store.DataStore, hub iothub.Client, wf workflows.Client, da devauth.Client) App {
 	return &app{
-		store: ds,
-		hub:   hub,
-		wf:    wf,
+		store:   ds,
+		hub:     hub,
+		wf:      wf,
+		devauth: da,
 	}
 }
 
