@@ -32,7 +32,8 @@ import (
 	store "github.com/mendersoftware/iot-manager/store/mongo"
 
 	"github.com/mendersoftware/go-lib-micro/config"
-	log "github.com/sirupsen/logrus"
+	"github.com/mendersoftware/go-lib-micro/log"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -52,6 +53,11 @@ func doMain(args []string) {
 					"formatted configs.",
 				Value:       "/etc/iot-manager/config.yaml",
 				Destination: &configPath,
+			},
+			&cli.StringFlag{
+				Name:  "log-level",
+				Usage: "Log `LEVEL` to emit to standard error.",
+				Value: "info",
 			},
 		},
 		Commands: []cli.Command{
@@ -94,7 +100,13 @@ func doMain(args []string) {
 	app.Action = cmdServer
 
 	app.Before = func(args *cli.Context) error {
-		err := config.FromConfigFile(configPath, dconfig.Defaults)
+		lvl, err := logrus.ParseLevel(args.String("log-level"))
+		if err != nil {
+			return err
+		}
+		log.Log.Level = lvl
+
+		err = config.FromConfigFile(configPath, dconfig.Defaults)
 		if err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("error loading configuration: %s", err),
@@ -119,7 +131,7 @@ func doMain(args []string) {
 
 	err := app.Run(args)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 }
 
