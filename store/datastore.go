@@ -39,15 +39,17 @@ type DataStore interface {
 		deviceID string,
 		integrationID uuid.UUID,
 	) (*model.Device, error)
+	DoDevicesExistByIntegrationID(context.Context, uuid.UUID) (bool, error)
 	// RemoveDevicesFromIntegration integration with given id from all devices
 	// belonging to the tenant within the context.
-	RemoveIntegrationFromDevices(ctx context.Context, id uuid.UUID) (count int64, err error)
 	UpsertDeviceIntegrations(
 		ctx context.Context,
 		deviceID string,
 		integrationIDs []uuid.UUID,
 	) (newDevice *model.Device, err error)
 	DeleteDevice(ctx context.Context, deviceID string) error
+	SetIntegrationCredentials(context.Context, uuid.UUID, model.Credentials) error
+	RemoveIntegration(context.Context, uuid.UUID) error
 }
 
 var (

@@ -117,18 +117,16 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 
 // GET /integrations/{id}
 func (h *ManagementHandler) GetIntegrationById(c *gin.Context) {
-	var (
-		ctx = c.Request.Context()
-		id  = identity.FromContext(ctx)
-	)
-
-	if id == nil || !id.IsUser {
-		rest.RenderError(c, http.StatusForbidden, ErrMissingUserAuthentication)
+	ctx, _, err := getContextAndIdentity(c)
+	if err != nil {
 		return
 	}
 	integrationID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
-		rest.RenderError(c, http.StatusNotFound, ErrIntegrationNotFound)
+		rest.RenderError(c,
+			http.StatusBadRequest,
+			errors.Wrap(err, "integration ID must be a valid UUID"),
+		)
 		return
 	}
 
@@ -147,4 +145,76 @@ func (h *ManagementHandler) GetIntegrationById(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, integration)
+}
+
+// PUT /integrations/{id}/credentials
+func (h *ManagementHandler) SetIntegrationCredentials(c *gin.Context) {
+	ctx, _, err := getContextAndIdentity(c)
+	if err != nil {
+		return
+	}
+	integrationID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		rest.RenderError(c,
+			http.StatusBadRequest,
+			errors.Wrap(err, "integration ID must be a valid UUID"),
+		)
+		return
+	}
+
+	credentials := model.Credentials{}
+	if err := c.ShouldBindJSON(&credentials); err != nil {
+		rest.RenderError(c,
+			http.StatusBadRequest,
+			errors.Wrap(err, "malformed request body"),
+		)
+		return
+	}
+
+	err = h.app.SetIntegrationCredentials(ctx, integrationID, credentials)
+	if err != nil {
+		switch cause := errors.Cause(err); cause {
+		case app.ErrIntegrationNotFound:
+			rest.RenderError(c, http.StatusNotFound, ErrIntegrationNotFound)
+		default:
+			rest.RenderError(c,
+				http.StatusInternalServerError,
+				errors.New(http.StatusText(http.StatusInternalServerError)),
+			)
+		}
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// DELETE /integrations/{id}
+func (h *ManagementHandler) RemoveIntegration(c *gin.Context) {
+	ctx, _, err := getContextAndIdentity(c)
+	if err != nil {
+		return
+	}
+	integrationID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		rest.RenderError(c,
+			http.StatusBadRequest,
+			errors.Wrap(err, "integration ID must be a valid UUID"),
+		)
+		return
+	}
+	if err = h.app.RemoveIntegration(ctx, integrationID); err != nil {
+		switch cause := errors.Cause(err); cause {
+		case app.ErrIntegrationNotFound:
+			rest.RenderError(c, http.StatusNotFound, ErrIntegrationNotFound)
+		case app.ErrCannotRemoveIntegration:
+			rest.RenderError(c, http.StatusConflict, app.ErrCannotRemoveIntegration)
+		default:
+			rest.RenderError(c,
+				http.StatusInternalServerError,
+				errors.New(http.StatusText(http.StatusInternalServerError)),
+			)
+		}
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

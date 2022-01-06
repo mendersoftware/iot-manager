@@ -33,9 +33,10 @@ var (
 	ErrNoConnectionString       = errors.New("no connection string configured for tenant")
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
 
-	ErrDeviceAlreadyExists = errors.New("device already exists")
-	ErrDeviceNotFound      = errors.New("device not found")
-	ErrDeviceStateConflict = errors.New("conflict when updating the device state")
+	ErrDeviceAlreadyExists     = errors.New("device already exists")
+	ErrDeviceNotFound          = errors.New("device not found")
+	ErrDeviceStateConflict     = errors.New("conflict when updating the device state")
+	ErrCannotRemoveIntegration = errors.New("cannot remove integration in use by devices")
 )
 
 const (
@@ -54,6 +55,8 @@ type App interface {
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
 	CreateIntegration(context.Context, model.Integration) (*model.Integration, error)
 	SetDeviceStatus(context.Context, string, model.Status) error
+	SetIntegrationCredentials(context.Context, uuid.UUID, model.Credentials) error
+	RemoveIntegration(context.Context, uuid.UUID) error
 	GetDevice(context.Context, string) (*model.Device, error)
 	GetDeviceStateIntegration(context.Context, string, uuid.UUID) (*model.DeviceState, error)
 	SetDeviceStateIntegration(context.Context, string, uuid.UUID, *model.DeviceState) (*model.DeviceState, error)
@@ -112,6 +115,47 @@ func (a *app) CreateIntegration(
 	return result, err
 }
 
+func (a *app) SetIntegrationCredentials(
+	ctx context.Context,
+	integrationID uuid.UUID,
+	credentials model.Credentials,
+) error {
+	err := a.store.SetIntegrationCredentials(ctx, integrationID, credentials)
+	if err != nil {
+		switch cause := errors.Cause(err); cause {
+		case store.ErrObjectNotFound:
+			return ErrIntegrationNotFound
+		default:
+			return err
+		}
+	}
+	return err
+}
+
+func (a *app) RemoveIntegration(
+	ctx context.Context,
+	integrationID uuid.UUID,
+) error {
+	// check if there are any devices with given integration enabled
+	devicesExist, err := a.store.DoDevicesExistByIntegrationID(ctx, integrationID)
+	if err != nil {
+		return err
+	}
+	if devicesExist {
+		return ErrCannotRemoveIntegration
+	}
+	err = a.store.RemoveIntegration(ctx, integrationID)
+	if err != nil {
+		switch cause := errors.Cause(err); cause {
+		case store.ErrObjectNotFound:
+			return ErrIntegrationNotFound
+		default:
+			return err
+		}
+	}
+	return err
+}
+
 func (a *app) GetDeviceIntegrations(
 	ctx context.Context,
 	deviceID string,
@@ -135,7 +179,7 @@ func (a *app) GetDeviceIntegrations(
 func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
 	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to retrieve device integrations")
 	}
 
 	for _, integration := range integrations {
@@ -172,7 +216,7 @@ func (a *app) ProvisionDevice(
 ) error {
 	integrations, err := a.GetIntegrations(ctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve integration")
+		return errors.Wrap(err, "failed to retrieve integrations")
 	}
 	integrationIDs := make([]uuid.UUID, 0, len(integrations))
 	for _, integration := range integrations {
