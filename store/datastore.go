@@ -18,6 +18,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
+
 	"github.com/mendersoftware/iot-manager/model"
 )
 
@@ -28,11 +30,31 @@ type DataStore interface {
 	Ping(ctx context.Context) error
 	Close() error
 
-	SetSettings(ctx context.Context, settings model.Settings) error
-	GetSettings(ctx context.Context) (model.Settings, error)
+	GetIntegrations(context.Context, model.IntegrationFilter) ([]model.Integration, error)
+	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
+	CreateIntegration(context.Context, model.Integration) (*model.Integration, error)
+	GetDevice(ctx context.Context, deviceID string) (*model.Device, error)
+	GetDeviceByIntegrationID(
+		ctx context.Context,
+		deviceID string,
+		integrationID uuid.UUID,
+	) (*model.Device, error)
+	DoDevicesExistByIntegrationID(context.Context, uuid.UUID) (bool, error)
+	// RemoveDevicesFromIntegration integration with given id from all devices
+	// belonging to the tenant within the context.
+	UpsertDeviceIntegrations(
+		ctx context.Context,
+		deviceID string,
+		integrationIDs []uuid.UUID,
+	) (newDevice *model.Device, err error)
+	DeleteDevice(ctx context.Context, deviceID string) error
+	SetIntegrationCredentials(context.Context, uuid.UUID, model.Credentials) error
+	RemoveIntegration(context.Context, uuid.UUID) error
 }
 
 var (
 	ErrSerialization  = errors.New("store: failed to serialize object")
 	ErrObjectNotFound = errors.New("store: object not found")
+
+	ErrObjectExists = errors.New("store: the object already exists")
 )

@@ -43,14 +43,17 @@ const (
 	APIURLTenantDevices     = APIURLTenant + "/devices"
 	APIURLTenantDevice      = APIURLTenantDevices + "/:device_id"
 	APIURLTenantBulkDevices = APIURLTenant + "/bulk/devices"
-	APIURLTenantBulkStatus  = APIURLTenantBulkDevices + "/status"
+	APIURLTenantBulkStatus  = APIURLTenantBulkDevices + "/status/:status"
 
 	APIURLManagement = "/api/management/v1/iot-manager"
 
-	APIURLSettings      = "/settings"
-	APIURLDevice        = "/devices/:id"
-	APIURLDeviceTwin    = "/devices/:id/twin"
-	APIURLDeviceModules = "/devices/:id/modules"
+	APIURLIntegrations           = "/integrations"
+	APIURLIntegration            = "/integrations/:id"
+	APIURLIntegrationCredentials = APIURLIntegration + "/credentials"
+
+	APIURLDevice                 = "/devices/:id"
+	APIURLDeviceState            = APIURLDevice + "/state"
+	APIURLDeviceStateIntegration = APIURLDevice + "/state/:integrationId"
 )
 
 const (
@@ -104,18 +107,19 @@ func NewRouter(
 	internalAPI.GET(APIURLHealth, handler.Health)
 
 	internalAPI.POST(APIURLTenantDevices, internal.ProvisionDevice)
-	internalAPI.DELETE(APIURLTenantDevice, internal.DecomissionDevice)
+	internalAPI.DELETE(APIURLTenantDevice, internal.DecommissionDevice)
 	internalAPI.PUT(APIURLTenantBulkStatus, internal.BulkSetDeviceStatus)
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
-	managementAPI.GET(APIURLSettings, management.GetSettings)
-	managementAPI.PUT(APIURLSettings, management.SetSettings)
+	managementAPI.GET(APIURLIntegrations, management.GetIntegrations)
+	managementAPI.GET(APIURLIntegration, management.GetIntegrationById)
+	managementAPI.POST(APIURLIntegrations, management.CreateIntegration)
+	managementAPI.PUT(APIURLIntegrationCredentials, management.SetIntegrationCredentials)
+	managementAPI.DELETE(APIURLIntegration, management.RemoveIntegration)
 
-	managementAPI.GET(APIURLDeviceTwin, management.GetDeviceTwin)
-	managementAPI.PUT(APIURLDeviceTwin, management.UpdateDeviceTwin)
-	managementAPI.PATCH(APIURLDeviceTwin, management.UpdateDeviceTwin)
-	managementAPI.GET(APIURLDeviceModules, management.GetDeviceModules)
-	managementAPI.GET(APIURLDevice, management.GetDevice)
+	managementAPI.GET(APIURLDeviceState, management.GetDeviceState)
+	managementAPI.GET(APIURLDeviceStateIntegration, management.GetDeviceStateIntegration)
+	managementAPI.PUT(APIURLDeviceStateIntegration, management.SetDeviceStateIntegration)
 
 	return router
 }

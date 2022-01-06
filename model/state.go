@@ -14,15 +14,13 @@
 
 package model
 
-import validation "github.com/go-ozzo/ozzo-validation/v4"
+// DeviceStates maps integration IDs to device states
+type DeviceStates map[string]DeviceState
 
-//nolint:lll
-type Settings struct {
-	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
-}
-
-func (s Settings) Validate() error {
-	return validation.ValidateStruct(&s,
-		validation.Field(&s.ConnectionString),
-	)
+// DeviceState is the device state for/from a specific integration
+type DeviceState struct {
+	// Desired state is only mutable for the cloud.
+	Desired map[string]interface{} `json:"desired"`
+	// Reported state is only mutable for the device.
+	Reported map[string]interface{} `json:"reported"`
 }

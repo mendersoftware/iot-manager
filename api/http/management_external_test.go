@@ -27,12 +27,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mendersoftware/go-lib-micro/identity"
-	mapp "github.com/mendersoftware/iot-manager/app/mocks"
-	"github.com/mendersoftware/iot-manager/model"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mendersoftware/iot-manager/app"
+	"github.com/mendersoftware/iot-manager/client/iothub"
+	"github.com/mendersoftware/iot-manager/model"
+	mocks_store "github.com/mendersoftware/iot-manager/store/mocks"
+)
+
+const (
+	APIURLDeviceTwin = "/devices/:id/twin"
+
+	HdrKeyAuthz = "Authorization"
 )
 
 var (
@@ -80,6 +89,7 @@ func TestIOTHubExternal(t *testing.T) {
 		t.Skip("test.device-id is not provided nor valid")
 		return
 	}
+
 	// The following gets the device and updates (increments)
 	// the "desired" property "_TESTING" and checks the expected
 	// value.
@@ -89,13 +99,29 @@ func TestIOTHubExternal(t *testing.T) {
 	})
 	w := httptest.NewRecorder()
 	const testKey = "_TESTING"
-	mockApp := new(mapp.App)
-	defer mockApp.AssertExpectations(t)
-	mockApp.On("GetSettings", mock.Anything).
-		Return(model.Settings{
+	integrationId := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+
+	store := &mocks_store.DataStore{}
+	store.On("GetDeviceByIntegrationID",
+		contextMatcher,
+		externalDeviceID,
+		integrationId,
+	).Return(&model.Device{}, nil)
+	store.On("GetIntegrationById",
+		contextMatcher,
+		integrationId,
+	).Return(&model.Integration{
+		Provider: model.ProviderIoTHub,
+		Credentials: model.Credentials{
 			ConnectionString: externalCS,
-		}, nil)
-	handler := NewRouter(mockApp)
+		},
+	}, nil)
+	defer store.AssertExpectations(t)
+
+	iotHubClient := iothub.NewClient()
+	app := app.New(store, iotHubClient, nil)
+
+	handler := NewRouter(app)
 	srv := httptest.NewServer(handler)
 	client := srv.Client()
 	client.Transport = &http.Transport{
@@ -106,32 +132,28 @@ func TestIOTHubExternal(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
-	uri := "http://localhost" +
-		APIURLManagement +
-		strings.ReplaceAll(APIURLDeviceTwin, ":id", externalDeviceID)
 
+	url := strings.ReplaceAll(APIURLDeviceStateIntegration, ":id", externalDeviceID)
+	url = strings.ReplaceAll(url, ":integrationId", integrationId.String())
+	uri := "http://localhost" + APIURLManagement + url
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
 	req.Header.Set(HdrKeyAuthz, authz)
 	rsp, err := client.Do(req)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, w.Code)
 	defer rsp.Body.Close()
-	type bodyOfInterest struct {
-		Properties struct {
-			Desired map[string]interface{} `json:"desired"`
-		} `json:"properties"`
-	}
-	var boi bodyOfInterest
+
+	var deviceState model.DeviceState
 	dec := json.NewDecoder(rsp.Body)
-	err = dec.Decode(&boi)
+	err = dec.Decode(&deviceState)
 	require.NoError(t, err)
 	var nextValue uint32
-	if cur, ok := boi.Properties.Desired[testKey].(float64); ok {
+	if cur, ok := deviceState.Desired[testKey].(float64); ok {
 		nextValue = uint32(cur) + 1
 	}
-	boi.Properties.Desired[testKey] = nextValue
-	b, _ := json.Marshal(map[string]interface{}{"properties": boi.Properties.Desired})
-	req, _ = http.NewRequestWithContext(ctx, http.MethodPatch, uri, bytes.NewReader(b))
+	deviceState.Desired[testKey] = nextValue
+	b, _ := json.Marshal(deviceState)
+	req, _ = http.NewRequestWithContext(ctx, http.MethodPut, uri, bytes.NewReader(b))
 	req.Header.Set(HdrKeyAuthz, authz)
 	require.NoError(t, err)
 	rspPatch, err := client.Do(req)
@@ -139,7 +161,6 @@ func TestIOTHubExternal(t *testing.T) {
 	defer rspPatch.Body.Close()
 	assert.Equal(t, http.StatusOK, rspPatch.StatusCode)
 
-	var boiUpdated bodyOfInterest
 	req, _ = http.NewRequestWithContext(ctx, http.MethodGet, uri, nil)
 	req.Header.Set(HdrKeyAuthz, authz)
 	rspGet, err := client.Do(req)
@@ -147,9 +168,8 @@ func TestIOTHubExternal(t *testing.T) {
 	defer rspGet.Body.Close()
 	assert.Equal(t, http.StatusOK, rspGet.StatusCode)
 	dec = json.NewDecoder(rspGet.Body)
-	_ = dec.Decode(&boiUpdated)
-	if updatedFloat, ok := boiUpdated.Properties.
-		Desired[testKey].(float64); assert.True(t, ok) {
+	_ = dec.Decode(&deviceState)
+	if updatedFloat, ok := deviceState.Desired[testKey].(float64); assert.True(t, ok) {
 		assert.Equal(t, nextValue, uint32(updatedFloat))
 	}
 }

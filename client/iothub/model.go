@@ -88,6 +88,15 @@ const (
 	StatusDisabled Status = "disabled"
 )
 
+func NewStatusFromMenderStatus(status model.Status) Status {
+	switch status {
+	case model.StatusAccepted, model.StatusPreauthorized:
+		return StatusEnabled
+	default:
+		return StatusDisabled
+	}
+}
+
 func (s *Status) UnmarshalText(b []byte) error {
 	*s = Status(bytes.ToLower(b))
 	return s.Validate()
@@ -190,6 +199,7 @@ type UpdateProperties struct {
 type DeviceTwinUpdate struct {
 	Properties UpdateProperties       `json:"properties,omitempty"`
 	Tags       map[string]interface{} `json:"tags,omitempty"`
+	ETag       string                 `json:"-"`
 	Replace    bool                   `json:"-"`
 }
 

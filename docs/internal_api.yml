@@ -1,9 +1,9 @@
 openapi: 3.0.3
 
 info:
-  title: Azure Iot Manager
+  title: IoT Manager
   description: |
-    Internal API for managing devices on Azure IoT Hub.
+    Internal API for managing IoT Cloud integrations.
 
   version: "1"
 
@@ -111,7 +111,7 @@ paths:
           $ref: '#/components/responses/InternalServerError'
 
 
-  /tenants/{tenantId}/bulk/devices/status:
+  /tenants/{tenantId}/bulk/devices/status/{status}:
     put:
       operationId: Update device statuses
       tags:
@@ -124,28 +124,34 @@ paths:
             type: string
           required: true
           description: ID of tenant the device belongs to.
+        - in: path
+          name: tenantId
+          schema:
+            type: string
+            enum:
+              - accepted
+              - noauth
+              - pending
+              - preauthorized
+              - rejected
+          required: true
+          description: The status of the device
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                device_ids:
-                  type: array
-                  items:
+              type: array
+              description: |
+                List of devices to update.
+                Up to 100 devices can be processed per request.
+              items:
+                type: object
+                properties:
+                  id:
                     type: string
-                  description: |
-                    List of device IDs to update.
-                    Up to 100 devices can be processed per request.
-                status:
-                  type: string
-                  enum:
-                    - enabled
-                    - disabled
-                  description: New status for list of devices.
-              required:
-                - device_ids
-                - status
+                    description: Device ID.
+                required:
+                  - id
       responses:
         200:
           description: >-
