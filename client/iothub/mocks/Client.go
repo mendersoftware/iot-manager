@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -90,22 +90,22 @@ func (_m *Client) GetDeviceTwin(ctx context.Context, cs *model.ConnectionString,
 	return r0, r1
 }
 
-// GetDeviceTwins provides a mock function with given fields: ctx, cs
-func (_m *Client) GetDeviceTwins(ctx context.Context, cs *model.ConnectionString) (iothub.Cursor, error) {
-	ret := _m.Called(ctx, cs)
+// GetDeviceTwins provides a mock function with given fields: ctx, cs, deviceIDs
+func (_m *Client) GetDeviceTwins(ctx context.Context, cs *model.ConnectionString, deviceIDs []string) ([]iothub.DeviceTwin, error) {
+	ret := _m.Called(ctx, cs, deviceIDs)
 
-	var r0 iothub.Cursor
-	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString) iothub.Cursor); ok {
-		r0 = rf(ctx, cs)
+	var r0 []iothub.DeviceTwin
+	if rf, ok := ret.Get(0).(func(context.Context, *model.ConnectionString, []string) []iothub.DeviceTwin); ok {
+		r0 = rf(ctx, cs, deviceIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(iothub.Cursor)
+			r0 = ret.Get(0).([]iothub.DeviceTwin)
 		}
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, *model.ConnectionString) error); ok {
-		r1 = rf(ctx, cs)
+	if rf, ok := ret.Get(1).(func(context.Context, *model.ConnectionString, []string) error); ok {
+		r1 = rf(ctx, cs, deviceIDs)
 	} else {
 		r1 = ret.Error(1)
 	}

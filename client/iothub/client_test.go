@@ -16,18 +16,13 @@ package iothub
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"strconv"
-	"sync/atomic"
+	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +33,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -131,260 +125,6 @@ func TestIOTHubExternal(t *testing.T) {
 		}
 	}
 
-	cur, err := client.GetDeviceTwins(ctx, externalCS)
-	assert.NoError(t, err)
-	var v DeviceTwin
-	for cur.Next(ctx) {
-		err := cur.Decode(&v)
-		require.NoError(t, err)
-		b, _ := json.Marshal(v)
-		t.Log(string(b))
-	}
-	err = cur.Decode(v)
-	assert.EqualError(t, err, io.EOF.Error())
-}
-
-type deviceProducer struct {
-	deviceNum  int32
-	maxDevices int32
-	t          *testing.T
-}
-
-func maybe() bool {
-	var b [1]byte
-	_, _ = rand.Read(b[:])
-	return b[0]&0x01 > 0
-}
-
-func maybeConnected() string {
-	if maybe() {
-		return "Connected"
-	} else {
-		return "Disconnected"
-	}
-}
-
-func genEtag() string {
-	var binTag [4]byte
-	_, _ = rand.Read(binTag[:])
-	return base64.StdEncoding.EncodeToString(binTag[:])
-}
-
-func (h *deviceProducer) produceDevice() *DeviceTwin {
-	deviceNum := atomic.AddInt32(&h.deviceNum, 1)
-	return &DeviceTwin{
-		AuthenticationType: "sas",
-		Capabilities: &DeviceCapabilities{
-			IOTEdge: maybe(),
-		},
-		CloudToDeviceMessageCount: int64(rand.Int31()),
-		ConnectionState:           maybeConnected(),
-		DeviceEtag:                genEtag(),
-		DeviceID:                  fmt.Sprintf("test-device-%03x", deviceNum),
-		ETag:                      genEtag(),
-		LastActivityTime:          time.Now().Format(time.RFC3339Nano),
-		Properties: TwinProperties{
-			Desired: map[string]interface{}{
-				"device_num":  deviceNum,
-				"good_device": true,
-			},
-			Reported: map[string]interface{}{
-				"device_num":  deviceNum,
-				"good_device": maybe(),
-			},
-		},
-		Status:  "enabled",
-		Version: rand.Int31(),
-	}
-}
-
-func (h *deviceProducer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	count, err := strconv.ParseInt(r.Header.Get(hdrKeyCount), 10, 64)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	var nextCount int32
-	tok := r.Header.Get(hdrKeyContToken)
-	if tok != "" {
-		rawCount, err := base64.StdEncoding.DecodeString(tok)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		} else if len(rawCount) < 4 {
-			http.Error(w, "bad continuation token", http.StatusBadRequest)
-		}
-		nextCount = int32(binary.BigEndian.Uint32(rawCount))
-	}
-	assert.Equal(h.t, h.deviceNum, nextCount)
-	resCount := int64(h.maxDevices - nextCount)
-	if resCount > count {
-		resCount = count
-	}
-	res := make([]*DeviceTwin, resCount)
-	for i := int64(0); i < resCount; i++ {
-		res[i] = h.produceDevice()
-	}
-	var hdr [4]byte
-	binary.BigEndian.PutUint32(hdr[:], uint32(h.deviceNum))
-	if h.deviceNum < h.maxDevices {
-		w.Header().Set(hdrKeyContToken, base64.StdEncoding.EncodeToString(hdr[:]))
-	}
-	w.WriteHeader(http.StatusOK)
-	enc := json.NewEncoder(w)
-	enc.Encode(res)
-}
-
-func (h *deviceProducer) RoundTrip(r *http.Request) (*http.Response, error) {
-	select {
-	case <-r.Context().Done():
-		return nil, r.Context().Err()
-	default:
-		// pass
-	}
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, r)
-	return w.Result(), nil
-}
-
-type ContextExpireInAMinute struct{ context.Context }
-
-func (ctx ContextExpireInAMinute) Deadline() (time.Time, bool) {
-	return time.Now().Add(time.Minute), true
-}
-
-type ContextExpireOnDone struct {
-	context.Context
-	Chan   chan struct{}
-	DoneIn int32
-	err    error
-}
-
-func NewContextExpireOnDone(in int32) context.Context {
-	return &ContextExpireOnDone{
-		Context: context.Background(),
-		DoneIn:  in,
-	}
-}
-
-func (ctx *ContextExpireOnDone) Done() <-chan struct{} {
-	if ctx.Chan == nil {
-		ctx.Chan = make(chan struct{})
-	}
-	res := atomic.AddInt32(&ctx.DoneIn, -1)
-	if res <= 0 {
-		select {
-		case <-ctx.Chan:
-			// pass (already closed)
-		default:
-			close(ctx.Chan)
-			ctx.err = context.DeadlineExceeded
-		}
-	}
-	return ctx.Chan
-}
-
-func (ctx *ContextExpireOnDone) Err() error {
-	return ctx.err
-}
-
-func TestGetDevices(t *testing.T) {
-	t.Parallel()
-	testCases := []struct {
-		Name string
-
-		CTX context.Context
-
-		ConnStr    *model.ConnectionString
-		NumDevices int32
-		LastError  error
-
-		Error error
-	}{{
-		Name: "ok",
-
-		CTX:        context.Background(),
-		NumDevices: 101,
-
-		Error: nil,
-	}, {
-		Name: "ok/with expire",
-
-		CTX:        ContextExpireInAMinute{Context: context.Background()},
-		NumDevices: 101,
-
-		Error: nil,
-	}, {
-		Name: "error/context cancelled",
-
-		CTX: func() context.Context {
-			ctx, cancel := context.WithCancel(context.TODO())
-			cancel()
-			return ctx
-		}(),
-		NumDevices: 101,
-
-		Error: context.Canceled,
-	}, {
-		Name: "error/context expires on next",
-
-		CTX:        NewContextExpireOnDone(2),
-		NumDevices: 101,
-		LastError:  context.DeadlineExceeded,
-	}, {
-		Name: "error/nil context",
-
-		Error: errors.New("iothub: failed to prepare request"),
-	}, {
-		Name: "error/invalid connection string",
-
-		ConnStr: &model.ConnectionString{
-			HostName: "localhost",
-		},
-		Error: errors.New("iothub: failed to prepare request: invalid connection string"),
-	}}
-	for i := range testCases {
-		tc := testCases[i]
-		t.Run(tc.Name, func(t *testing.T) {
-			t.Parallel()
-			httpClient := &http.Client{
-				Transport: &deviceProducer{
-					t:          t,
-					maxDevices: tc.NumDevices,
-				},
-			}
-			client := NewClient(NewOptions().SetClient(httpClient))
-			connStr := tc.ConnStr
-			if connStr == nil {
-				connStr = &model.ConnectionString{
-					Key:             crypto.String("c3VwZXIgc2VjcmV0Cg=="),
-					HostName:        "localhost",
-					GatewayHostName: "localhost:8080",
-					Name:            "admin_sas",
-				}
-			}
-
-			cur, err := client.GetDeviceTwins(tc.CTX, connStr)
-			if tc.Error != nil {
-				if assert.Error(t, err) {
-					assert.Regexp(t, tc.Error.Error(), err.Error())
-				}
-			} else if assert.Nil(t, err) && assert.NotNil(t, cur) {
-				if tc.LastError == nil {
-					tc.LastError = io.EOF
-				}
-				var twin DeviceTwin
-				for cur.Next(tc.CTX) {
-					err = cur.Decode(&twin)
-					assert.NoError(t, err)
-				}
-				err := cur.Decode(&twin)
-				if assert.Error(t, err) {
-					assert.Regexp(t, tc.LastError.Error(), err.Error())
-				}
-			}
-		})
-	}
 }
 
 func TestUpsertDevice(t *testing.T) {
@@ -715,6 +455,171 @@ func TestGetDevice(t *testing.T) {
 				if assert.IsType(t, res, tc.RSPBody, "Bad test case") {
 					assert.Equal(t, tc.RSPBody, dev)
 				}
+			}
+		})
+	}
+}
+
+func TestGetDeviceTwins(t *testing.T) {
+	t.Parallel()
+	cs := &model.ConnectionString{
+		HostName: "localhost",
+		Key:      crypto.String("secret"),
+		Name:     "gibDevice",
+	}
+	testCases := []struct {
+		Name string
+
+		CTX       context.Context
+		ConnStr   *model.ConnectionString
+		DeviceIDs []string
+
+		ClientError error
+		RspCode     int
+		RspBody     interface{}
+
+		Error error
+	}{{
+		Name: "ok",
+
+		CTX:     context.Background(),
+		ConnStr: cs,
+		DeviceIDs: []string{
+			"d9b4b693-fb1c-44fa-9e84-30e6aa0ee0c5",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb4",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb3",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb2",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb1",
+		},
+
+		RspCode: http.StatusOK,
+		RspBody: []DeviceTwin{{
+			DeviceID: "d9b4b693-fb1c-44fa-9e84-30e6aa0ee0c5",
+		}, {
+			DeviceID: "53a57499-51a6-41ee-a1ed-7abb994e8bb4",
+		}, {
+			DeviceID: "53a57499-51a6-41ee-a1ed-7abb994e8bb3",
+		}, {
+			DeviceID: "53a57499-51a6-41ee-a1ed-7abb994e8bb2",
+		}, {
+			DeviceID: "53a57499-51a6-41ee-a1ed-7abb994e8bb1",
+		}},
+	}, {
+		Name: "ok/no devices",
+
+		CTX:       context.Background(),
+		ConnStr:   cs,
+		DeviceIDs: []string{},
+		RspBody:   []DeviceTwin{},
+	}, {
+		Name: "error/nil context",
+		DeviceIDs: []string{
+			"d9b4b693-fb1c-44fa-9e84-30e6aa0ee0c5",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb4",
+		},
+		ConnStr: cs,
+
+		Error: errors.New("iothub: failed to prepare request:.*nil Context"),
+	}, {
+		Name: "error/client error",
+
+		CTX:     context.Background(),
+		ConnStr: cs,
+		DeviceIDs: []string{
+			"d9b4b693-fb1c-44fa-9e84-30e6aa0ee0c5",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb4",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb3",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb2",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb1",
+		},
+
+		ClientError: errors.New("internal error"),
+		Error:       errors.New("iothub: failed to fetch device twins:.*internal error"),
+	}, {
+		Name: "error/bad status",
+
+		CTX:     context.Background(),
+		ConnStr: cs,
+		DeviceIDs: []string{
+			"d9b4b693-fb1c-44fa-9e84-30e6aa0ee0c5",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb4",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb3",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb2",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb1",
+		},
+
+		RspCode: http.StatusInternalServerError,
+		RspBody: rest.Error{
+			Err: "internal error",
+		},
+
+		Error: common.NewHTTPError(http.StatusInternalServerError),
+	}, {
+		Name: "error/corrupted response body",
+
+		CTX:     context.Background(),
+		ConnStr: cs,
+		DeviceIDs: []string{
+			"d9b4b693-fb1c-44fa-9e84-30e6aa0ee0c5",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb4",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb3",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb2",
+			"53a57499-51a6-41ee-a1ed-7abb994e8bb1",
+		},
+
+		RspCode: http.StatusOK,
+		RspBody: []byte(`{"almost": "json"`),
+		Error:   errors.New("iothub: failed to decode API response"),
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			httpClient := &http.Client{
+				Transport: RoundTripperFunc(func(
+					req *http.Request,
+				) (*http.Response, error) {
+					if tc.ClientError != nil {
+						return nil, tc.ClientError
+					}
+					// Validate request body
+					var body struct {
+						Query string `json:"query"`
+					}
+					dec := json.NewDecoder(req.Body)
+					err := dec.Decode(&body)
+					if assert.NoError(t, err) {
+						q := fmt.Sprintf(
+							"SELECT * FROM devices WHERE "+
+								"devices.deviceid IN ['%s']",
+							strings.Join(tc.DeviceIDs, "','"),
+						)
+						assert.Equal(t, q, body.Query)
+					}
+
+					w.WriteHeader(tc.RspCode)
+					switch t := tc.RspBody.(type) {
+					case []byte:
+						_, _ = w.Write(t)
+					default:
+						b, _ := json.Marshal(t)
+						_, _ = w.Write(b)
+					}
+
+					return w.Result(), nil
+				}),
+			}
+			client := NewClient(NewOptions().SetClient(httpClient))
+			res, err := client.GetDeviceTwins(tc.CTX, tc.ConnStr, tc.DeviceIDs)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.RspBody, res)
 			}
 		})
 	}

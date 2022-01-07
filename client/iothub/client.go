@@ -18,11 +18,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	common "github.com/mendersoftware/iot-manager/client"
@@ -37,7 +38,6 @@ const (
 	uriQueryTwin = uriDevices + "/query"
 
 	hdrKeyContentType = "Content-Type"
-	hdrKeyContToken   = "X-Ms-Continuation"
 	hdrKeyCount       = "X-Ms-Max-Item-Count"
 
 	// https://docs.microsoft.com/en-us/rest/api/iothub/service/devices
@@ -59,7 +59,7 @@ const (
 //nolint:lll
 //go:generate ../../utils/mockgen.sh
 type Client interface {
-	GetDeviceTwins(ctx context.Context, cs *model.ConnectionString) (Cursor, error)
+	GetDeviceTwins(ctx context.Context, cs *model.ConnectionString, deviceIDs []string) ([]DeviceTwin, error)
 	GetDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string) (*DeviceTwin, error)
 	UpdateDeviceTwin(ctx context.Context, cs *model.ConnectionString, id string, r *DeviceTwinUpdate) error
 
@@ -250,30 +250,36 @@ func (c *client) DeleteDevice(ctx context.Context, cs *model.ConnectionString, i
 }
 
 func (c *client) GetDeviceTwins(
-	ctx context.Context, cs *model.ConnectionString,
-) (Cursor, error) {
-	const (
-		SQLQuery              = `{"query":"SELECT * FROM devices"}`
-		pageSize, pageSizeStr = 100, "100"
+	ctx context.Context, cs *model.ConnectionString, deviceIDs []string,
+) ([]DeviceTwin, error) {
+	if len(deviceIDs) == 0 {
+		return []DeviceTwin{}, nil
+	}
+	SQLQuery := fmt.Sprintf(
+		`{"query":"SELECT * FROM devices WHERE devices.deviceid IN ['%s']"}`,
+		strings.Join(deviceIDs, "','"),
 	)
 	q := bytes.NewReader([]byte(SQLQuery))
 	req, err := c.NewRequestWithContext(ctx, cs, http.MethodPost, uriQueryTwin, q)
 	if err != nil {
 		return nil, errors.Wrap(err, "iothub: failed to prepare request")
 	}
-	req.Header.Set(hdrKeyCount, pageSizeStr)
+	req.Header.Set(hdrKeyCount, strconv.Itoa(len(deviceIDs)))
 
-	cur := &cursor{
-		mut:    new(sync.Mutex),
-		client: c.Client,
-		req:    req,
-		cs:     cs,
-	}
-	err = cur.fetchPage(ctx)
+	rsp, err := c.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "iothub: failed to fetch device twins")
 	}
-	return cur, nil
+	defer rsp.Body.Close()
+	if rsp.StatusCode >= 400 {
+		return nil, common.NewHTTPError(rsp.StatusCode)
+	}
+	twins := make([]DeviceTwin, 0, len(deviceIDs))
+	dec := json.NewDecoder(rsp.Body)
+	if err = dec.Decode(&twins); err != nil {
+		return nil, errors.Wrap(err, "iothub: failed to decode API response")
+	}
+	return twins, nil
 }
 
 func (c *client) GetDeviceTwin(
@@ -300,7 +306,6 @@ func (c *client) GetDeviceTwin(
 	if err = dec.Decode(twin); err != nil {
 		return nil, errors.Wrap(err, "iothub: failed to decode API response")
 	}
-	rsp.Header.Get("x-ms-continuation")
 	return twin, nil
 }
 
