@@ -184,7 +184,7 @@ func TestGetIntegrations(t *testing.T) {
 
 			StatusCode: http.StatusInternalServerError,
 			Response: rest.Error{
-				Err:       errors.New(http.StatusText(http.StatusInternalServerError)).Error(),
+				Err:       "error retrieving integrations collection results",
 				RequestID: "829cbefb-70e7-438f-9ac5-35fd131c2111",
 			},
 		},
@@ -325,7 +325,7 @@ func TestCreateIntegration(t *testing.T) {
 		},
 
 		RspCode: http.StatusInternalServerError,
-		Error:   errors.New(http.StatusText(http.StatusInternalServerError)),
+		Error:   errors.New("internal error"),
 	}, {
 		Name: "malformed request body",
 
@@ -511,7 +511,7 @@ func TestGetIntegrationById(t *testing.T) {
 
 		Code: http.StatusInternalServerError,
 		Response: rest.Error{
-			Err:       http.StatusText(http.StatusInternalServerError),
+			Err:       "internal error",
 			RequestID: "test",
 		},
 	}, {
@@ -699,7 +699,7 @@ func TestSetIntegrationCredentials(t *testing.T) {
 				Err:       app.ErrIntegrationNotFound.Error(),
 				RequestID: "test",
 			},
-			Error: errors.New("Internal Server Error"),
+			Error: errors.New("random internal server error"),
 		},
 		{
 			Name: "error, integration not found",
