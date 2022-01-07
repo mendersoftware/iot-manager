@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -53,8 +53,8 @@ func (_m *App) CreateIntegration(_a0 context.Context, _a1 model.Integration) (*m
 	return r0, r1
 }
 
-// DeleteIOTHubDevice provides a mock function with given fields: _a0, _a1
-func (_m *App) DeleteIOTHubDevice(_a0 context.Context, _a1 string) error {
+// DecommissionDevice provides a mock function with given fields: _a0, _a1
+func (_m *App) DecommissionDevice(_a0 context.Context, _a1 string) error {
 	ret := _m.Called(_a0, _a1)
 
 	var r0 error

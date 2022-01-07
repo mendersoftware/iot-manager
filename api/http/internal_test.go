@@ -194,7 +194,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(nil)
@@ -210,7 +210,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(app.ErrNoConnectionString)
@@ -226,7 +226,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(app.ErrDeviceNotFound)
@@ -243,7 +243,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(errors.New("internal error"))

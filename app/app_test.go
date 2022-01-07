@@ -631,7 +631,7 @@ func TestProvisionDevice(t *testing.T) {
 	}
 }
 
-func TestDeleteIOTHubDevice(t *testing.T) {
+func TestDecommissionDevice(t *testing.T) {
 	t.Parallel()
 	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
 	connString := &model.ConnectionString{
@@ -807,7 +807,7 @@ func TestDeleteIOTHubDevice(t *testing.T) {
 			defer hub.AssertExpectations(t)
 
 			app := New(ds, hub, nil, nil)
-			err := app.DeleteIOTHubDevice(ctx, tc.DeviceID)
+			err := app.DecommissionDevice(ctx, tc.DeviceID)
 
 			if tc.Error != nil {
 				if assert.Error(t, err) {

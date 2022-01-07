@@ -75,7 +75,7 @@ func (h *InternalHandler) DecommissionDevice(c *gin.Context) {
 		Subject: deviceID,
 		Tenant:  tenantID,
 	})
-	err := h.app.DeleteIOTHubDevice(ctx, deviceID)
+	err := h.app.DecommissionDevice(ctx, deviceID)
 	switch errors.Cause(err) {
 	case nil, app.ErrNoConnectionString:
 		c.Status(http.StatusNoContent)

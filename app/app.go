@@ -16,10 +16,12 @@ package app
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
+	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/devauth"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
@@ -64,7 +66,7 @@ type App interface {
 	GetDeviceStateIoTHub(context.Context, string, *model.Integration) (*model.DeviceState, error)
 	SetDeviceStateIoTHub(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
 	ProvisionDevice(context.Context, string) error
-	DeleteIOTHubDevice(context.Context, string) error
+	DecommissionDevice(context.Context, string) error
 }
 
 // app is an app object
@@ -238,7 +240,7 @@ func (a *app) ProvisionDevice(
 	return err
 }
 
-func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
+func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
 	if err != nil {
 		return err
@@ -253,6 +255,10 @@ func (a *app) DeleteIOTHubDevice(ctx context.Context, deviceID string) error {
 			}
 			err = a.hub.DeleteDevice(ctx, cs, deviceID)
 			if err != nil {
+				if htErr, ok := err.(client.HTTPError); ok &&
+					htErr.Code() == http.StatusNotFound {
+					continue
+				}
 				return errors.Wrap(err, "failed to delete IoT Hub device")
 			}
 		default:
