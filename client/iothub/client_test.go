@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import (
 
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
 	common "github.com/mendersoftware/iot-manager/client"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 
 	"github.com/pkg/errors"
@@ -356,7 +357,7 @@ func TestGetDevices(t *testing.T) {
 			connStr := tc.ConnStr
 			if connStr == nil {
 				connStr = &model.ConnectionString{
-					Key:             []byte("c3VwZXIgc2VjcmV0Cg=="),
+					Key:             crypto.String("c3VwZXIgc2VjcmV0Cg=="),
 					HostName:        "localhost",
 					GatewayHostName: "localhost:8080",
 					Name:            "admin_sas",
@@ -390,7 +391,7 @@ func TestUpsertDevice(t *testing.T) {
 	t.Parallel()
 	cs := &model.ConnectionString{
 		HostName: "localhost",
-		Key:      []byte("secret"),
+		Key:      crypto.String("secret"),
 		Name:     "gimmeAccessPls",
 	}
 	deviceID := "6c985f61-5093-45eb-8ece-7dfe97a6de7b"
@@ -503,7 +504,7 @@ func TestDeleteDevice(t *testing.T) {
 	t.Parallel()
 	cs := &model.ConnectionString{
 		HostName: "localhost",
-		Key:      []byte("secret"),
+		Key:      crypto.String("secret"),
 		Name:     "gimmeAccessPls",
 	}
 	deviceID := "6c985f61-5093-45eb-8ece-7dfe97a6de7b"
@@ -595,7 +596,7 @@ func TestGetDevice(t *testing.T) {
 		ConnStr: &model.ConnectionString{
 			HostName: "localhost",
 			Name:     "swellHub",
-			Key:      []byte("password123"),
+			Key:      crypto.String("password123"),
 		},
 		RSPCode: http.StatusOK,
 		RSPBody: &Device{
@@ -617,7 +618,7 @@ func TestGetDevice(t *testing.T) {
 		DeviceID: "141c6d55-5d96-4b60-b00a-47cdb9a49aeb",
 		ConnStr: &model.ConnectionString{
 			Name: "namelessHub",
-			Key:  []byte("password123"),
+			Key:  crypto.String("password123"),
 		},
 		RSPCode: http.StatusOK,
 		RSPBody: &Device{
@@ -641,7 +642,7 @@ func TestGetDevice(t *testing.T) {
 		ConnStr: &model.ConnectionString{
 			HostName: "localhost",
 			Name:     "namelessHub",
-			Key:      []byte("password123"),
+			Key:      crypto.String("password123"),
 		},
 		RTError: errors.New("internal error"),
 		Error:   errors.New("iothub: failed to execute request:.*internal error"),
@@ -652,7 +653,7 @@ func TestGetDevice(t *testing.T) {
 		ConnStr: &model.ConnectionString{
 			HostName: "localhost",
 			Name:     "swellHub",
-			Key:      []byte("password123"),
+			Key:      crypto.String("password123"),
 		},
 		RSPCode: http.StatusInternalServerError,
 		RSPBody: rest.Error{Err: "internal error"},
@@ -664,7 +665,7 @@ func TestGetDevice(t *testing.T) {
 		ConnStr: &model.ConnectionString{
 			HostName: "localhost",
 			Name:     "swellHub",
-			Key:      []byte("password123"),
+			Key:      crypto.String("password123"),
 		},
 		RSPCode: http.StatusOK,
 		RSPBody: []byte("here's your device..."),

@@ -24,6 +24,7 @@ import (
 	"github.com/urfave/cli"
 
 	dconfig "github.com/mendersoftware/iot-manager/config"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/server"
 	store "github.com/mendersoftware/iot-manager/store/mongo"
 )
@@ -80,6 +81,14 @@ func doMain(args []string) {
 		config.Config.SetEnvPrefix("IOT_MANAGER")
 		config.Config.AutomaticEnv()
 		config.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+
+		// Set encryption keys
+		crypto.SetAESEncryptionKey(
+			config.Config.GetString(dconfig.SettingAESEncryptionKey),
+		)
+		crypto.SetAESEncryptionFallbackKey(
+			config.Config.GetString(dconfig.SettingAESEncryptionFallbackKey),
+		)
 
 		return nil
 	}

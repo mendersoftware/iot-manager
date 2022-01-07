@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import (
 
 	"github.com/mendersoftware/iot-manager/app"
 	mapp "github.com/mendersoftware/iot-manager/app/mocks"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 )
 
@@ -50,7 +51,7 @@ var (
 	contextMatcher  = mock.MatchedBy(func(_ context.Context) bool { return true })
 	validConnString = &model.ConnectionString{
 		HostName: "localhost:8080",
-		Key:      []byte("not-so-secret-key"),
+		Key:      crypto.String("not-so-secret-key"),
 		Name:     "foobar",
 	}
 )
