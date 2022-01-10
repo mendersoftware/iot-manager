@@ -23,7 +23,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
+	"github.com/mendersoftware/iot-manager/cmd"
 	dconfig "github.com/mendersoftware/iot-manager/config"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/server"
 	store "github.com/mendersoftware/iot-manager/store/mongo"
 )
@@ -63,6 +65,11 @@ func doMain(args []string) {
 				Usage:  "Run the migrations",
 				Action: cmdMigrate,
 			},
+			{
+				Name:   "re-encrypt",
+				Usage:  "Re-encrypt the secrets using the (new) encryption key",
+				Action: cmdReencrypt,
+			},
 		},
 	}
 	app.Usage = "IoT Manager"
@@ -80,6 +87,14 @@ func doMain(args []string) {
 		config.Config.SetEnvPrefix("IOT_MANAGER")
 		config.Config.AutomaticEnv()
 		config.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
+
+		// Set encryption keys
+		crypto.SetAESEncryptionKey(
+			config.Config.GetString(dconfig.SettingAESEncryptionKey),
+		)
+		crypto.SetAESEncryptionFallbackKey(
+			config.Config.GetString(dconfig.SettingAESEncryptionFallbackKey),
+		)
 
 		return nil
 	}
@@ -107,4 +122,14 @@ func cmdMigrate(args *cli.Context) error {
 		return err
 	}
 	return dataStore.Close()
+}
+
+func cmdReencrypt(args *cli.Context) error {
+	mgoConfig := store.NewConfig().SetAutomigrate(args.Bool("automigrate"))
+	dataStore, err := store.SetupDataStore(mgoConfig)
+	if err != nil {
+		return err
+	}
+	defer dataStore.Close()
+	return cmd.Reencrypt(dataStore)
 }

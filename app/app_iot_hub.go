@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 
 	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iothub"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 )
 
@@ -51,7 +52,7 @@ func (a *app) provisionIoTHubDevice(
 		return ErrNoDeviceConnectionString
 	}
 	primKey := &model.ConnectionString{
-		Key:      dev.Auth.SymmetricKey.Primary,
+		Key:      crypto.String(dev.Auth.SymmetricKey.Primary),
 		DeviceID: dev.DeviceID,
 		HostName: cs.HostName,
 	}

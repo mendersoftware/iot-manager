@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import (
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	miothub "github.com/mendersoftware/iot-manager/client/iothub/mocks"
 	mworkflows "github.com/mendersoftware/iot-manager/client/workflows/mocks"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/store"
 	storeMocks "github.com/mendersoftware/iot-manager/store/mocks"
@@ -35,7 +36,7 @@ var (
 	contextMatcher  = mock.MatchedBy(func(ctx context.Context) bool { return true })
 	validConnString = &model.ConnectionString{
 		HostName: "localhost:8080",
-		Key:      []byte("not-so-secret-key"),
+		Key:      crypto.String("not-so-secret-key"),
 		Name:     "foobar",
 	}
 )
@@ -240,7 +241,7 @@ func TestCreateIntegration(t *testing.T) {
 					Type: "connection_string",
 					ConnectionString: &model.ConnectionString{
 						HostName: "localhost",
-						Key:      []byte("secret"),
+						Key:      crypto.String("secret"),
 						Name:     "foobar",
 					},
 				},
@@ -435,7 +436,7 @@ func TestProvisionDevice(t *testing.T) {
 	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
 	connString := &model.ConnectionString{
 		HostName: "localhost",
-		Key:      []byte("secret"),
+		Key:      crypto.String("secret"),
 		Name:     "foobar",
 	}
 	type testCase struct {
@@ -496,7 +497,7 @@ func TestProvisionDevice(t *testing.T) {
 			Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
 				wf := new(mworkflows.Client)
 				primKey := &model.ConnectionString{
-					Key:      []byte("key1"),
+					Key:      crypto.String("key1"),
 					DeviceID: self.DeviceID,
 					HostName: connString.HostName,
 				}
@@ -628,7 +629,7 @@ func TestDeleteIOTHubDevice(t *testing.T) {
 	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
 	connString := &model.ConnectionString{
 		HostName: "localhost",
-		Key:      []byte("secret"),
+		Key:      crypto.String("secret"),
 		Name:     "foobar",
 	}
 	type testCase struct {
@@ -817,7 +818,7 @@ func TestSetDeviceStatus(t *testing.T) {
 	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
 	connString := &model.ConnectionString{
 		HostName: "localhost",
-		Key:      []byte("secret"),
+		Key:      crypto.String("secret"),
 		Name:     "foobar",
 	}
 	type testCase struct {

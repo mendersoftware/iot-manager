@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -54,6 +54,14 @@ const (
 	SettingWorkflowsURL = "workflows_url"
 	// SettingWorkflowsURL defines the default workflows URL
 	SettingWorkflowsURLDefault = "http://mender-workflows-server:8080"
+
+	// SettingAESEncryptionKey stores the 32 bytes long key used to encrypt and
+	// decrypt sensitive data
+	SettingAESEncryptionKey = "aes_encryption_key"
+
+	// SettingAESEncryptionFallbackKey stores the 32 bytes long fallback key used
+	// to decrypt sensitive data when performing key-rotation
+	SettingAESEncryptionFallbackKey = "aes_encryption_fallback_key"
 
 	// SettingDebugLog is the config key for the turning on the debug log
 	SettingDebugLog = "debug_log"
