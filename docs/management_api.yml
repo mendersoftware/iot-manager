@@ -74,7 +74,8 @@ paths:
           headers:
             Location:
               description: URL of the newly registered integration.
-              type: string
+              schema:
+                type: string
         400:
           $ref: '#/components/responses/InvalidRequestError'
         401:
