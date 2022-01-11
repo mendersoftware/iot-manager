@@ -441,7 +441,7 @@ func TestUpsertDevice(t *testing.T) {
 		ConnStr: cs,
 
 		RSPCode: http.StatusInternalServerError,
-		Error:   common.HTTPError{Code: http.StatusInternalServerError},
+		Error:   common.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name: "error/malformed response",
 
@@ -541,7 +541,7 @@ func TestDeleteDevice(t *testing.T) {
 		ConnStr: cs,
 
 		RSPCode: http.StatusInternalServerError,
-		Error:   common.HTTPError{Code: http.StatusInternalServerError},
+		Error:   common.NewHTTPError(http.StatusInternalServerError),
 	}}
 	for i := range testCases {
 		tc := testCases[i]
@@ -657,7 +657,7 @@ func TestGetDevice(t *testing.T) {
 		},
 		RSPCode: http.StatusInternalServerError,
 		RSPBody: rest.Error{Err: "internal error"},
-		Error:   common.HTTPError{Code: http.StatusInternalServerError},
+		Error:   common.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name: "error, malformed response",
 

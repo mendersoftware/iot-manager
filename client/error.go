@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -18,10 +18,56 @@ import (
 	"fmt"
 )
 
-type HTTPError struct {
-	Code int
+type HTTPError interface {
+	error
+	Code() int
 }
 
-func (err HTTPError) Error() string {
-	return fmt.Sprintf("iothub: unexpected status code from API: %d", err.Code)
+func NewHTTPError(code int) HTTPError {
+	return httpError{
+		code: code,
+	}
+}
+
+func WrapHTTPError(cause error, code int) HTTPError {
+	return httpErrorWithCause{
+		httpError: httpError{
+			code: code,
+		},
+		cause: cause,
+	}
+}
+
+type httpError struct {
+	code int
+}
+
+func (err httpError) Code() int {
+	return err.code
+}
+
+func (err httpError) Error() string {
+	errMsg := fmt.Sprintf("client: unexpected status code from API: %d", err.code)
+	return errMsg
+}
+
+type httpErrorWithCause struct {
+	httpError
+	cause error
+}
+
+func (err httpErrorWithCause) Error() string {
+	errMsg := fmt.Sprintf("client: unexpected status code from API: %d", err.code)
+	if err.cause != nil {
+		errMsg += ": " + err.cause.Error()
+	}
+	return errMsg
+}
+
+func (err httpErrorWithCause) Unwrap() error {
+	return err.cause
+}
+
+func (err httpErrorWithCause) Cause() error {
+	return err.cause
 }

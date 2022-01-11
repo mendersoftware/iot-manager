@@ -180,7 +180,7 @@ func (c *client) GetDevice(
 	}
 	defer rsp.Body.Close()
 	if rsp.StatusCode >= 400 {
-		return nil, common.HTTPError{Code: rsp.StatusCode}
+		return nil, common.NewHTTPError(rsp.StatusCode)
 	}
 	dec := json.NewDecoder(rsp.Body)
 	if err = dec.Decode(dev); err != nil {
@@ -218,7 +218,7 @@ func (c *client) UpsertDevice(ctx context.Context,
 	}
 	defer rsp.Body.Close()
 	if rsp.StatusCode >= 400 {
-		return nil, common.HTTPError{Code: rsp.StatusCode}
+		return nil, common.NewHTTPError(rsp.StatusCode)
 	}
 	dec := json.NewDecoder(rsp.Body)
 	if err = dec.Decode(dev); err != nil {
@@ -244,7 +244,7 @@ func (c *client) DeleteDevice(ctx context.Context, cs *model.ConnectionString, i
 	}
 	defer rsp.Body.Close()
 	if rsp.StatusCode >= 400 {
-		return common.HTTPError{Code: rsp.StatusCode}
+		return common.NewHTTPError(rsp.StatusCode)
 	}
 	return nil
 }
@@ -293,9 +293,7 @@ func (c *client) GetDeviceTwin(
 	}
 	defer rsp.Body.Close()
 	if rsp.StatusCode >= 400 {
-		return nil, common.HTTPError{
-			Code: rsp.StatusCode,
-		}
+		return nil, common.NewHTTPError(rsp.StatusCode)
 	}
 	twin := new(DeviceTwin)
 	dec := json.NewDecoder(rsp.Body)
@@ -334,9 +332,7 @@ func (c *client) UpdateDeviceTwin(
 	defer rsp.Body.Close()
 
 	if rsp.StatusCode >= 400 {
-		return common.HTTPError{
-			Code: rsp.StatusCode,
-		}
+		return common.NewHTTPError(rsp.StatusCode)
 	}
 	return nil
 }

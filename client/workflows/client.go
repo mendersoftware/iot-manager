@@ -165,7 +165,7 @@ func (c *client) ProvisionExternalDevice(
 	defer rsp.Body.Close()
 
 	if rsp.StatusCode >= 400 {
-		return common.HTTPError{Code: rsp.StatusCode}
+		return common.NewHTTPError(rsp.StatusCode)
 	}
 	return nil
 }

@@ -39,7 +39,7 @@ func (a *app) provisionIoTHubDevice(
 	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID)
 	if err != nil {
 		if htErr, ok := err.(client.HTTPError); ok {
-			switch htErr.Code {
+			switch htErr.Code() {
 			case http.StatusUnauthorized:
 				return ErrNoConnectionString
 			case http.StatusConflict:
@@ -112,7 +112,8 @@ func (a *app) SetDeviceStateIoTHub(
 		}
 		err = a.hub.UpdateDeviceTwin(ctx, cs, deviceID, update)
 	}
-	if errHTTP, ok := err.(client.HTTPError); ok && errHTTP.Code == http.StatusPreconditionFailed {
+	if errHTTP, ok := err.(client.HTTPError); ok &&
+		errHTTP.Code() == http.StatusPreconditionFailed {
 		return nil, ErrDeviceStateConflict
 	} else if err != nil {
 		return nil, errors.Wrap(err, "failed to update the device twin")

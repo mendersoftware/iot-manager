@@ -336,7 +336,7 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 						ETag:    "etag",
 						Replace: true,
 					},
-				).Return(client.HTTPError{Code: http.StatusPreconditionFailed})
+				).Return(client.NewHTTPError(http.StatusPreconditionFailed))
 
 				return hub
 			},

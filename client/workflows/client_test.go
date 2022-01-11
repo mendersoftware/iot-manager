@@ -215,7 +215,7 @@ func TestProvisionExternalDevice(t *testing.T) {
 		},
 
 		ResponseCode: http.StatusServiceUnavailable,
-		Error:        common.HTTPError{Code: http.StatusServiceUnavailable},
+		Error:        common.NewHTTPError(http.StatusServiceUnavailable),
 	}, {
 		Name: "error/round trip error",
 

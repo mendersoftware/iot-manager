@@ -145,7 +145,7 @@ func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 		if err != nil {
 			res.Error = true
 			if e, ok := errors.Cause(err).(client.HTTPError); ok {
-				res.Items[i].Status = e.Code
+				res.Items[i].Status = e.Code()
 				res.Items[i].Description = e.Error()
 			} else {
 				res.Items[i].Status = http.StatusInternalServerError
