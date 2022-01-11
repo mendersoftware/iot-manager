@@ -1,0 +1,55 @@
+version: '2.1'
+services:
+    tester:
+      image: mendersoftware/mender-test-containers:acceptance-testing
+      networks:
+          - mender
+      volumes:
+          - ".:/testing"
+      environment:
+        IOT_MANAGER_URL: "http://mender-iot-manager:8080"
+        MMOCK_CONTROL_URL: "http://mmock:8081"
+        MMOCK_API_URL: "http://mmock:8080"
+      depends_on:
+          - mender-iot-manager
+          - mender-mongo
+          - mmock
+
+    mender-iot-manager:
+      image: mendersoftware/iot-manager:prtest
+      build:
+        dockerfile: "Dockerfile.acceptance"
+        context: ".."
+      networks:
+        mender: {}
+      volumes:
+        - ".:/testing"
+      depends_on:
+        - mender-mongo
+      working_dir: /testing
+
+    mender-mongo:
+      image: "mongo:4.4"
+      networks:
+        mender: {}
+
+    mmock:
+      image: jordimartin/mmock:v2.7.9
+      command:
+        - "-config-path=/config"
+        - "-console-ip=0.0.0.0"
+        - "-console-port=8081"
+        - "-server-ip=0.0.0.0"
+        - "-server-port=8080"
+        - "-server-statistics=false"
+      volumes:
+        - "./mmock:/config"
+      networks:
+        mender:
+          aliases:
+            - mmock
+            - mender-device-auth
+            - mender-workflows-server
+
+networks:
+  mender: {}
