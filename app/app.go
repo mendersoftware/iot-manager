@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/mendersoftware/go-lib-micro/identity"
+	"github.com/mendersoftware/go-lib-micro/log"
 
 	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/devauth"
@@ -70,7 +71,7 @@ type App interface {
 	ProvisionDevice(context.Context, string) error
 	DecommissionDevice(context.Context, string) error
 
-	SyncDevices(context.Context, int) error
+	SyncDevices(context.Context, int, bool) error
 }
 
 // app is an app object
@@ -248,9 +249,10 @@ func (a *app) syncBatch(
 	ctx context.Context,
 	devices []model.Device,
 	integCache map[uuid.UUID]*model.Integration,
+	failEarly bool,
 ) error {
-	// FIXME(alf): should be able to continue on (partial) error
 	var err error
+	l := log.FromContext(ctx)
 
 	deviceMap := make(map[uuid.UUID][]string, len(integCache))
 	for _, dev := range devices {
@@ -267,9 +269,13 @@ func (a *app) syncBatch(
 			if err != nil {
 				if err == store.ErrObjectNotFound {
 					integCache[integID] = nil
-				} else {
+				}
+				err = errors.Wrap(err, "failed to retrieve device integration")
+				if failEarly {
 					return err
 				}
+				l.Errorf("failed to get device integration: %s", err)
+				continue
 			} else {
 				integCache[integID] = integration
 			}
@@ -279,16 +285,23 @@ func (a *app) syncBatch(
 			// caches batches of results.
 			_, err := a.store.RemoveIntegrationFromDevices(ctx, integID)
 			if err != nil {
-				return errors.Wrap(err, "failed to remove integration from devices")
+				err = errors.Wrap(err, "failed to remove integration from devices")
+				if failEarly {
+					return err
+				}
+				l.Error(err)
 			}
 			continue
 		}
 
 		switch integration.Provider {
 		case model.ProviderIoTHub:
-			err := a.syncIoTHubDevices(ctx, deviceIDs, *integration)
+			err := a.syncIoTHubDevices(ctx, deviceIDs, *integration, failEarly)
 			if err != nil {
-				return err
+				if failEarly {
+					return err
+				}
+				l.Error(err)
 			}
 		default:
 			// Invalid integration
@@ -321,6 +334,7 @@ func (a app) syncCacheIntegrations(ctx context.Context) (map[uuid.UUID]*model.In
 func (a *app) SyncDevices(
 	ctx context.Context,
 	batchSize int,
+	failEarly bool,
 ) error {
 	type DeviceWithTenantID struct {
 		model.Device `bson:",inline"`
@@ -352,7 +366,7 @@ func (a *app) SyncDevices(
 		}
 		if len(deviceBatch) == cap(deviceBatch) ||
 			(tenantID != dev.TenantID && len(deviceBatch) > 0) {
-			err := a.syncBatch(tCtx, deviceBatch, integCache)
+			err := a.syncBatch(tCtx, deviceBatch, integCache, failEarly)
 			if err != nil {
 				return err
 			}
@@ -373,7 +387,7 @@ func (a *app) SyncDevices(
 		deviceBatch = append(deviceBatch, dev.Device)
 	}
 	if len(deviceBatch) > 0 {
-		err := a.syncBatch(tCtx, deviceBatch, integCache)
+		err := a.syncBatch(tCtx, deviceBatch, integCache, failEarly)
 		if err != nil {
 			return err
 		}

@@ -321,13 +321,13 @@ func (_m *App) SetIntegrationCredentials(_a0 context.Context, _a1 uuid.UUID, _a2
 	return r0
 }
 
-// SyncDevices provides a mock function with given fields: _a0, _a1
-func (_m *App) SyncDevices(_a0 context.Context, _a1 int) error {
-	ret := _m.Called(_a0, _a1)
+// SyncDevices provides a mock function with given fields: _a0, _a1, _a2
+func (_m *App) SyncDevices(_a0 context.Context, _a1 int, _a2 bool) error {
+	ret := _m.Called(_a0, _a1, _a2)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(context.Context, int) error); ok {
-		r0 = rf(_a0, _a1)
+	if rf, ok := ret.Get(0).(func(context.Context, int, bool) error); ok {
+		r0 = rf(_a0, _a1, _a2)
 	} else {
 		r0 = ret.Error(0)
 	}

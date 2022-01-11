@@ -78,6 +78,7 @@ func (a *app) syncIoTHubDevices(
 	ctx context.Context,
 	deviceIDs []string,
 	integration model.Integration,
+	failEarly bool,
 ) error {
 	l := log.FromContext(ctx)
 	cs := integration.Credentials.ConnectionString
@@ -103,7 +104,11 @@ func (a *app) syncIoTHubDevices(
 			l.Warnf("Device '%s' does not have an auth set: deleting device", id)
 			err := a.DecommissionDevice(ctx, id)
 			if err != nil && err != ErrDeviceNotFound {
-				return errors.Wrap(err, "failed to decommission device")
+				err = errors.Wrap(err, "app: failed to decommission device")
+				if failEarly {
+					return err
+				}
+				l.Error(err)
 			}
 			// swap(deviceIDs[i], deviceIDs[j])
 			j--
@@ -137,12 +142,21 @@ func (a *app) syncIoTHubDevices(
 			// NOTE need to fetch device identity first
 			dev, err := a.hub.GetDevice(ctx, cs, twin.DeviceID)
 			if err != nil {
-				return err
+				err = errors.Wrap(err, "failed to retrieve IoT Hub device identity")
+				if failEarly {
+					return err
+				}
+				l.Error(err)
+				continue
 			}
 			dev.Status = stat
 			_, err = a.hub.UpsertDevice(ctx, cs, twin.DeviceID, dev)
 			if err != nil {
-				return err
+				err = errors.Wrap(err, "failed to update IoT Hub device identity")
+				if failEarly {
+					return err
+				}
+				l.Error(err)
 			}
 		}
 	}
@@ -158,7 +172,11 @@ func (a *app) syncIoTHubDevices(
 				Status:   status,
 			})
 			if err != nil {
-				return err
+				if failEarly {
+					return err
+				}
+				l.Error(err)
+				continue
 			}
 		}
 	}

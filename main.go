@@ -89,8 +89,12 @@ func doMain(args []string) {
 				Flags: []cli.Flag{
 					&cli.IntFlag{
 						Name:  "batch-size",
-						Usage: "Maximum number of devices to sync in a batch",
+						Usage: "Maximum number of devices to sync in a batch.",
 						Value: 50,
+					},
+					&cli.BoolFlag{
+						Name:  "fail-early",
+						Usage: "Do not ignore non-fatal errors.",
 					},
 				},
 			},
@@ -198,5 +202,5 @@ func cmdSync(args *cli.Context) error {
 	}
 	defer ds.Close()
 	app := app.New(ds, hub, wf, devauth)
-	return app.SyncDevices(ctx, args.Int("batch-size"))
+	return app.SyncDevices(ctx, args.Int("batch-size"), args.Bool("fail-early"))
 }
