@@ -233,6 +233,27 @@ func (_m *DataStore) Ping(ctx context.Context) error {
 	return r0
 }
 
+// RemoveDevicesFromIntegration provides a mock function with given fields: ctx, integrationID
+func (_m *DataStore) RemoveDevicesFromIntegration(ctx context.Context, integrationID uuid.UUID) (int64, error) {
+	ret := _m.Called(ctx, integrationID)
+
+	var r0 int64
+	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
+		r0 = rf(ctx, integrationID)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = rf(ctx, integrationID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // RemoveIntegration provides a mock function with given fields: _a0, _a1
 func (_m *DataStore) RemoveIntegration(_a0 context.Context, _a1 uuid.UUID) error {
 	ret := _m.Called(_a0, _a1)
@@ -245,27 +266,6 @@ func (_m *DataStore) RemoveIntegration(_a0 context.Context, _a1 uuid.UUID) error
 	}
 
 	return r0
-}
-
-// RemoveIntegrationFromDevices provides a mock function with given fields: ctx, id
-func (_m *DataStore) RemoveIntegrationFromDevices(ctx context.Context, id uuid.UUID) (int64, error) {
-	ret := _m.Called(ctx, id)
-
-	var r0 int64
-	if rf, ok := ret.Get(0).(func(context.Context, uuid.UUID) int64); ok {
-		r0 = rf(ctx, id)
-	} else {
-		r0 = ret.Get(0).(int64)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = rf(ctx, id)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // SetIntegrationCredentials provides a mock function with given fields: _a0, _a1, _a2

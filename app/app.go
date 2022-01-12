@@ -283,7 +283,7 @@ func (a *app) syncBatch(
 		if integration == nil {
 			// Should not occur, but is not impossible since mongo client
 			// caches batches of results.
-			_, err := a.store.RemoveIntegrationFromDevices(ctx, integID)
+			_, err := a.store.RemoveDevicesFromIntegration(ctx, integID)
 			if err != nil {
 				err = errors.Wrap(err, "failed to remove integration from devices")
 				if failEarly {

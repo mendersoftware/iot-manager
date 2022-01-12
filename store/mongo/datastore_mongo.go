@@ -464,7 +464,7 @@ func (db *DataStoreMongo) DeleteDevice(ctx context.Context, deviceID string) err
 	return nil
 }
 
-func (db *DataStoreMongo) RemoveIntegrationFromDevices(
+func (db *DataStoreMongo) RemoveDevicesFromIntegration(
 	ctx context.Context,
 	integrationID uuid.UUID,
 ) (int64, error) {
@@ -489,7 +489,7 @@ func (db *DataStoreMongo) RemoveIntegrationFromDevices(
 	if res != nil {
 		return res.ModifiedCount, err
 	}
-	return 0, errors.Wrap(err, "mongo: failed to delete devices")
+	return 0, errors.Wrap(err, "mongo: failed to remove device from integration")
 }
 
 func (db *DataStoreMongo) UpsertDeviceIntegrations(
