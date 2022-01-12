@@ -125,7 +125,7 @@ paths:
           required: true
           description: ID of tenant the device belongs to.
         - in: path
-          name: tenantId
+          name: status
           schema:
             type: string
             enum:

@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -16,20 +16,14 @@ package iothub
 
 import (
 	"bytes"
-	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"io"
-	"net/http"
 	"reflect"
-	"sync"
-	"time"
 
 	"github.com/mendersoftware/iot-manager/model"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
-	"github.com/pkg/errors"
 )
 
 type Key []byte
@@ -201,89 +195,4 @@ type DeviceTwinUpdate struct {
 	Tags       map[string]interface{} `json:"tags,omitempty"`
 	ETag       string                 `json:"-"`
 	Replace    bool                   `json:"-"`
-}
-
-type Cursor interface {
-	Next(ctx context.Context) bool
-	Decode(v interface{}) error
-}
-
-type cursor struct {
-	err     error
-	buf     bytes.Buffer
-	mut     *sync.Mutex
-	cs      *model.ConnectionString
-	client  *http.Client
-	req     *http.Request
-	dec     *json.Decoder
-	current json.RawMessage
-}
-
-func (cur *cursor) fetchPage(ctx context.Context) error {
-	cur.buf.Reset()
-	req := cur.req.WithContext(ctx)
-	req.Body, _ = cur.req.GetBody()
-	var expireAt time.Time
-	if dl, ok := ctx.Deadline(); ok {
-		expireAt = dl
-	} else {
-		expireAt = time.Now().Add(defaultTTL)
-	}
-	req.Header.Set(hdrKeyAuthorization, cur.cs.Authorization(expireAt))
-	rsp, err := cur.client.Do(req)
-	if err != nil {
-		return errors.Wrap(err, "iothub: failed to execute request")
-	}
-	defer rsp.Body.Close()
-	if rsp.StatusCode >= 400 {
-		return errors.Wrapf(err,
-			"iothub: received unexpected status code from server: %s",
-			rsp.Status,
-		)
-	}
-	_, err = io.Copy(&cur.buf, rsp.Body)
-	if err != nil {
-		return errors.Wrap(err, "iothub: failed to buffer HTTP response")
-	}
-	cur.req.Header.Set(hdrKeyContToken, rsp.Header.Get(hdrKeyContToken))
-	cur.dec = json.NewDecoder(&cur.buf)
-	tkn, err := cur.dec.Token()
-	if err != nil {
-		return errors.Wrap(err, "iothub: failed to decode response from hub")
-	} else if tkn != json.Delim('[') {
-		return errors.Wrap(err, "iothub: unexpected json response from hub")
-	}
-	return nil
-}
-
-func (cur *cursor) Next(ctx context.Context) bool {
-	if cur.err != nil {
-		return false
-	}
-	cur.mut.Lock()
-	defer cur.mut.Unlock()
-	if cur.dec == nil || !cur.dec.More() {
-		if cur.req.Header.Get(hdrKeyContToken) == "" {
-			cur.err = io.EOF
-			return false
-		}
-		err := cur.fetchPage(ctx)
-		if err != nil {
-			cur.err = err
-			return false
-		}
-	}
-	err := cur.dec.Decode(&cur.current)
-	if err != nil {
-		cur.err = errors.Wrap(err, "iothub: failed to retrieve next element")
-		return false
-	}
-	return true
-}
-
-func (cur *cursor) Decode(v interface{}) error {
-	if cur.err != nil {
-		return cur.err
-	}
-	return json.Unmarshal(cur.current, v)
 }

@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ func (h *InternalHandler) DecommissionDevice(c *gin.Context) {
 		Subject: deviceID,
 		Tenant:  tenantID,
 	})
-	err := h.app.DeleteIOTHubDevice(ctx, deviceID)
+	err := h.app.DecommissionDevice(ctx, deviceID)
 	switch errors.Cause(err) {
 	case nil, app.ErrNoConnectionString:
 		c.Status(http.StatusNoContent)
@@ -145,7 +145,7 @@ func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 		if err != nil {
 			res.Error = true
 			if e, ok := errors.Cause(err).(client.HTTPError); ok {
-				res.Items[i].Status = e.Code
+				res.Items[i].Status = e.Code()
 				res.Items[i].Description = e.Error()
 			} else {
 				res.Items[i].Status = http.StatusInternalServerError
