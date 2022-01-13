@@ -22,9 +22,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--host",
         action="store",
-        default=os.environ["TEST_HOST"]
-        if "TEST_HOST" in os.environ
-        else "localhost",
+        default=os.environ["TEST_HOST"] if "TEST_HOST" in os.environ else "localhost",
         help="Address for host hosting iot-manager API (env: TEST_HOST)",
     )
 

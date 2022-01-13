@@ -12,4 +12,54 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import os
+
+import pymongo
 import pytest
+
+from client import CliIoTManager
+from management_api.apis import ManagementAPIClient
+
+
+@pytest.fixture(scope="session")
+def management_api():
+    return ManagementAPIClient()
+
+
+@pytest.fixture(scope="session")
+def mongo():
+    return pymongo.MongoClient(
+        os.environ.get("MONGO_URL", "mongodb://mender-mongo"),
+        uuidRepresentation="standard",
+    )
+
+
+def mongo_cleanup(mgo: pymongo.MongoClient):
+    dirty_dbs = [
+        db["name"]
+        for db in mgo.list_databases(
+            filter={"name": {"$nin": ["admin", "config", "local"]}, "empty": False}
+        )
+    ]
+    for db in dirty_dbs:
+        for coll in mgo[db].list_collections(
+            filter={
+                "name": {"$ne": "migration_info"},
+                "$or": [
+                    {"options.capped": {"$exists": False}},
+                    {"options.capped": False},
+                ],
+            }
+        ):
+            mgo[db][coll["name"]].delete_many({})
+
+
+@pytest.fixture(scope="function")
+def clean_mongo(mongo):
+    mongo_cleanup(mongo)
+    yield mongo
+
+
+@pytest.fixture(scope="session")
+def cli_iot_manager():
+    return CliIoTManager()

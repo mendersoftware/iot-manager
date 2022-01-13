@@ -11,6 +11,12 @@ RUN cd /go/src/github.com/mendersoftware/iot-manager && \
 
 FROM alpine:3.15.0
 RUN mkdir -p /etc/iot-manager
+
+RUN apk add ca-certificates
+COPY ./tests/mmock/cert/server.crt /usr/share/ca-certificates/mmock.crt
+# The first step should happen automatically but doesn't :thinking_face:
+RUN echo 'mmock.crt' >> /etc/ca-certificates.conf && update-ca-certificates
+
 COPY ./config.yaml /etc/iot-manager
 COPY --from=builder \
     /go/src/github.com/mendersoftware/iot-manager/bin/iot-manager.test \
