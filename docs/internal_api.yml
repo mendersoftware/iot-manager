@@ -70,6 +70,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/NewDevice'
+        required: true
       responses:
         204:
           description: Device provisioned successfully.
@@ -152,6 +153,7 @@ paths:
                     description: Device ID.
                 required:
                   - id
+        required: true
       responses:
         200:
           description: >-
