@@ -269,6 +269,7 @@ func (a *app) syncBatch(
 			if err != nil {
 				if err == store.ErrObjectNotFound {
 					integCache[integID] = nil
+					continue
 				}
 				err = errors.Wrap(err, "failed to retrieve device integration")
 				if failEarly {
@@ -373,10 +374,10 @@ func (a *app) SyncDevices(
 			deviceBatch = deviceBatch[:0]
 		}
 		if tenantID != dev.TenantID {
+			tenantID = dev.TenantID
 			tCtx = identity.WithContext(ctx, &identity.Identity{
 				Tenant: tenantID,
 			})
-			tenantID = dev.TenantID
 
 			integCache, err = a.syncCacheIntegrations(tCtx)
 			if err != nil {
