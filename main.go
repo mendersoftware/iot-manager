@@ -123,14 +123,16 @@ func doMain(args []string) {
 		config.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 
 		// Set encryption keys
-		crypto.SetAESEncryptionKey(
+		err = crypto.SetAESEncryptionKey(
 			config.Config.GetString(dconfig.SettingAESEncryptionKey),
 		)
-		crypto.SetAESEncryptionFallbackKey(
-			config.Config.GetString(dconfig.SettingAESEncryptionFallbackKey),
-		)
+		if err == nil {
+			err = crypto.SetAESEncryptionFallbackKey(
+				config.Config.GetString(dconfig.SettingAESEncryptionFallbackKey),
+			)
+		}
 
-		return nil
+		return err
 	}
 
 	err := app.Run(args)

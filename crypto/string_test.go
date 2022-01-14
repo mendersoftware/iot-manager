@@ -22,7 +22,7 @@ import (
 )
 
 func TestMarshalBSON(t *testing.T) {
-	SetAESEncryptionKey("")
+	encryptionKey = ""
 
 	value := String("random value")
 	marshalled, err := value.MarshalBSON()
@@ -35,14 +35,14 @@ func TestMarshalBSON(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, value, anotherValue)
 
-	SetAESEncryptionKey("dummy")
+	encryptionKey = "dummy"
 	_, err = value.MarshalBSON()
 	assert.Error(t, err)
 	assert.EqualError(t, err, "crypto/aes: invalid key size 5")
 }
 
 func TestMarshalBSONWithEncryptionKey(t *testing.T) {
-	SetAESEncryptionKey(testEncryptionKey)
+	encryptionKey = testEncryptionKey
 
 	value := String("random value")
 	marshalled, err := value.MarshalBSON()

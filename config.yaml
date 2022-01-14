@@ -48,7 +48,8 @@ mongo_dbname: iot_manager
 
 # AES encryption key
 # 32 bytes long key used to encrypt and decrypt sensitive data stored
-# in the database; encryption is disabled if the key is empty.
+# in the database; encryption is disabled if the key is empty. The value
+# must be a a valid base64 encoded 32 bytes secret.
 # Defaults to: ""
 # Overwrite with environment variable: IOT_MANAGER_AES_ENCRYPTION_KEY
 
@@ -58,7 +59,7 @@ mongo_dbname: iot_manager
 # AES encryption fallback key
 # fallback key used when performing key-rotation; if set, it will be used
 # as fallback key to decrypt the data stored in the database if the primary
-# key fails.
+# key fails. The value must be a a valid base64 encoded 32 bytes secret.
 # Defaults to: ""
 # Overwrite with environment variable: IOT_MANAGER_AES_ENCRYPTION_FALLBACK_KEY
 
