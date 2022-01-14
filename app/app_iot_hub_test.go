@@ -39,6 +39,52 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func TestRemoveIoTHubMetadata(t *testing.T) {
+	testCases := []struct {
+		Name string
+		In   map[string]interface{}
+		Out  map[string]interface{}
+	}{
+		{
+			Name: "ok",
+			In: map[string]interface{}{
+				"key": "value",
+			},
+			Out: map[string]interface{}{
+				"key": "value",
+			},
+		},
+		{
+			Name: "ok, remove $metadata",
+			In: map[string]interface{}{
+				"key": "value",
+				"$metadata": map[string]interface{}{
+					"metadata": "value",
+				},
+			},
+			Out: map[string]interface{}{
+				"key": "value",
+			},
+		},
+		{
+			Name: "ok, remove $version",
+			In: map[string]interface{}{
+				"key":      "value",
+				"$version": 1,
+			},
+			Out: map[string]interface{}{
+				"key": "value",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			out := removeIoTHubMetadata(tc.In)
+			assert.Equal(t, tc.Out, out)
+		})
+	}
+}
+
 func TestGetDeviceStateIoTHub(t *testing.T) {
 	integration := &model.Integration{
 		Credentials: model.Credentials{

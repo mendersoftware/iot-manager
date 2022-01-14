@@ -28,6 +28,21 @@ import (
 	"github.com/mendersoftware/iot-manager/model"
 )
 
+const (
+	iotHubMetadata = "$metadata"
+	iotHubVersion  = "$version"
+)
+
+func removeIoTHubMetadata(values map[string]interface{}) map[string]interface{} {
+	for key := range values {
+		switch key {
+		case iotHubMetadata, iotHubVersion:
+			delete(values, key)
+		}
+	}
+	return values
+}
+
 func (a *app) provisionIoTHubDevice(
 	ctx context.Context,
 	deviceID string,
@@ -197,8 +212,8 @@ func (a *app) GetDeviceStateIoTHub(
 		return nil, errors.Wrap(err, "failed to get the device twin")
 	}
 	return &model.DeviceState{
-		Desired:  twin.Properties.Desired,
-		Reported: twin.Properties.Reported,
+		Desired:  removeIoTHubMetadata(twin.Properties.Desired),
+		Reported: removeIoTHubMetadata(twin.Properties.Reported),
 	}, nil
 }
 
