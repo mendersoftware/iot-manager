@@ -15,6 +15,7 @@
 package crypto
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -27,11 +28,31 @@ const (
 )
 
 func TestSetEncryptionKeys(t *testing.T) {
-	SetAESEncryptionKey("key")
-	assert.Equal(t, "key", encryptionKey)
+	err := SetAESEncryptionKey("aa")
+	assert.Error(t, err)
+	assert.EqualError(t, err, ErrEncryptionKeyWrongLength.Error())
 
-	SetAESEncryptionFallbackKey("fallback_key")
-	assert.Equal(t, "fallback_key", encryptionFallbackKey)
+	err = SetAESEncryptionKey("%")
+	assert.Error(t, err)
+	assert.EqualError(t, err, "failed to base64-decode the AES encryption key: illegal base64 data at input byte 0")
+
+	value := base64.RawStdEncoding.EncodeToString([]byte(testEncryptionKey))
+	err = SetAESEncryptionKey(string(value))
+	assert.NoError(t, err)
+	assert.Equal(t, testEncryptionKey, encryptionKey)
+
+	err = SetAESEncryptionFallbackKey("aa")
+	assert.Error(t, err)
+	assert.EqualError(t, err, ErrEncryptionKeyWrongLength.Error())
+
+	err = SetAESEncryptionFallbackKey("%")
+	assert.Error(t, err)
+	assert.EqualError(t, err, "failed to base64-decode the AES encryption fallback key: illegal base64 data at input byte 0")
+
+	value = base64.RawStdEncoding.EncodeToString([]byte(testEncryptionFallbackKey))
+	err = SetAESEncryptionFallbackKey(value)
+	assert.NoError(t, err)
+	assert.Equal(t, testEncryptionFallbackKey, encryptionFallbackKey)
 }
 
 func TestEncryptDecrypt(t *testing.T) {
@@ -69,7 +90,7 @@ func TestEncryptDecrypt(t *testing.T) {
 			if tc.FallbackKey != "" {
 				key = tc.FallbackKey
 			}
-			SetAESEncryptionKey(key)
+			encryptionKey = key
 			out, err := AESEncrypt(tc.Value)
 			if tc.Err != nil {
 				assert.Error(t, err)
@@ -78,8 +99,8 @@ func TestEncryptDecrypt(t *testing.T) {
 			}
 			assert.NoError(t, err)
 
-			SetAESEncryptionKey(tc.Key)
-			SetAESEncryptionFallbackKey(tc.FallbackKey)
+			encryptionKey = tc.Key
+			encryptionFallbackKey = tc.FallbackKey
 			decrypted, err := AESDecrypt(out)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.Value, decrypted)
@@ -88,18 +109,18 @@ func TestEncryptDecrypt(t *testing.T) {
 }
 
 func TestDecryptErrCipherWrongKey(t *testing.T) {
-	SetAESEncryptionKey(testEncryptionKey)
+	encryptionKey = testEncryptionKey
 	out, _ := AESEncrypt("value")
 
-	SetAESEncryptionKey("dummy")
-	SetAESEncryptionFallbackKey("")
+	encryptionKey = "dummy"
+	encryptionFallbackKey = ""
 	_, err := AESDecrypt([]byte(out))
 	assert.Error(t, err)
 	assert.EqualError(t, err, "unable to decrypt the data: crypto/aes: invalid key size 5")
 }
 
 func TestDecryptErrCipherTextTooShort(t *testing.T) {
-	SetAESEncryptionKey(testEncryptionKey)
+	encryptionKey = testEncryptionKey
 	out, err := AESDecrypt([]byte("a"))
 	assert.Equal(t, "", out)
 	assert.EqualError(t, err, ErrCipherTextTooShort.Error())

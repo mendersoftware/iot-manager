@@ -20,28 +20,52 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha512"
+	"encoding/base64"
 	"io"
+	"strings"
 
 	"github.com/pkg/errors"
 )
 
 const V1 byte = 0x1
+const encryptionKeyLength = 32
 const hmacSHA512SignatureSizeInBytes = 64
 
 var (
 	encryptionKey         = ""
 	encryptionFallbackKey = ""
 
-	ErrDecryptionFailed   = errors.New("unable to decrypt the data")
-	ErrCipherTextTooShort = errors.New("cipher text is too short")
+	ErrDecryptionFailed         = errors.New("unable to decrypt the data")
+	ErrCipherTextTooShort       = errors.New("cipher text is too short")
+	ErrEncryptionKeyWrongLength = errors.New(
+		"AES encryption key has a wrong length, expected 32 bytes")
+
+	// Encode base64 secret in either std or URL encoding ignoring padding.
+	base64Repl = strings.NewReplacer("-", "+", "_", "/", "=", "")
 )
 
-func SetAESEncryptionKey(key string) {
-	encryptionKey = key
+func SetAESEncryptionKey(key string) error {
+	if key, err := base64.RawStdEncoding.DecodeString(base64Repl.Replace(key)); err == nil {
+		if len(key) > 0 && len(key) != encryptionKeyLength {
+			return ErrEncryptionKeyWrongLength
+		}
+		encryptionKey = string(key)
+	} else {
+		return errors.Wrap(err, "failed to base64-decode the AES encryption key")
+	}
+	return nil
 }
 
-func SetAESEncryptionFallbackKey(key string) {
-	encryptionFallbackKey = key
+func SetAESEncryptionFallbackKey(key string) error {
+	if key, err := base64.RawStdEncoding.DecodeString(base64Repl.Replace(key)); err == nil {
+		if len(key) > 0 && len(key) != encryptionKeyLength {
+			return ErrEncryptionKeyWrongLength
+		}
+		encryptionFallbackKey = string(key)
+	} else {
+		return errors.Wrap(err, "failed to base64-decode the AES encryption fallback key")
+	}
+	return nil
 }
 
 func AESEncrypt(data string) ([]byte, error) {
