@@ -16,22 +16,24 @@ import os
 
 import pymongo
 import pytest
+import requests
 
-from client import CliIoTManager
-from management_api.apis import ManagementAPIClient
+from client import CliIoTManager, MMockAPIClient, ManagementAPIClient
 
-
-@pytest.fixture(scope="session")
-def management_api():
-    return ManagementAPIClient()
+MMOCK_URL = os.environ.get("MMOCK_URL", "http://mmock:8081")
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://mender-mongo")
 
 
 @pytest.fixture(scope="session")
 def mongo():
-    return pymongo.MongoClient(
-        os.environ.get("MONGO_URL", "mongodb://mender-mongo"),
-        uuidRepresentation="standard",
-    )
+    return pymongo.MongoClient(MONGO_URL, uuidRepresentation="standard")
+
+
+@pytest.fixture(scope="function")
+def clean_mmock():
+    mmock = MMockAPIClient(MMOCK_URL)
+    mmock.reset()
+    return mmock
 
 
 def mongo_cleanup(mgo: pymongo.MongoClient):

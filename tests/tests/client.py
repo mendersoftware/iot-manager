@@ -15,6 +15,7 @@
 import socket
 
 import docker
+import requests
 
 from management_api.apis import ManagementAPIClient as GenManagementAPIClient
 from management_api import Configuration, ApiClient
@@ -58,3 +59,21 @@ class CliIoTManager:
             cmd.append("--fail-early")
 
         return self.iot_manager.exec_run(cmd, **kwargs)
+
+
+class MMockAPIClient:
+    def __init__(self, mmock_url: str):
+        self.mmock_url = mmock_url.removesuffix("/")
+
+    def reset(self):
+        requests.get(self.mmock_url + "/api/request/reset")
+
+    @property
+    def unmatched(self) -> list[dict]:
+        rsp = requests.get(self.mmock_url + "/api/request/unmatched")
+        return rsp.json()
+
+    @property
+    def matched(self) -> list[dict]:
+        rsp = requests.get(self.mmock_url + "/api/request/matched")
+        return rsp.json()
