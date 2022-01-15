@@ -15,17 +15,26 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
-	"github.com/mendersoftware/go-lib-micro/config"
-	log "github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
-
+	"github.com/mendersoftware/iot-manager/app"
+	"github.com/mendersoftware/iot-manager/client/devauth"
+	"github.com/mendersoftware/iot-manager/client/iothub"
+	"github.com/mendersoftware/iot-manager/client/workflows"
+	"github.com/mendersoftware/iot-manager/cmd"
 	dconfig "github.com/mendersoftware/iot-manager/config"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/server"
 	store "github.com/mendersoftware/iot-manager/store/mongo"
+
+	"github.com/mendersoftware/go-lib-micro/config"
+	"github.com/mendersoftware/go-lib-micro/log"
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli"
 )
 
 func main() {
@@ -45,6 +54,11 @@ func doMain(args []string) {
 				Value:       "/etc/iot-manager/config.yaml",
 				Destination: &configPath,
 			},
+			&cli.StringFlag{
+				Name:  "log-level",
+				Usage: "Log `LEVEL` to emit to standard error.",
+				Value: "info",
+			},
 		},
 		Commands: []cli.Command{
 			{
@@ -63,13 +77,40 @@ func doMain(args []string) {
 				Usage:  "Run the migrations",
 				Action: cmdMigrate,
 			},
+			{
+				Name:   "re-encrypt",
+				Usage:  "Re-encrypt the secrets using the (new) encryption key",
+				Action: cmdReencrypt,
+			},
+			{
+				Name:   "sync-devices",
+				Usage:  "Synchronize device state across IoT platforms.",
+				Action: cmdSync,
+				Flags: []cli.Flag{
+					&cli.IntFlag{
+						Name:  "batch-size",
+						Usage: "Maximum number of devices to sync in a batch.",
+						Value: 50,
+					},
+					&cli.BoolFlag{
+						Name:  "fail-early",
+						Usage: "Do not ignore non-fatal errors.",
+					},
+				},
+			},
 		},
 	}
 	app.Usage = "IoT Manager"
 	app.Action = cmdServer
 
 	app.Before = func(args *cli.Context) error {
-		err := config.FromConfigFile(configPath, dconfig.Defaults)
+		lvl, err := logrus.ParseLevel(args.String("log-level"))
+		if err != nil {
+			return err
+		}
+		log.Log.Level = lvl
+
+		err = config.FromConfigFile(configPath, dconfig.Defaults)
 		if err != nil {
 			return cli.NewExitError(
 				fmt.Sprintf("error loading configuration: %s", err),
@@ -81,12 +122,22 @@ func doMain(args []string) {
 		config.Config.AutomaticEnv()
 		config.Config.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 
-		return nil
+		// Set encryption keys
+		err = crypto.SetAESEncryptionKey(
+			config.Config.GetString(dconfig.SettingAESEncryptionKey),
+		)
+		if err == nil {
+			err = crypto.SetAESEncryptionFallbackKey(
+				config.Config.GetString(dconfig.SettingAESEncryptionFallbackKey),
+			)
+		}
+
+		return err
 	}
 
 	err := app.Run(args)
 	if err != nil {
-		log.Fatal(err)
+		logrus.Fatal(err)
 	}
 }
 
@@ -107,4 +158,51 @@ func cmdMigrate(args *cli.Context) error {
 		return err
 	}
 	return dataStore.Close()
+}
+
+func cmdReencrypt(args *cli.Context) error {
+	mgoConfig := store.NewConfig().SetAutomigrate(args.Bool("automigrate"))
+	dataStore, err := store.SetupDataStore(mgoConfig)
+	if err != nil {
+		return err
+	}
+	defer dataStore.Close()
+	return cmd.Reencrypt(dataStore)
+}
+
+func cmdSync(args *cli.Context) error {
+	if bs := args.Int("batch-size"); bs <= 0 {
+		return cli.NewExitError(
+			"invalid flag 'batch-size': must be a positive integer", 1,
+		)
+	} else if bs > 500 {
+		// This is the max page size from deviceauth
+		return cli.NewExitError(
+			"invalid flag 'batch-size': must be less than 500", 1,
+		)
+	}
+	httpClient := new(http.Client)
+	ctx := context.Background()
+
+	wf := workflows.NewClient(
+		config.Config.GetString(dconfig.SettingWorkflowsURL),
+		workflows.NewOptions().SetClient(httpClient),
+	)
+	hub := iothub.NewClient(iothub.NewOptions().SetClient(httpClient))
+	mgoConfig := store.NewConfig()
+	devauth, err := devauth.NewClient(devauth.Config{
+		Client:         httpClient,
+		DevauthAddress: config.Config.GetString(dconfig.SettingDeviceauthURL),
+	})
+	if err != nil {
+		return err
+	}
+
+	ds, err := store.SetupDataStore(mgoConfig)
+	if err != nil {
+		return err
+	}
+	defer ds.Close()
+	app := app.New(ds, hub, wf, devauth)
+	return app.SyncDevices(ctx, args.Int("batch-size"), args.Bool("fail-early"))
 }

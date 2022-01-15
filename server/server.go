@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/mendersoftware/go-lib-micro/config"
@@ -28,6 +29,7 @@ import (
 
 	api "github.com/mendersoftware/iot-manager/api/http"
 	"github.com/mendersoftware/iot-manager/app"
+	"github.com/mendersoftware/iot-manager/client/devauth"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
 	dconfig "github.com/mendersoftware/iot-manager/config"
@@ -47,7 +49,15 @@ func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 	log.Setup(conf.GetBool(dconfig.SettingDebugLog))
 	l := log.FromContext(ctx)
 
-	azureIotManagerApp := app.New(dataStore, hub, wf)
+	da, err := devauth.NewClient(devauth.Config{
+		Client:         httpClient,
+		DevauthAddress: conf.GetString(dconfig.SettingDeviceauthURL),
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize devicauth client")
+	}
+
+	azureIotManagerApp := app.New(dataStore, hub, wf, da)
 
 	router := api.NewRouter(azureIotManagerApp, api.NewConfig().SetClient(httpClient))
 

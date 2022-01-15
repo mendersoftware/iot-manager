@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import (
 
 	"github.com/mendersoftware/iot-manager/app"
 	mapp "github.com/mendersoftware/iot-manager/app/mocks"
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 )
 
@@ -50,7 +51,7 @@ var (
 	contextMatcher  = mock.MatchedBy(func(_ context.Context) bool { return true })
 	validConnString = &model.ConnectionString{
 		HostName: "localhost:8080",
-		Key:      []byte("not-so-secret-key"),
+		Key:      crypto.String("not-so-secret-key"),
 		Name:     "foobar",
 	}
 )
@@ -184,7 +185,7 @@ func TestGetIntegrations(t *testing.T) {
 
 			StatusCode: http.StatusInternalServerError,
 			Response: rest.Error{
-				Err:       errors.New(http.StatusText(http.StatusInternalServerError)).Error(),
+				Err:       "error retrieving integrations collection results",
 				RequestID: "829cbefb-70e7-438f-9ac5-35fd131c2111",
 			},
 		},
@@ -325,7 +326,7 @@ func TestCreateIntegration(t *testing.T) {
 		},
 
 		RspCode: http.StatusInternalServerError,
-		Error:   errors.New(http.StatusText(http.StatusInternalServerError)),
+		Error:   errors.New("internal error"),
 	}, {
 		Name: "malformed request body",
 
@@ -511,7 +512,7 @@ func TestGetIntegrationById(t *testing.T) {
 
 		Code: http.StatusInternalServerError,
 		Response: rest.Error{
-			Err:       http.StatusText(http.StatusInternalServerError),
+			Err:       "internal error",
 			RequestID: "test",
 		},
 	}, {
@@ -699,7 +700,7 @@ func TestSetIntegrationCredentials(t *testing.T) {
 				Err:       app.ErrIntegrationNotFound.Error(),
 				RequestID: "test",
 			},
-			Error: errors.New("Internal Server Error"),
+			Error: errors.New("random internal server error"),
 		},
 		{
 			Name: "error, integration not found",

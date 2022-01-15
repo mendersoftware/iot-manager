@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/store"
 )
@@ -68,7 +69,7 @@ func TestCreateIntegration(t *testing.T) {
 				Type: "connection_string",
 				ConnectionString: &model.ConnectionString{
 					HostName: "localhost",
-					Key:      []byte("secret"),
+					Key:      crypto.String("secret"),
 					Name:     "foobar",
 				},
 			},
@@ -84,7 +85,7 @@ func TestCreateIntegration(t *testing.T) {
 				Type: "connection_string",
 				ConnectionString: &model.ConnectionString{
 					HostName: "localhost",
-					Key:      []byte("secret"),
+					Key:      crypto.String("secret"),
 					Name:     "foobar",
 				},
 			},
@@ -103,7 +104,7 @@ func TestCreateIntegration(t *testing.T) {
 				Type: "connection_string",
 				ConnectionString: &model.ConnectionString{
 					HostName: "localhost",
-					Key:      []byte("secret"),
+					Key:      crypto.String("secret"),
 					Name:     "foobar",
 				},
 			},
@@ -197,7 +198,7 @@ func TestGetIntegrations(t *testing.T) {
 						Type: "connection_string",
 						ConnectionString: &model.ConnectionString{
 							HostName: "localhost",
-							Key:      []byte("secret"),
+							Key:      crypto.String("secret"),
 							Name:     "foobar",
 						},
 					},
@@ -221,7 +222,7 @@ func TestGetIntegrations(t *testing.T) {
 							Type: "connection_string",
 							ConnectionString: &model.ConnectionString{
 								HostName: "localhost",
-								Key:      []byte("secret"),
+								Key:      crypto.String("secret"),
 								Name:     "idk",
 							},
 						},
@@ -233,7 +234,7 @@ func TestGetIntegrations(t *testing.T) {
 							Type: "connection_string",
 							ConnectionString: &model.ConnectionString{
 								HostName: "localhost",
-								Key:      []byte("secret"),
+								Key:      crypto.String("secret"),
 								Name:     "srsly/idk",
 							},
 						},
@@ -261,7 +262,7 @@ func TestGetIntegrations(t *testing.T) {
 					Type: "connection_string",
 					ConnectionString: &model.ConnectionString{
 						HostName: "localhost",
-						Key:      []byte("supersecret"),
+						Key:      crypto.String("supersecret"),
 						Name:     "barbaz",
 					},
 				},
@@ -272,7 +273,7 @@ func TestGetIntegrations(t *testing.T) {
 					Type: "connection_string",
 					ConnectionString: &model.ConnectionString{
 						HostName: "localhost",
-						Key:      []byte("secret"),
+						Key:      crypto.String("secret"),
 						Name:     "foobar",
 					},
 				},
@@ -295,7 +296,7 @@ func TestGetIntegrations(t *testing.T) {
 							Type: "connection_string",
 							ConnectionString: &model.ConnectionString{
 								HostName: "localhost",
-								Key:      []byte("secret"),
+								Key:      crypto.String("secret"),
 								Name:     "idk",
 							},
 						},
@@ -307,7 +308,7 @@ func TestGetIntegrations(t *testing.T) {
 							Type: "connection_string",
 							ConnectionString: &model.ConnectionString{
 								HostName: "localhost",
-								Key:      []byte("secret"),
+								Key:      crypto.String("secret"),
 								Name:     "srsly/idk",
 							},
 						},
@@ -333,7 +334,7 @@ func TestGetIntegrations(t *testing.T) {
 					Type: "connection_string",
 					ConnectionString: &model.ConnectionString{
 						HostName: "localhost",
-						Key:      []byte("supersecret"),
+						Key:      crypto.String("supersecret"),
 						Name:     "barbaz",
 					},
 				},
@@ -603,7 +604,7 @@ func TestSetIntegrationCredentials(t *testing.T) {
 				ConnectionString: &model.ConnectionString{
 					HostName: "test-update.azure-devices.net",
 					Name:     "new-test-policy",
-					Key:      []byte("new-key"),
+					Key:      crypto.String("new-key"),
 				},
 			},
 			IntegrationID: integrationID,
@@ -619,7 +620,7 @@ func TestSetIntegrationCredentials(t *testing.T) {
 				ConnectionString: &model.ConnectionString{
 					HostName: "test-update.azure-devices.net",
 					Name:     "new-test-policy",
-					Key:      []byte("new-key"),
+					Key:      crypto.String("new-key"),
 				},
 			},
 			Error: store.ErrObjectNotFound,
@@ -646,7 +647,7 @@ func TestSetIntegrationCredentials(t *testing.T) {
 							ConnectionString: &model.ConnectionString{
 								HostName: "test.azure-devices.net",
 								Name:     "test-policy",
-								Key:      []byte("eMB7VENgpPsIl+aVeAYjstMpuIyoQxY2eOqpzpqI/LF8="),
+								Key:      crypto.String("eMB7VENgpPsIl+aVeAYjstMpuIyoQxY2eOqpzpqI/LF8="),
 							},
 						},
 					}),

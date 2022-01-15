@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -40,8 +40,14 @@ type DataStore interface {
 		integrationID uuid.UUID,
 	) (*model.Device, error)
 	DoDevicesExistByIntegrationID(context.Context, uuid.UUID) (bool, error)
-	// RemoveDevicesFromIntegration integration with given id from all devices
-	// belonging to the tenant within the context.
+	// RemoveDevicesFromIntegration integration with the given integrationID
+	// from all devices belonging to the tenant within the context.
+	RemoveDevicesFromIntegration(
+		ctx context.Context,
+		integrationID uuid.UUID,
+	) (deviceCount int64, err error)
+	// UsertDeviceIntegrations adds the list of integration IDs to the
+	// device and creates it if it does not exist.
 	UpsertDeviceIntegrations(
 		ctx context.Context,
 		deviceID string,
@@ -50,6 +56,15 @@ type DataStore interface {
 	DeleteDevice(ctx context.Context, deviceID string) error
 	SetIntegrationCredentials(context.Context, uuid.UUID, model.Credentials) error
 	RemoveIntegration(context.Context, uuid.UUID) error
+
+	// GetAllDevices returns an iterator over ALL devices sorted by tenant ID.
+	GetAllDevices(ctx context.Context) (Iterator, error)
+}
+
+type Iterator interface {
+	Next(ctx context.Context) bool
+	Decode(value interface{}) error
+	Close(ctx context.Context) error
 }
 
 var (

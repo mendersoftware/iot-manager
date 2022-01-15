@@ -37,7 +37,7 @@ $(BINFILE): $(SRCFILES)
 	$(GO) build -o $@ .
 
 $(BINFILE).test: $(GOFILES)
-	go test -c -o $(BINFILE).test \
+	go test -c -o $(BINFILE).test -tags main \
 		-cover -covermode atomic \
 		-coverpkg $(PACKAGES)
 
@@ -57,17 +57,12 @@ test: $(COVERFILE)
 bin/iot-manager.docker: Dockerfile $(SRCFILES)
 	docker rmi $(DOCKERIMAGE):$(DOCKERTAG) 2>/dev/null; \
 	docker build . -f Dockerfile -t $(DOCKERIMAGE):$(DOCKERTAG)
-	docker save $(DOCKERIMAGE):$(DOCKERTAG) -o $@
+	touch $@
 
 bin/iot-manager.acceptance.docker: Dockerfile.acceptance $(GOFILES)
 	docker rmi $(DOCKERIMAGE):$(DOCKERTESTTAG) 2>/dev/null; \
 	docker build . -f Dockerfile.acceptance -t $(DOCKERIMAGE):$(DOCKERTESTTAG)
-	docker save $(DOCKERIMAGE):$(DOCKERTESTTAG) -o $@
-
-bin/acceptance.docker: tests/Dockerfile tests/requirements.txt
-	docker rmi tests 2>/dev/null; \
-	docker build tests -f tests/Dockerfile -t testing
-	docker save testing -o $@
+	touch $@
 
 .PHONY: docker
 docker: bin/iot-manager.docker
@@ -75,29 +70,25 @@ docker: bin/iot-manager.docker
 .PHONY: docker-test
 docker-test: bin/iot-manager.acceptance.docker
 
-.PHONY: docker-acceptance
-docker-acceptance: bin/acceptance.docker
-
 .PHONY: acceptance-tests
-acceptance-tests: docker-acceptance docker-test docs
+acceptance-tests-run: docker-test docs
 	docker-compose \
-		-f tests/docker-compose.yml \
 		-p acceptance \
-		up -d
-	docker attach acceptance_tester_1
+		-f tests/docker-compose.yml \
+		run --rm tester
 
 .PHONY: acceptance-tests-logs
-acceptance-tests-logs:
+acceptance-tests-logs: acceptance-tests-run
 	for service in $(shell docker-compose -f tests/docker-compose.yml -p acceptance ps -a --services); do \
 		docker-compose -p acceptance -f tests/docker-compose.yml \
 				logs --no-color $$service > "tests/acceptance.$${service}.logs"; \
 	done
 
 .PHONY: acceptance-tests-down
-acceptance-tests-down:
+acceptance-tests: acceptance-tests-logs
 	docker-compose \
 		-f tests/docker-compose.yml \
-		-p acceptance down
+		-p acceptance down --remove-orphans
 
 
 .PHONY: fmt
@@ -111,8 +102,7 @@ lint:
 .PHONY: clean
 clean:
 	$(GO) clean -modcache -x -i ./...
-	find . -name coverage.txt -delete
-	rm -f tests/acceptance.*.logs tests/results.xml \
-		tests/coverage-acceptance.txt coverage.txt
+	find . -name coverage*.txt -delete
+	rm -f tests/acceptance.*.logs tests/results.xml
 	rm -f bin/*
 	rm -rf tests/devices_api tests/internal_api tests/management_api

@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -194,7 +194,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(nil)
@@ -210,7 +210,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(app.ErrNoConnectionString)
@@ -226,7 +226,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(app.ErrDeviceNotFound)
@@ -243,7 +243,7 @@ func TestDecommissionDevice(t *testing.T) {
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
 			mock := new(mapp.App)
-			mock.On("DeleteIOTHubDevice",
+			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
 				Return(errors.New("internal error"))
@@ -391,10 +391,10 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 				contextMatcher,
 				req[2]["id"],
 				self.Status,
-			).Return(client.HTTPError{http.StatusConflict}).Once()
+			).Return(client.NewHTTPError(http.StatusConflict)).Once()
 			result.Items = append(result.Items, BulkItem{
 				Status:      http.StatusConflict,
-				Description: client.HTTPError{http.StatusConflict}.Error(),
+				Description: client.NewHTTPError(http.StatusConflict).Error(),
 				Parameters: map[string]interface{}{
 					"id": req[2]["id"],
 				},

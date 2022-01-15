@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ func (h *ManagementHandler) GetIntegrations(c *gin.Context) {
 	if err != nil {
 		rest.RenderError(c,
 			http.StatusInternalServerError,
-			errors.New(http.StatusText(http.StatusInternalServerError)),
+			err,
 		)
 		return
 	}
@@ -103,7 +103,7 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 			_ = c.Error(err)
 			rest.RenderError(c,
 				http.StatusInternalServerError,
-				errors.New(http.StatusText(http.StatusInternalServerError)),
+				err,
 			)
 		}
 		return
@@ -138,7 +138,7 @@ func (h *ManagementHandler) GetIntegrationById(c *gin.Context) {
 		default:
 			rest.RenderError(c,
 				http.StatusInternalServerError,
-				errors.New(http.StatusText(http.StatusInternalServerError)),
+				err,
 			)
 		}
 		return
@@ -179,7 +179,7 @@ func (h *ManagementHandler) SetIntegrationCredentials(c *gin.Context) {
 		default:
 			rest.RenderError(c,
 				http.StatusInternalServerError,
-				errors.New(http.StatusText(http.StatusInternalServerError)),
+				err,
 			)
 		}
 		return
@@ -211,7 +211,7 @@ func (h *ManagementHandler) RemoveIntegration(c *gin.Context) {
 		default:
 			rest.RenderError(c,
 				http.StatusInternalServerError,
-				errors.New(http.StatusText(http.StatusInternalServerError)),
+				err,
 			)
 		}
 		return

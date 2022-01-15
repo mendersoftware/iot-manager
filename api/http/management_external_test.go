@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -119,7 +119,7 @@ func TestIOTHubExternal(t *testing.T) {
 	defer store.AssertExpectations(t)
 
 	iotHubClient := iothub.NewClient()
-	app := app.New(store, iotHubClient, nil)
+	app := app.New(store, iotHubClient, nil, nil)
 
 	handler := NewRouter(app)
 	srv := httptest.NewServer(handler)

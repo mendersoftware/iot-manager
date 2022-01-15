@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import (
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pkg/errors"
+
+	"github.com/mendersoftware/iot-manager/crypto"
 )
 
 const (
@@ -51,13 +53,13 @@ var (
 // The implementation is based on the official python SDK.
 // https://github.com/Azure/azure-iot-sdk-python
 type ConnectionString struct {
-	HostName        string `cs:"HostName" bson:"hostname"`
-	GatewayHostName string `cs:"GatewayHostName" bson:"gateway_hostname,omitempty"`
-	Name            string `cs:"SharedAccessKeyName" bson:"name,omitempty"`
-	DeviceID        string `cs:"DeviceId" bson:"device_id,omitempty"`
-	ModuleID        string `cs:"ModuleId" bson:"module_id,omitempty"`
-	Key             []byte `cs:"SharedAccessKey" bson:"access_key"`
-	Signature       string `cs:"SharedAccessSignature" bson:"-"`
+	HostName        string        `cs:"HostName" bson:"hostname"`
+	GatewayHostName string        `cs:"GatewayHostName" bson:"gateway_hostname,omitempty"`
+	Name            string        `cs:"SharedAccessKeyName" bson:"name,omitempty"`
+	DeviceID        string        `cs:"DeviceId" bson:"device_id,omitempty"`
+	ModuleID        string        `cs:"ModuleId" bson:"module_id,omitempty"`
+	Key             crypto.String `cs:"SharedAccessKey" bson:"access_key"`
+	Signature       string        `cs:"SharedAccessSignature" bson:"-"`
 }
 
 func ParseConnectionString(connection string) (*ConnectionString, error) {
@@ -76,7 +78,7 @@ func ParseConnectionString(connection string) (*ConnectionString, error) {
 			if err != nil {
 				return nil, errors.Wrap(err, "shared access key format")
 			}
-			cs.Key = key
+			cs.Key = crypto.String(key)
 		case csKeySharedAccessKeyName:
 			cs.Name = kv[1]
 		case csKeySharedAccessSignature:
@@ -159,7 +161,8 @@ func (cs ConnectionString) String() string {
 		switch typ := fieldVal.Interface().(type) {
 		case []byte:
 			res = append(res, tag+"="+base64.StdEncoding.EncodeToString(typ))
-
+		case crypto.String:
+			res = append(res, tag+"="+base64.StdEncoding.EncodeToString([]byte(typ)))
 		case string:
 			res = append(res, tag+"="+typ)
 		default:

@@ -31,16 +31,14 @@ paths:
           description: Page number.
           required: false
           schema:
-            type: number
-            format: integer
+            type: integer
             default: 1
         - name: per_page
           in: query
           description: Number of results per page.
           required: false
           schema:
-            type: number
-            format: integer
+            type: integer
             default: 20
       responses:
         200:
@@ -68,13 +66,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Integration'
+        required: true
       responses:
         201:
           description: Integration registered.
           headers:
             Location:
               description: URL of the newly registered integration.
-              type: string
+              schema:
+                type: string
         400:
           $ref: '#/components/responses/InvalidRequestError'
         401:
@@ -128,6 +128,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Credentials'
+        required: true
       responses:
         204:
           description: Credentials updated successfully.
@@ -234,6 +235,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/DeviceState'
+        required: true
       responses:
         200:
           description: OK. Returns the updated device state.
@@ -311,8 +313,7 @@ components:
         #     kind:
         #       type: string
         #     priority:
-        #       type: number
-        #       format: integer
+        #       type: integer
         #     expression:
         #       oneOf:
         #         - '#/components/schemas/DeviceGroup'
@@ -327,9 +328,18 @@ components:
         - credentials
 
     Credentials:
-      oneOf:
-        - $ref: '#/components/schemas/SharedAccessSecret'
+      allOf:
+        - type: object
+          properties:
+            type:
+              description: The credential type
+              type: string
+          required:
+            - type
+        - oneOf:
+          - $ref: '#/components/schemas/SharedAccessSecret'
         # - $ref: '#/components/schemas/x509Cert'
+
       discriminator:
         propertyName: type
         mapping:
