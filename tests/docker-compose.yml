@@ -29,7 +29,7 @@ services:
         - mender-mongo
       working_dir: /testing
       environment:
-        IOT_MANAGER_AES_ENCRYPTION_KEY: "jYxg1Jo3nXJQBK7mPqA6kM9V2f2vPLxz"
+        IOT_MANAGER_AES_ENCRYPTION_KEY: "+mg+KXQM8/7A+uqs1bJzfH0KW9NclMEVRjkmqhfpjDg="
 
     mender-mongo:
       image: "mongo:4.4"
