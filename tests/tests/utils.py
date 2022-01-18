@@ -26,6 +26,7 @@ from urllib.parse import urljoin
 
 import requests
 
+
 def generate_jwt(tenant_id: str = "", subject: str = "", is_user: bool = True) -> str:
     if len(subject) == 0:
         subject = str(uuid.uuid4())
@@ -41,6 +42,7 @@ def generate_jwt(tenant_id: str = "", subject: str = "", is_user: bool = True) -
     claims = {
         "sub": subject,
         "exp": (datetime.utcnow() + timedelta(hours=1)).isoformat("T"),
+        "mender.user": is_user,
         "mender.device": not is_user,
         "mender.tenant": tenant_id,
     }

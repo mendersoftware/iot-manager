@@ -6,6 +6,7 @@ services:
           - mender
       volumes:
           - ".:/testing"
+          - "/var/run/docker.sock:/var/run/docker.sock"
       environment:
         IOT_MANAGER_URL: "http://mender-iot-manager:8080"
         MMOCK_CONTROL_URL: "http://mmock:8081"
@@ -27,6 +28,8 @@ services:
       depends_on:
         - mender-mongo
       working_dir: /testing
+      environment:
+        IOT_MANAGER_AES_ENCRYPTION_KEY: "jYxg1Jo3nXJQBK7mPqA6kM9V2f2vPLxz"
 
     mender-mongo:
       image: "mongo:4.4"
@@ -34,7 +37,7 @@ services:
         mender: {}
 
     mmock:
-      image: jordimartin/mmock:v2.7.9
+      image: jordimartin/mmock:v3.0.3
       command:
         - "-config-path=/config"
         - "-console-ip=0.0.0.0"
@@ -42,14 +45,18 @@ services:
         - "-server-ip=0.0.0.0"
         - "-server-port=8080"
         - "-server-statistics=false"
+        - "-tls-path=/cert"
+        - "-server-tls-port=8443"
       volumes:
-        - "./mmock:/config"
+        - "./mmock/config:/config"
+        - "./mmock/cert:/cert"
       networks:
         mender:
           aliases:
             - mmock
             - mender-device-auth
             - mender-workflows-server
+            - mock.azure-devices.net
 
 networks:
   mender: {}
