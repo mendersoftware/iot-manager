@@ -77,6 +77,7 @@ func GenerateJWT(id identity.Identity) string {
 
 func TestGetIntegrations(t *testing.T) {
 	t.Parallel()
+	validConnStringString, _ := validConnString.MarshalText()
 	testCases := []struct {
 		Name string
 
@@ -120,7 +121,7 @@ func TestGetIntegrations(t *testing.T) {
 				"provider": model.ProviderIoTHub,
 				"credentials": map[string]interface{}{
 					"type":              model.CredentialTypeSAS,
-					"connection_string": validConnString.String(),
+					"connection_string": string(validConnStringString),
 				},
 			}},
 		},
@@ -278,9 +279,9 @@ func TestCreateIntegration(t *testing.T) {
 
 		RequestBody: map[string]interface{}{
 			"provider": model.ProviderIoTHub,
-			"credentials": model.Credentials{
-				Type:             model.CredentialTypeSAS,
-				ConnectionString: validConnString,
+			"credentials": map[string]interface{}{
+				"type":              model.CredentialTypeSAS,
+				"connection_string": validConnString.String(),
 			},
 		},
 		RequestHdrs: http.Header{
@@ -305,9 +306,9 @@ func TestCreateIntegration(t *testing.T) {
 
 		RequestBody: map[string]interface{}{
 			"provider": model.ProviderIoTHub,
-			"credentials": model.Credentials{
-				Type:             model.CredentialTypeSAS,
-				ConnectionString: validConnString,
+			"credentials": map[string]interface{}{
+				"type":              model.CredentialTypeSAS,
+				"connection_string": validConnString.String(),
 			},
 		},
 		RequestHdrs: http.Header{
