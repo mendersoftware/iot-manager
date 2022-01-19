@@ -307,7 +307,7 @@ class TestSync:
                 "body": re.compile(
                     r".*HostName=mock\.azure-devices\.net:8443;"
                     + r"DeviceId=93406e21-8e3f-4435-9786-a294a70298ee;"
-                    + r"SharedAccessKey=secret64.*"
+                    + r"SharedAccessKey=secr.*"
                 ),
             },
             "result": {
