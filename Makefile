@@ -27,7 +27,7 @@ tests/%: docs/%.yml
 	rm -rf $@; \
 	docker run --rm -t -v $(ROOTDIR):$(ROOTDIR) -w $(ROOTDIR) \
 		-u $(shell id -u):$(shell id -g) \
-		openapitools/openapi-generator-cli:v4.3.1 generate \
+		openapitools/openapi-generator-cli:v5.3.1 generate \
 		-g python -i $< \
 		-c tests/.openapi-generator.yml \
 		-o $(dir $@) \
@@ -70,7 +70,7 @@ docker: bin/iot-manager.docker
 .PHONY: docker-test
 docker-test: bin/iot-manager.acceptance.docker
 
-.PHONY: acceptance-tests
+.PHONY: acceptance-tests-run
 acceptance-tests-run: docker-test docs
 	docker-compose \
 		-p acceptance \
@@ -85,10 +85,13 @@ acceptance-tests-logs: acceptance-tests-run
 	done
 
 .PHONY: acceptance-tests-down
-acceptance-tests: acceptance-tests-logs
+acceptance-tests-down:
 	docker-compose \
 		-f tests/docker-compose.yml \
 		-p acceptance down --remove-orphans
+
+.PHONY: acceptance-tests
+acceptance-tests: acceptance-tests-logs acceptance-tests-down
 
 
 .PHONY: fmt

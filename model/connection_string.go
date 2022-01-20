@@ -33,6 +33,7 @@ import (
 const (
 	csDelimiter    = ";"
 	csVarSeparator = "="
+	omitted        = "...<omitted>"
 
 	csKeyHostName              = "HostName"
 	csKeySharedAccessKey       = "SharedAccessKey"
@@ -143,7 +144,7 @@ func (cs ConnectionString) Authorization(expireAt time.Time) string {
 	return token
 }
 
-func (cs ConnectionString) String() string {
+func (cs ConnectionString) string(omit bool) string {
 	val := reflect.ValueOf(cs)
 	typ := val.Type()
 	n := typ.NumField()
@@ -162,7 +163,13 @@ func (cs ConnectionString) String() string {
 		case []byte:
 			res = append(res, tag+"="+base64.StdEncoding.EncodeToString(typ))
 		case crypto.String:
-			res = append(res, tag+"="+base64.StdEncoding.EncodeToString([]byte(typ)))
+			var value string
+			if omit {
+				value = base64.StdEncoding.EncodeToString([]byte(typ[:3])) + omitted
+			} else {
+				value = base64.StdEncoding.EncodeToString([]byte(typ))
+			}
+			res = append(res, tag+"="+value)
 		case string:
 			res = append(res, tag+"="+typ)
 		default:
@@ -173,8 +180,12 @@ func (cs ConnectionString) String() string {
 	return txt
 }
 
+func (cs ConnectionString) String() string {
+	return cs.string(false)
+}
+
 func (cs ConnectionString) MarshalText() ([]byte, error) {
-	return []byte(cs.String()), nil
+	return []byte(cs.string(true)), nil
 }
 
 func (cs *ConnectionString) UnmarshalText(b []byte) error {
