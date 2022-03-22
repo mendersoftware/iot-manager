@@ -71,6 +71,14 @@ const (
 	SettingDebugLog = "debug_log"
 	// SettingDebugLogDefault is the default value for the debug log enabling
 	SettingDebugLogDefault = false
+
+	// SettingDomainWhitelist sets the hostnames trusted by this service
+	// to mitigate SSRF attacks. The whitelist accept DNS-like wildcards
+	// to cover all subdomains.
+	SettingDomainWhitelist = "domain_whitelist"
+	// SettingDomainWhitelist sets the default to the set of potential IoT
+	// Hub domains included in connection strings.
+	SettingDomainWhitelistDefault = "*.azure-devices.net"
 )
 
 var (
@@ -84,5 +92,6 @@ var (
 		{Key: SettingDebugLog, Value: SettingDebugLogDefault},
 		{Key: SettingWorkflowsURL, Value: SettingWorkflowsURLDefault},
 		{Key: SettingDeviceauthURL, Value: SettingDeviceauthURLDefault},
+		{Key: SettingDomainWhitelist, Value: SettingDomainWhitelistDefault},
 	}
 )
