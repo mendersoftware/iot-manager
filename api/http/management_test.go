@@ -47,6 +47,10 @@ import (
 	"github.com/mendersoftware/iot-manager/model"
 )
 
+func init() {
+	model.SetTrustedHostnames([]string{"localhost", "*.azure-devices.net", "localhost"})
+}
+
 var (
 	contextMatcher  = mock.MatchedBy(func(_ context.Context) bool { return true })
 	validConnString = &model.ConnectionString{
