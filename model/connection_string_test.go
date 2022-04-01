@@ -22,7 +22,7 @@ import (
 )
 
 func init() {
-	SetTrustedHostnames([]string{"totally.legit", "*.azure-devices.net"})
+	SetTrustedHostnames([]string{"localhost", "totally.legit", "*.azure-devices.net"})
 }
 
 func TestParseConnectionString(t *testing.T) {
@@ -80,4 +80,23 @@ func TestConnectionStringMarshalText(t *testing.T) {
 	marshalled, err := cs.MarshalText()
 	assert.NoError(t, err)
 	assert.Equal(t, "HostName=mender-test-hub.azure-devices.net;DeviceId=7b478313-de33-4735-bf00-0ebc31851faf;SharedAccessKey=YWFh...<omitted>", string(marshalled))
+}
+
+func TestHostnameValidator(t *testing.T) {
+	t.Parallel()
+	valLocalhost := newHostnameValidator([]string{"localhost", ""})
+	valEmpty := newHostnameValidator(nil)
+
+	err := valEmpty.Validate("any.url.io")
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "[PROG ERR(hostnameValidator)]")
+	}
+
+	err = valLocalhost.Validate(nil)
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "[PROG ERR(hostnameValidator)]")
+	}
+
+	err = valLocalhost.Validate("")
+	assert.ErrorIs(t, err, ErrHostnameTrust)
 }
