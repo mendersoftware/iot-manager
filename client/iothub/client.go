@@ -112,6 +112,10 @@ func NewClient(options ...*Options) Client {
 	if opts.Client == nil {
 		opts.Client = new(http.Client)
 	}
+	// Make sure that we never follow redirects
+	opts.Client.CheckRedirect = func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
 	return &client{
 		Client: opts.Client,
 	}

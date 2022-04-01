@@ -47,7 +47,16 @@ var (
 	ErrConnectionStringTooLong = errors.New(
 		"connection string can be no longer than 4096 characters",
 	)
+	ErrHostnameTrust = errors.New(
+		"hostname does not refer to a trusted domain",
+	)
+
+	trustedHostnames hostnameValidator
 )
+
+func SetTrustedHostnames(hostnames []string) {
+	trustedHostnames = newHostnameValidator(hostnames)
+}
 
 // ConnectionString implements the Azure connection string format and the
 // SharedAccessSignature authz algorithm.
@@ -111,8 +120,11 @@ func (cs ConnectionString) Validate() error {
 		return nil
 	}
 	err := validation.ValidateStruct(&cs,
-		validation.Field(&cs.HostName, validation.Required),
+		validation.Field(&cs.HostName, validation.Required, trustedHostnames),
 		validation.Field(&cs.Key, validation.Required),
+		validation.Field(&cs.GatewayHostName, validation.When(
+			cs.GatewayHostName != "", trustedHostnames,
+		)),
 	)
 	if err != nil {
 		return err
@@ -197,5 +209,62 @@ func (cs *ConnectionString) UnmarshalText(b []byte) error {
 		return err
 	}
 	*cs = *connStr
+	return nil
+}
+
+type hostnameValidator [][]string
+
+func newHostnameValidator(hostnames []string) hostnameValidator {
+	// Compile the list of hostnames into a set of hostnames split by separator '.'
+	var ret = make(hostnameValidator, len(hostnames))
+	var j int
+	for i := range hostnames {
+		if hostnames[i] == "" {
+			continue
+		}
+		ret[i] = strings.Split(hostnames[i], ".")
+		j++
+	}
+	ret = ret[:j]
+	return ret
+}
+
+func (patterns hostnameValidator) matchHostname(hostname string) bool {
+	hostname = strings.ToLower(strings.TrimSuffix(hostname, "."))
+	if len(hostname) == 0 {
+		return false
+	}
+	hostname = strings.SplitN(hostname, ":", 2)[0]
+	hostParts := strings.Split(hostname, ".")
+	for _, patternParts := range patterns {
+		if len(patternParts) != len(hostParts) {
+			continue
+		}
+		allMatch := true
+		for i, patternPart := range patternParts {
+			if i == 0 && patternPart == "*" {
+				continue
+			}
+			if patternPart != hostParts[i] {
+				allMatch = false
+				break
+			}
+		}
+		if allMatch {
+			return true
+		}
+	}
+	return false
+}
+
+func (patterns hostnameValidator) Validate(v interface{}) error {
+	if len(patterns) == 0 {
+		return errors.New("[PROG ERR(hostnameValidator)] no trusted hostnames configured")
+	}
+	if hostname, ok := v.(string); !ok {
+		return errors.New("[PROG ERR(hostnameValidator)] validating non-string hostname")
+	} else if !patterns.matchHostname(hostname) {
+		return ErrHostnameTrust
+	}
 	return nil
 }
