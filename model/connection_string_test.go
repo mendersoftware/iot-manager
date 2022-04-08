@@ -21,6 +21,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	SetTrustedHostnames([]string{"totally.legit", "*.azure-devices.net"})
+}
+
 func TestParseConnectionString(t *testing.T) {
 	cs, err := ParseConnectionString(
 		"HostName=mender-test-hub.azure-devices.net;DeviceId=7b478313-de33-4735-bf00-0ebc31851faf;" +
@@ -42,6 +46,16 @@ func TestParseConnectionString(t *testing.T) {
 
 	_, err = ParseConnectionString("abc")
 	assert.EqualError(t, err, "invalid connectionstring format")
+
+	_, err = ParseConnectionString(
+		"HostName=test-hub.bad-devices.net;DeviceId=7b478313-de33-4735-bf00-0ebc31851faf;" +
+			"SharedAccessKey=YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWE=")
+	if assert.Error(t, err) {
+		assert.Contains(t,
+			err.Error(),
+			"hostname does not refer to a trusted domain",
+		)
+	}
 }
 
 func TestConnectionStringAuthorization(t *testing.T) {

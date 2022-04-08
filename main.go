@@ -28,6 +28,7 @@ import (
 	"github.com/mendersoftware/iot-manager/cmd"
 	dconfig "github.com/mendersoftware/iot-manager/config"
 	"github.com/mendersoftware/iot-manager/crypto"
+	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/server"
 	store "github.com/mendersoftware/iot-manager/store/mongo"
 
@@ -131,6 +132,9 @@ func doMain(args []string) {
 				config.Config.GetString(dconfig.SettingAESEncryptionFallbackKey),
 			)
 		}
+		model.SetTrustedHostnames(
+			config.Config.GetStringSlice(dconfig.SettingDomainWhitelist),
+		)
 
 		return err
 	}

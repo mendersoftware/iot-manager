@@ -35,6 +35,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func init() {
+	model.SetTrustedHostnames([]string{"*.azure-devices.net", "localhost"})
+}
+
 var (
 	externalCS       *model.ConnectionString
 	externalDeviceID string
