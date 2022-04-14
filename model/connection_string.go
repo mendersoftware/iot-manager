@@ -19,6 +19,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/url"
 	"reflect"
 	"strings"
@@ -53,6 +54,12 @@ var (
 
 	trustedHostnames hostnameValidator
 )
+
+type ResolveError string
+
+func (err ResolveError) Error() string {
+	return fmt.Sprintf("failed to lookup host with name '%s'", string(err))
+}
 
 func SetTrustedHostnames(hostnames []string) {
 	trustedHostnames = newHostnameValidator(hostnames)
@@ -234,7 +241,6 @@ func (patterns hostnameValidator) matchHostname(hostname string) bool {
 	if len(hostname) == 0 {
 		return false
 	}
-	hostname = strings.SplitN(hostname, ":", 2)[0]
 	hostParts := strings.Split(hostname, ".")
 	for _, patternParts := range patterns {
 		if len(patternParts) != len(hostParts) {
@@ -261,10 +267,15 @@ func (patterns hostnameValidator) Validate(v interface{}) error {
 	if len(patterns) == 0 {
 		return errors.New("[PROG ERR(hostnameValidator)] no trusted hostnames configured")
 	}
-	if hostname, ok := v.(string); !ok {
+	hostname, ok := v.(string)
+	if !ok {
 		return errors.New("[PROG ERR(hostnameValidator)] validating non-string hostname")
-	} else if !patterns.matchHostname(hostname) {
+	}
+	hostname = strings.SplitN(hostname, ":", 2)[0]
+	if !patterns.matchHostname(hostname) {
 		return ErrHostnameTrust
+	} else if _, err := net.LookupHost(hostname); err != nil {
+		return ResolveError(hostname)
 	}
 	return nil
 }
