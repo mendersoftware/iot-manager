@@ -32,6 +32,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	ErrNoConnectionString = errors.New("no connection string configured for tenant")
+)
+
 const (
 	uriTwin      = "/twins"
 	uriDevices   = "/devices"
@@ -127,7 +131,9 @@ func (c *client) NewRequestWithContext(
 	method, urlPath string,
 	body io.Reader,
 ) (*http.Request, error) {
-	if err := cs.Validate(); err != nil {
+	if cs == nil {
+		return nil, ErrNoConnectionString
+	} else if err := cs.Validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid connection string")
 	}
 	hostname := cs.HostName
