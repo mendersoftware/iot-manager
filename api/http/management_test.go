@@ -402,7 +402,7 @@ func TestCreateIntegration(t *testing.T) {
 					assert.Regexp(t, tc.Error.Error(), erro.Error())
 				}
 			} else {
-				assert.Empty(t, w.Body.Bytes())
+				assert.Empty(t, w.Body.String())
 				location := w.Header().Get(hdrLocation)
 				expectedLocation := APIURLManagement + "/integrations/" + integrationID.String()
 				assert.Equal(t, expectedLocation, location)

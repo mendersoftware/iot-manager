@@ -1,23 +1,22 @@
 FROM golang:1.16.5-alpine3.12 as builder
+WORKDIR /go/src/github.com/mendersoftware/iot-manager
 RUN apk add --no-cache \
     xz-dev \
     musl-dev \
     gcc \
-    make
-RUN mkdir -p /go/src/github.com/mendersoftware/iot-manager
-COPY . /go/src/github.com/mendersoftware/iot-manager
-RUN cd /go/src/github.com/mendersoftware/iot-manager && \
-    make build-test
-
-FROM alpine:3.15.0
-RUN mkdir -p /etc/iot-manager
-
-RUN apk add ca-certificates
+    make \
+    ca-certificates
 COPY ./tests/mmock/cert/server.crt /usr/share/ca-certificates/mmock.crt
 # The first step should happen automatically but doesn't :thinking_face:
 RUN echo 'mmock.crt' >> /etc/ca-certificates.conf && update-ca-certificates
+COPY ./ .
+RUN CGO_ENABLED=0 make build-test
 
-COPY ./config.yaml /etc/iot-manager
+FROM scratch
+WORKDIR /etc/iot-manager
+EXPOSE 8080
+COPY ./config.yaml .
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder \
     /go/src/github.com/mendersoftware/iot-manager/bin/iot-manager.test \
     /usr/bin/iot-manager
