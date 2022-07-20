@@ -321,6 +321,7 @@ components:
           type: string
           enum:
             - "iot-hub"
+            - "iot-core"
         credentials:
           $ref: '#/components/schemas/Credentials'
       required:
@@ -337,17 +338,31 @@ components:
           required:
             - type
         - oneOf:
-          - $ref: '#/components/schemas/SharedAccessSecret'
-        # - $ref: '#/components/schemas/x509Cert'
+          - $ref: '#/components/schemas/AWSCredentials'
+          - $ref: '#/components/schemas/AzureSharedAccessSecret'
 
       discriminator:
         propertyName: type
         mapping:
-          sas: '#/components/schemas/SharedAccessSecret'
-          # x509: '#/components/schemas/x509Cert'
+          sas: '#/components/schemas/AzureSharedAccessSecret'
 
+    AWSCredentials:
+      type: object
+      description: |
+        AWS credentials in the form of access key id and secret access key, an endpoint URL and a
+        device policy ARN.
+      properties:
+        access_key_id:
+          type: string
+        secret_access_key:
+          type: string
+        endpoint_url:
+          type: string
+        device_policy_arn:
+          type: string
+      required: [access_key_id,secret_access_key,endpoint_url,device_policy_arn]
 
-    SharedAccessSecret:
+    AzureSharedAccessSecret:
       type: object
       description: |
         Shared Access Secret is an authentication mechanism in the form of a

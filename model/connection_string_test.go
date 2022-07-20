@@ -22,7 +22,10 @@ import (
 )
 
 func init() {
-	SetTrustedHostnames([]string{"localhost", "totally.legit", "*.azure-devices.net"})
+	SetTrustedHostnames([]string{"localhost", "totally.legit", "*.azure-devices.net", "*.iot.*.amazonaws.com"})
+	lookupHostFunc = func(hostname string) error {
+		return nil
+	}
 }
 
 func TestParseConnectionString(t *testing.T) {
