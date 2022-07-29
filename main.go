@@ -23,6 +23,7 @@ import (
 
 	"github.com/mendersoftware/iot-manager/app"
 	"github.com/mendersoftware/iot-manager/client/devauth"
+	"github.com/mendersoftware/iot-manager/client/iotcore"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
 	"github.com/mendersoftware/iot-manager/cmd"
@@ -193,6 +194,7 @@ func cmdSync(args *cli.Context) error {
 		workflows.NewOptions().SetClient(httpClient),
 	)
 	hub := iothub.NewClient(iothub.NewOptions().SetClient(httpClient))
+	core := iotcore.NewClient()
 	mgoConfig := store.NewConfig()
 	devauth, err := devauth.NewClient(devauth.Config{
 		Client:         httpClient,
@@ -207,6 +209,6 @@ func cmdSync(args *cli.Context) error {
 		return err
 	}
 	defer ds.Close()
-	app := app.New(ds, hub, wf, devauth)
+	app := app.New(ds, wf, devauth).WithIoTHub(hub).WithIoTCore(core)
 	return app.SyncDevices(ctx, args.Int("batch-size"), args.Bool("fail-early"))
 }

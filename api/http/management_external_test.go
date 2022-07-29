@@ -119,7 +119,7 @@ func TestIOTHubExternal(t *testing.T) {
 	defer store.AssertExpectations(t)
 
 	iotHubClient := iothub.NewClient()
-	app := app.New(store, iotHubClient, nil, nil)
+	app := app.New(store, nil, nil).WithIoTHub(iotHubClient)
 
 	handler := NewRouter(app)
 	srv := httptest.NewServer(handler)

@@ -19,8 +19,15 @@ package mocks
 import (
 	context "context"
 
-	model "github.com/mendersoftware/iot-manager/model"
+	app "github.com/mendersoftware/iot-manager/app"
+
+	iotcore "github.com/mendersoftware/iot-manager/client/iotcore"
+
+	iothub "github.com/mendersoftware/iot-manager/client/iothub"
+
 	mock "github.com/stretchr/testify/mock"
+
+	model "github.com/mendersoftware/iot-manager/model"
 
 	uuid "github.com/google/uuid"
 )
@@ -330,6 +337,38 @@ func (_m *App) SyncDevices(_a0 context.Context, _a1 int, _a2 bool) error {
 		r0 = rf(_a0, _a1, _a2)
 	} else {
 		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// WithIoTCore provides a mock function with given fields: client
+func (_m *App) WithIoTCore(client iotcore.Client) app.App {
+	ret := _m.Called(client)
+
+	var r0 app.App
+	if rf, ok := ret.Get(0).(func(iotcore.Client) app.App); ok {
+		r0 = rf(client)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(app.App)
+		}
+	}
+
+	return r0
+}
+
+// WithIoTHub provides a mock function with given fields: client
+func (_m *App) WithIoTHub(client iothub.Client) app.App {
+	ret := _m.Called(client)
+
+	var r0 app.App
+	if rf, ok := ret.Get(0).(func(iothub.Client) app.App); ok {
+		r0 = rf(client)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(app.App)
+		}
 	}
 
 	return r0

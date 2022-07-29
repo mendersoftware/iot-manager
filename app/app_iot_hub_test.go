@@ -21,23 +21,652 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/mendersoftware/iot-manager/client"
-	"github.com/mendersoftware/iot-manager/client/devauth"
-	mdevauth "github.com/mendersoftware/iot-manager/client/devauth/mocks"
-	"github.com/mendersoftware/iot-manager/client/iothub"
-	miothub "github.com/mendersoftware/iot-manager/client/iothub/mocks"
-	mocks_iothub "github.com/mendersoftware/iot-manager/client/iothub/mocks"
-	mworkflows "github.com/mendersoftware/iot-manager/client/workflows/mocks"
-	"github.com/mendersoftware/iot-manager/crypto"
-	"github.com/mendersoftware/iot-manager/model"
-	"github.com/mendersoftware/iot-manager/store"
-	mstore "github.com/mendersoftware/iot-manager/store/mocks"
-
 	"github.com/mendersoftware/go-lib-micro/log"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/mendersoftware/iot-manager/client"
+	"github.com/mendersoftware/iot-manager/client/devauth"
+	mdevauth "github.com/mendersoftware/iot-manager/client/devauth/mocks"
+	"github.com/mendersoftware/iot-manager/client/iothub"
+	hubMocks "github.com/mendersoftware/iot-manager/client/iothub/mocks"
+	wfMocks "github.com/mendersoftware/iot-manager/client/workflows/mocks"
+	"github.com/mendersoftware/iot-manager/crypto"
+	"github.com/mendersoftware/iot-manager/model"
+	"github.com/mendersoftware/iot-manager/store"
+	storeMocks "github.com/mendersoftware/iot-manager/store/mocks"
 )
+
+func TestProvisionDeviceIoTHub(t *testing.T) {
+	t.Parallel()
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+	connString := &model.ConnectionString{
+		HostName: "localhost",
+		Key:      crypto.String("secret"),
+		Name:     "foobar",
+	}
+	type testCase struct {
+		Name     string
+		DeviceID string
+
+		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Hub   func(t *testing.T, self *testCase) *hubMocks.Client
+		Wf    func(t *testing.T, self *testCase) *wfMocks.Client
+
+		Error error
+	}
+	testCases := []testCase{
+		{
+			Name:     "ok",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
+					Return([]model.Integration{
+						{
+							ID:       integrationID,
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				store.On("UpsertDeviceIntegrations", contextMatcher, self.DeviceID, []uuid.UUID{integrationID}).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("UpsertDevice", contextMatcher, connString, self.DeviceID).
+					Return(&iothub.Device{
+						DeviceID: self.DeviceID,
+						Auth: &iothub.Auth{
+							Type: iothub.AuthTypeSymmetric,
+							SymmetricKey: &iothub.SymmetricKey{
+								Primary:   iothub.Key("key1"),
+								Secondary: iothub.Key("key2"),
+							},
+						},
+					}, nil).
+					On("UpdateDeviceTwin", contextMatcher, connString, self.DeviceID,
+						&iothub.DeviceTwinUpdate{
+							Tags: map[string]interface{}{"mender": true},
+						}).
+					Return(nil)
+				return hub
+			},
+			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+				wf := new(wfMocks.Client)
+				primKey := &model.ConnectionString{
+					Key:      crypto.String("key1"),
+					DeviceID: self.DeviceID,
+					HostName: connString.HostName,
+				}
+				wf.On("ProvisionExternalDevice",
+					contextMatcher,
+					self.DeviceID,
+					map[string]string{
+						confKeyPrimaryKey: primKey.String(),
+					}).Return(nil)
+				return wf
+			},
+		},
+		{
+			Name:     "error, no connection string",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
+					Return([]model.Integration{
+						{
+							ID:       integrationID,
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("UpsertDevice", contextMatcher, connString, self.DeviceID).
+					Return(&iothub.Device{
+						DeviceID: self.DeviceID,
+						Auth: &iothub.Auth{
+							Type: iothub.AuthTypeNone,
+						},
+					}, nil)
+				return hub
+			},
+			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+				return new(wfMocks.Client)
+			},
+
+			Error: ErrNoDeviceConnectionString,
+		},
+		{
+			Name:     "error, failure",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
+					Return([]model.Integration{
+						{
+							ID:       integrationID,
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("UpsertDevice", contextMatcher, connString, self.DeviceID).
+					Return(nil, errors.New("internal error"))
+				return hub
+			},
+			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+				return new(wfMocks.Client)
+			},
+
+			Error: errors.New("failed to update iothub devices: internal error"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+
+			ds := tc.Store(t, &tc)
+			defer ds.AssertExpectations(t)
+
+			wf := tc.Wf(t, &tc)
+			defer wf.AssertExpectations(t)
+
+			app := New(ds, wf, nil)
+
+			hub := tc.Hub(t, &tc)
+			defer hub.AssertExpectations(t)
+			app = app.WithIoTHub(hub)
+
+			err := app.ProvisionDevice(ctx, tc.DeviceID)
+
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDecommissionDeviceIoTHub(t *testing.T) {
+	t.Parallel()
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+	connString := &model.ConnectionString{
+		HostName: "localhost",
+		Key:      crypto.String("secret"),
+		Name:     "foobar",
+	}
+	type testCase struct {
+		Name     string
+		DeviceID string
+
+		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Hub   func(t *testing.T, self *testCase) *hubMocks.Client
+
+		Error error
+	}
+	testCases := []testCase{
+		{
+			Name:     "error: device not found in db in GetDeviceIntegrations",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				return hub
+			},
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				mockedStore := new(storeMocks.DataStore)
+				mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(nil, store.ErrObjectNotFound)
+				return mockedStore
+			},
+			Error: ErrDeviceNotFound,
+		},
+		{
+			Name:     "ok",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("DeleteDevice", contextMatcher, connString, self.DeviceID).
+					Return(nil)
+				return hub
+			},
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							ID:       integrationID,
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				store.On("DeleteDevice", contextMatcher, self.DeviceID).
+					Return(nil)
+				return store
+			},
+		},
+		{
+			Name:     "error, no connection string",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				return hub
+			},
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							ID:          integrationID,
+							Provider:    model.ProviderIoTHub,
+							Credentials: model.Credentials{},
+						},
+					}, nil)
+				return store
+			},
+			Error: ErrNoCredentials,
+		},
+		{
+			Name:     "error, device not found",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("DeleteDevice", contextMatcher, connString, self.DeviceID).
+					Return(nil)
+				return hub
+			},
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				mockedStore := new(storeMocks.DataStore)
+				mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				mockedStore.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							ID:       integrationID,
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				mockedStore.On("DeleteDevice", contextMatcher, self.DeviceID).
+					Return(store.ErrObjectNotFound)
+				return mockedStore
+			},
+			Error: ErrDeviceNotFound,
+		},
+		{
+			Name:     "error, failure",
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("DeleteDevice", contextMatcher, connString, self.DeviceID).
+					Return(errors.New("failed to delete IoT Hub device: store: unexpected error"))
+				return hub
+			},
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							ID:       integrationID,
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Error: errors.New("failed to delete IoT Hub device: store: unexpected error"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			ds := tc.Store(t, &tc)
+			defer ds.AssertExpectations(t)
+
+			app := New(ds, nil, nil)
+
+			hub := tc.Hub(t, &tc)
+			defer hub.AssertExpectations(t)
+			app = app.WithIoTHub(hub)
+
+			err := app.DecommissionDevice(ctx, tc.DeviceID)
+
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestSetDeviceStatusIoTHub(t *testing.T) {
+	t.Parallel()
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+	connString := &model.ConnectionString{
+		HostName: "localhost",
+		Key:      crypto.String("secret"),
+		Name:     "foobar",
+	}
+	type testCase struct {
+		Name string
+
+		ConnStr  *model.ConnectionString
+		DeviceID string
+		Status   model.Status
+
+		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Hub   func(t *testing.T, self *testCase) *hubMocks.Client
+
+		Error error
+	}
+	testCases := []testCase{
+		{
+			Name: "ok",
+
+			Status:   model.StatusAccepted,
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				dev := &iothub.Device{
+					DeviceID: "foobar",
+					Status:   iothub.StatusDisabled,
+				}
+				hub.On("GetDevice", contextMatcher, connString, self.DeviceID).
+					Return(dev, nil).
+					On("UpsertDevice", contextMatcher, connString, self.DeviceID,
+						mock.MatchedBy(func(dev *iothub.Device) bool {
+							return dev.Status == iothub.StatusEnabled
+						})).
+					Return(dev, nil)
+				return hub
+			},
+		},
+		{
+			Name: "ok, device already has matching status",
+
+			Status:   model.StatusDecommissioned,
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				dev := &iothub.Device{
+					DeviceID: self.DeviceID,
+					Status:   iothub.StatusDisabled,
+				}
+				hub.On("GetDevice", contextMatcher, connString, self.DeviceID).
+					Return(dev, nil)
+				return hub
+			},
+		},
+		{
+			Name: "error, fail to update device",
+
+			Status:   model.StatusAccepted,
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				dev := &iothub.Device{
+					DeviceID: self.DeviceID,
+					Status:   iothub.StatusDisabled,
+				}
+				hub.On("GetDevice", contextMatcher, connString, self.DeviceID).
+					Return(dev, nil).
+					On("UpsertDevice", contextMatcher, connString, self.DeviceID,
+						mock.MatchedBy(func(dev *iothub.Device) bool {
+							return dev.Status == iothub.StatusEnabled
+						})).
+					Return(nil, errors.New("failed to update IoT Hub device: hub: unexpected error"))
+				return hub
+			},
+			Error: errors.New("failed to update IoT Hub device: hub: unexpected error"),
+		},
+		{
+			Name: "error, get device",
+
+			Status:   model.StatusAccepted,
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type:             model.CredentialTypeSAS,
+								ConnectionString: connString,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDevice", contextMatcher, connString, self.DeviceID).
+					Return(nil, errors.New("failed to retrieve device from IoT Hub: hub: unexpected error"))
+				return hub
+			},
+			Error: errors.New("failed to retrieve device from IoT Hub: hub: unexpected error"),
+		},
+		{
+			Name: "error, no connection string",
+
+			Status:   model.StatusAccepted,
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return([]model.Integration{
+						{
+							Provider: model.ProviderIoTHub,
+							Credentials: model.Credentials{
+								Type: model.CredentialTypeSAS,
+							},
+						},
+					}, nil)
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				return hub
+			},
+			Error: ErrNoCredentials,
+		},
+		{
+			Name: "error, getting settings",
+
+			Status:   model.StatusPreauthorized,
+			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				store := new(storeMocks.DataStore)
+				store.On("GetDevice", contextMatcher, self.DeviceID).
+					Return(&model.Device{
+						ID:             self.DeviceID,
+						IntegrationIDs: []uuid.UUID{integrationID},
+					},
+						nil)
+				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
+					Return(nil, errors.New("failed to retrieve device integrations: unexpected error"))
+				return store
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				return hub
+			},
+			Error: errors.New("failed to retrieve device integrations: unexpected error"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			ctx := context.Background()
+			ds := tc.Store(t, &tc)
+			defer ds.AssertExpectations(t)
+
+			app := New(ds, nil, nil)
+
+			hub := tc.Hub(t, &tc)
+			defer hub.AssertExpectations(t)
+			app = app.WithIoTHub(hub)
+
+			err := app.SetDeviceStatus(ctx, tc.DeviceID, tc.Status)
+
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
 func TestRemoveIoTHubMetadata(t *testing.T) {
 	testCases := []struct {
@@ -97,7 +726,7 @@ func TestGetDeviceStateIoTHub(t *testing.T) {
 		DeviceID    string
 		Integration *model.Integration
 
-		IoTHubClient              func(t *testing.T) *mocks_iothub.Client
+		IoTHubClient              func(t *testing.T) *hubMocks.Client
 		GetDeviceStateIoTHub      *model.DeviceState
 		GetDeviceStateIoTHubError error
 	}{
@@ -107,8 +736,8 @@ func TestGetDeviceStateIoTHub(t *testing.T) {
 			DeviceID:    "1",
 			Integration: integration,
 
-			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
-				hub := &mocks_iothub.Client{}
+			IoTHubClient: func(t *testing.T) *hubMocks.Client {
+				hub := &hubMocks.Client{}
 
 				hub.On("GetDeviceTwin",
 					contextMatcher,
@@ -141,7 +770,7 @@ func TestGetDeviceStateIoTHub(t *testing.T) {
 			DeviceID:    "1",
 			Integration: &model.Integration{},
 
-			GetDeviceStateIoTHubError: ErrNoConnectionString,
+			GetDeviceStateIoTHubError: ErrNoCredentials,
 		},
 		{
 			Name: "ko, error retrieving the device twin",
@@ -149,8 +778,8 @@ func TestGetDeviceStateIoTHub(t *testing.T) {
 			DeviceID:    "1",
 			Integration: integration,
 
-			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
-				hub := &mocks_iothub.Client{}
+			IoTHubClient: func(t *testing.T) *hubMocks.Client {
+				hub := &hubMocks.Client{}
 
 				hub.On("GetDeviceTwin",
 					contextMatcher,
@@ -171,7 +800,7 @@ func TestGetDeviceStateIoTHub(t *testing.T) {
 				defer client.AssertExpectations(t)
 				iotHubClient = client
 			}
-			app := New(nil, iotHubClient, nil, nil)
+			app := New(nil, nil, nil).WithIoTHub(iotHubClient)
 
 			ctx := context.Background()
 			state, err := app.GetDeviceStateIoTHub(ctx, tc.DeviceID, tc.Integration)
@@ -198,7 +827,7 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 		Integration *model.Integration
 		DeviceState *model.DeviceState
 
-		IoTHubClient              func(t *testing.T) *mocks_iothub.Client
+		IoTHubClient              func(t *testing.T) *hubMocks.Client
 		SetDeviceStateIoTHub      *model.DeviceState
 		SetDeviceStateIoTHubError error
 	}{
@@ -213,8 +842,8 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 				},
 			},
 
-			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
-				hub := &mocks_iothub.Client{}
+			IoTHubClient: func(t *testing.T) *hubMocks.Client {
+				hub := &hubMocks.Client{}
 
 				hub.On("GetDeviceTwin",
 					contextMatcher,
@@ -288,7 +917,7 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 			DeviceID:    "1",
 			Integration: &model.Integration{},
 
-			SetDeviceStateIoTHubError: ErrNoConnectionString,
+			SetDeviceStateIoTHubError: ErrNoCredentials,
 		},
 		{
 			Name: "ko, error setting the device twin",
@@ -301,8 +930,8 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 				},
 			},
 
-			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
-				hub := &mocks_iothub.Client{}
+			IoTHubClient: func(t *testing.T) *hubMocks.Client {
+				hub := &hubMocks.Client{}
 
 				hub.On("GetDeviceTwin",
 					contextMatcher,
@@ -356,8 +985,8 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 				},
 			},
 
-			IoTHubClient: func(t *testing.T) *mocks_iothub.Client {
-				hub := &mocks_iothub.Client{}
+			IoTHubClient: func(t *testing.T) *hubMocks.Client {
+				hub := &hubMocks.Client{}
 
 				hub.On("GetDeviceTwin",
 					contextMatcher,
@@ -410,7 +1039,7 @@ func TestSetDeviceStateIoTHub(t *testing.T) {
 				defer client.AssertExpectations(t)
 				iotHubClient = client
 			}
-			app := New(nil, iotHubClient, nil, nil)
+			app := New(nil, nil, nil).WithIoTHub(iotHubClient)
 
 			ctx := context.Background()
 			state, err := app.SetDeviceStateIoTHub(ctx, tc.DeviceID, tc.Integration, tc.DeviceState)
@@ -436,10 +1065,10 @@ func TestSyncIoTHubDevices(t *testing.T) {
 		Integration model.Integration
 		FailEarly   bool
 
-		DataStore func(t *testing.T, self *testCase) *mstore.DataStore
+		DataStore func(t *testing.T, self *testCase) *storeMocks.DataStore
 		Devauth   func(t *testing.T, self *testCase) *mdevauth.Client
-		Hub       func(t *testing.T, self *testCase) *miothub.Client
-		Wf        func(t *testing.T, self *testCase) *mworkflows.Client
+		Hub       func(t *testing.T, self *testCase) *hubMocks.Client
+		Wf        func(t *testing.T, self *testCase) *wfMocks.Client
 
 		Error error
 	}
@@ -467,8 +1096,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 			},
 		},
 
-		DataStore: func(t *testing.T, self *testCase) *mstore.DataStore {
-			ds := new(mstore.DataStore)
+		DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
 
 			ds.On("GetDevice",
 				contextMatcher,
@@ -528,8 +1157,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 				Return(authSets, nil)
 			return da
 		},
-		Hub: func(t *testing.T, self *testCase) *miothub.Client {
-			hub := new(miothub.Client)
+		Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+			hub := new(hubMocks.Client)
 			hub.On("DeleteDevice",
 				contextMatcher,
 				self.Integration.Credentials.ConnectionString,
@@ -606,8 +1235,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 
 			return hub
 		},
-		Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-			wf := new(mworkflows.Client)
+		Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+			wf := new(wfMocks.Client)
 			devCS := &model.ConnectionString{
 				Key:      crypto.String("secret"),
 				DeviceID: "38e5ebfb-963d-4ac2-8f5e-d51b2df1fa6e",
@@ -639,8 +1268,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 			},
 		},
 
-		DataStore: func(t *testing.T, self *testCase) *mstore.DataStore {
-			ds := new(mstore.DataStore)
+		DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
 			ds.On("GetDevice",
 				contextMatcher,
 				"38e5ebfb-963d-4ac2-8f5e-d51b2df1fa6e").
@@ -660,8 +1289,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 				Return(authSets, nil)
 			return da
 		},
-		Hub: func(t *testing.T, self *testCase) *miothub.Client {
-			hub := new(miothub.Client)
+		Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+			hub := new(hubMocks.Client)
 
 			devIDs := make([]string, len(self.DeviceIDs)-1)
 			copy(devIDs, self.DeviceIDs)
@@ -728,8 +1357,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 
 			return hub
 		},
-		Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-			wf := new(mworkflows.Client)
+		Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+			wf := new(wfMocks.Client)
 			return wf
 		},
 	}, {
@@ -742,8 +1371,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 			"8de57bea-be8a-45d5-9147-a148cddf4f09",
 		},
 
-		DataStore: func(t *testing.T, self *testCase) *mstore.DataStore {
-			ds := new(mstore.DataStore)
+		DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
 			return ds
 		},
 		Devauth: func(t *testing.T, self *testCase) *mdevauth.Client {
@@ -752,12 +1381,12 @@ func TestSyncIoTHubDevices(t *testing.T) {
 				Return(nil, client.NewHTTPError(500))
 			return da
 		},
-		Hub: func(t *testing.T, self *testCase) *miothub.Client {
-			hub := new(miothub.Client)
+		Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+			hub := new(hubMocks.Client)
 			return hub
 		},
-		Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-			wf := new(mworkflows.Client)
+		Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+			wf := new(wfMocks.Client)
 			return wf
 		},
 		FailEarly: true,
@@ -769,8 +1398,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 			"38e5ebfb-963d-4ac2-8f5e-d51b2df1fa6e",
 		},
 
-		DataStore: func(t *testing.T, self *testCase) *mstore.DataStore {
-			ds := new(mstore.DataStore)
+		DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
 			ds.On("GetDevice", contextMatcher, "38e5ebfb-963d-4ac2-8f5e-d51b2df1fa6e").
 				Return(nil, errors.New("internal error"))
 			return ds
@@ -781,12 +1410,12 @@ func TestSyncIoTHubDevices(t *testing.T) {
 				Return([]devauth.Device{}, nil)
 			return da
 		},
-		Hub: func(t *testing.T, self *testCase) *miothub.Client {
-			hub := new(miothub.Client)
+		Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+			hub := new(hubMocks.Client)
 			return hub
 		},
-		Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-			wf := new(mworkflows.Client)
+		Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+			wf := new(wfMocks.Client)
 			return wf
 		},
 		FailEarly: true,
@@ -798,8 +1427,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 			"38e5ebfb-963d-4ac2-8f5e-d51b2df1fa6e",
 		},
 
-		DataStore: func(t *testing.T, self *testCase) *mstore.DataStore {
-			ds := new(mstore.DataStore)
+		DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			ds := new(storeMocks.DataStore)
 			return ds
 		},
 		Devauth: func(t *testing.T, self *testCase) *mdevauth.Client {
@@ -811,8 +1440,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 				}}, nil)
 			return da
 		},
-		Hub: func(t *testing.T, self *testCase) *miothub.Client {
-			hub := new(miothub.Client)
+		Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+			hub := new(hubMocks.Client)
 			hub.On("GetDeviceTwins",
 				contextMatcher,
 				self.Integration.Credentials.ConnectionString,
@@ -820,8 +1449,8 @@ func TestSyncIoTHubDevices(t *testing.T) {
 				Return(nil, client.NewHTTPError(500))
 			return hub
 		},
-		Wf: func(t *testing.T, self *testCase) *mworkflows.Client {
-			wf := new(mworkflows.Client)
+		Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
+			wf := new(wfMocks.Client)
 			return wf
 		},
 		FailEarly: true,
@@ -842,8 +1471,7 @@ func TestSyncIoTHubDevices(t *testing.T) {
 			defer hub.AssertExpectations(t)
 			defer wf.AssertExpectations(t)
 
-			app := New(ds, hub, wf, da).(*app)
-
+			app := New(ds, wf, da).WithIoTHub(hub).(*app)
 			err := app.syncIoTHubDevices(ctx, tc.DeviceIDs, tc.Integration, tc.FailEarly)
 			if tc.Error != nil {
 				if assert.Error(t, err) {

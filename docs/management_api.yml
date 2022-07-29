@@ -358,9 +358,9 @@ components:
           type: string
         endpoint_url:
           type: string
-        device_policy_arn:
+        device_policy_document:
           type: string
-      required: [access_key_id,secret_access_key,endpoint_url,device_policy_arn]
+      required: [access_key_id,secret_access_key,endpoint_url,device_policy_document]
 
     AzureSharedAccessSecret:
       type: object
