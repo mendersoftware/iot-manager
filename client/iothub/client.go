@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	ErrNoConnectionString = errors.New("no connection string configured for tenant")
+	ErrNoCredentials = errors.New("no connection string configured for tenant")
 )
 
 const (
@@ -132,7 +132,7 @@ func (c *client) NewRequestWithContext(
 	body io.Reader,
 ) (*http.Request, error) {
 	if cs == nil {
-		return nil, ErrNoConnectionString
+		return nil, ErrNoCredentials
 	} else if err := cs.Validate(); err != nil {
 		return nil, errors.Wrap(err, "invalid connection string")
 	}

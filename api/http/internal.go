@@ -58,7 +58,7 @@ func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
 	})
 	err := h.app.ProvisionDevice(ctx, device.ID)
 	switch cause := errors.Cause(err); cause {
-	case nil, app.ErrNoConnectionString:
+	case nil, app.ErrNoCredentials:
 		c.Status(http.StatusNoContent)
 	case app.ErrDeviceAlreadyExists:
 		rest.RenderError(c, http.StatusConflict, cause)
@@ -77,7 +77,7 @@ func (h *InternalHandler) DecommissionDevice(c *gin.Context) {
 	})
 	err := h.app.DecommissionDevice(ctx, deviceID)
 	switch errors.Cause(err) {
-	case nil, app.ErrNoConnectionString:
+	case nil, app.ErrNoCredentials:
 		c.Status(http.StatusNoContent)
 	case app.ErrDeviceNotFound:
 		rest.RenderError(c, http.StatusNotFound, err)

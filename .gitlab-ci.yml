@@ -29,6 +29,10 @@ test:unit:
   variables:
     IOT_MANAGER_MONGO: mongo
 
+test:govendor-check:
+  variables:
+    GOLANG_VERSION: "1.18"
+
 test:acceptance:
   stage: test
   needs: []

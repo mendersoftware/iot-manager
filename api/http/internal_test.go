@@ -90,7 +90,7 @@ func TestProvisionDevice(t *testing.T) {
 			mock.On("ProvisionDevice",
 				validateTenantIDCtx(self.TenantID),
 				device.ID).
-				Return(app.ErrNoConnectionString)
+				Return(app.ErrNoCredentials)
 			return mock
 		},
 
@@ -213,7 +213,7 @@ func TestDecommissionDevice(t *testing.T) {
 			mock.On("DecommissionDevice",
 				validateTenantIDCtx(self.TenantID),
 				self.DeviceID).
-				Return(app.ErrNoConnectionString)
+				Return(app.ErrNoCredentials)
 			return mock
 		},
 
