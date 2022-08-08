@@ -20,9 +20,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
@@ -115,31 +115,33 @@ func TestGetDevice(t *testing.T) {
 		return
 	}
 
-	sess, _ := session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-1"),
-		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
-	})
+	appCreds := aws.NewCredentialsCache(
+		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
+	cfg, _ := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(*aws.String("us-east-1")),
+		config.WithCredentialsProvider(appCreds),
+	)
 
 	ctx := context.Background()
 	deviceID := uuid.NewString()
 
 	client := NewClient()
-	_, err := client.UpsertDevice(ctx, sess, deviceID, &Device{}, testPolicy)
+	_, err := client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
 	assert.NoError(t, err)
 
-	device, err := client.GetDevice(ctx, sess, deviceID)
+	device, err := client.GetDevice(ctx, &cfg, deviceID)
 	assert.NoError(t, err)
 	assert.NotNil(t, device)
 
 	assert.Equal(t, deviceID, device.Name)
 
-	_, err = client.GetDevice(ctx, sess, "dummy")
+	_, err = client.GetDevice(ctx, &cfg, "dummy")
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 
-	err = client.DeleteDevice(ctx, sess, device.Name)
+	err = client.DeleteDevice(ctx, &cfg, device.Name)
 	assert.NoError(t, err)
 
-	device, err = client.GetDevice(ctx, sess, deviceID)
+	device, err = client.GetDevice(ctx, &cfg, deviceID)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 	assert.Nil(t, device)
 }
@@ -149,26 +151,28 @@ func TestDeleteDevice(t *testing.T) {
 		return
 	}
 
-	sess, _ := session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-1"),
-		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
-	})
+	appCreds := aws.NewCredentialsCache(
+		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
+	cfg, _ := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(*aws.String("us-east-1")),
+		config.WithCredentialsProvider(appCreds),
+	)
 
 	ctx := context.Background()
 	deviceID := uuid.NewString()
 
 	client := NewClient()
 
-	device, err := client.UpsertDevice(ctx, sess, deviceID, &Device{}, testPolicy)
+	device, err := client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
 	assert.NoError(t, err)
 
-	err = client.DeleteDevice(ctx, sess, device.Name)
+	err = client.DeleteDevice(ctx, &cfg, device.Name)
 	assert.NoError(t, err)
 
-	err = client.DeleteDevice(ctx, sess, device.Name)
+	err = client.DeleteDevice(ctx, &cfg, device.Name)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 
-	device, err = client.GetDevice(ctx, sess, deviceID)
+	device, err = client.GetDevice(ctx, &cfg, deviceID)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 	assert.Nil(t, device)
 }
@@ -178,16 +182,18 @@ func TestUpsertDevice(t *testing.T) {
 		return
 	}
 
-	sess, _ := session.NewSession(&aws.Config{
-		Region:      aws.String("us-east-1"),
-		Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
-	})
+	appCreds := aws.NewCredentialsCache(
+		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
+	cfg, _ := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(*aws.String("us-east-1")),
+		config.WithCredentialsProvider(appCreds),
+	)
 
 	ctx := context.Background()
 	deviceID := uuid.NewString()
 
 	client := NewClient()
-	device, err := client.UpsertDevice(ctx, sess, deviceID, &Device{
+	device, err := client.UpsertDevice(ctx, &cfg, deviceID, &Device{
 		Status: StatusDisabled,
 	}, testPolicy)
 	assert.NoError(t, err)
@@ -198,10 +204,10 @@ func TestUpsertDevice(t *testing.T) {
 	assert.NotEmpty(t, device.Certificate)
 
 	device.Status = StatusEnabled
-	device, err = client.UpsertDevice(ctx, sess, deviceID, device, testPolicy)
+	device, err = client.UpsertDevice(ctx, &cfg, deviceID, device, testPolicy)
 	assert.NoError(t, err)
 	assert.Equal(t, StatusEnabled, device.Status)
 
-	err = client.DeleteDevice(ctx, sess, deviceID)
+	err = client.DeleteDevice(ctx, &cfg, deviceID)
 	assert.NoError(t, err)
 }

@@ -18,9 +18,9 @@ import (
 	"context"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/pkg/errors"
 
 	"github.com/mendersoftware/iot-manager/client/iotcore"
@@ -38,7 +38,7 @@ func getRegionFromEndpoint(endpointURL string) string {
 	return ""
 }
 
-func getIoTCoreSession(integration model.Integration) (*session.Session, error) {
+func getIoTCoreConfig(integration model.Integration) (*aws.Config, error) {
 	accessKeyID := integration.Credentials.AccessKeyID
 	secretAccessKey := integration.Credentials.SecretAccessKey
 	endpointURL := integration.Credentials.EndpointURL
@@ -47,10 +47,13 @@ func getIoTCoreSession(integration model.Integration) (*session.Session, error) 
 	}
 
 	region := getRegionFromEndpoint(*endpointURL)
-	return session.NewSession(&aws.Config{
-		Region:      aws.String(region),
-		Credentials: credentials.NewStaticCredentials(*accessKeyID, string(*secretAccessKey), ""),
-	})
+	appCreds := aws.NewCredentialsCache(
+		credentials.NewStaticCredentialsProvider(*accessKeyID, string(*secretAccessKey), ""))
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(*aws.String(region)),
+		config.WithCredentialsProvider(appCreds),
+	)
+	return &cfg, err
 }
 
 func (a *app) provisionIoTCoreDevice(
@@ -59,12 +62,12 @@ func (a *app) provisionIoTCoreDevice(
 	integration model.Integration,
 	device *iotcore.Device,
 ) error {
-	sess, err := getIoTCoreSession(integration)
+	cfg, err := getIoTCoreConfig(integration)
 	if err != nil {
 		return err
 	}
 
-	dev, err := a.iotcoreClient.UpsertDevice(ctx, sess, deviceID, device,
+	dev, err := a.iotcoreClient.UpsertDevice(ctx, cfg, deviceID, device,
 		*integration.Credentials.DevicePolicyDocument)
 	if err != nil {
 		return errors.Wrap(err, "failed to update iotcore devices")
@@ -85,13 +88,13 @@ func (a *app) provisionIoTCoreDevice(
 
 func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, status model.Status,
 	integration model.Integration) error {
-	sess, err := getIoTCoreSession(integration)
+	cfg, err := getIoTCoreConfig(integration)
 	if err != nil {
 		return err
 	}
 	_, err = a.iotcoreClient.UpsertDevice(
 		ctx,
-		sess,
+		cfg,
 		deviceID,
 		&iotcore.Device{
 			Status: iotcore.NewStatusFromMenderStatus(status),
@@ -103,11 +106,11 @@ func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, statu
 
 func (a *app) decommissionIoTCoreDevice(ctx context.Context, deviceID string,
 	integration model.Integration) error {
-	sess, err := getIoTCoreSession(integration)
+	cfg, err := getIoTCoreConfig(integration)
 	if err != nil {
 		return err
 	}
-	err = a.iotcoreClient.DeleteDevice(ctx, sess, deviceID)
+	err = a.iotcoreClient.DeleteDevice(ctx, cfg, deviceID)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete IoT Core device")
 	}

@@ -20,9 +20,9 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iot"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iot"
+	"github.com/aws/aws-sdk-go-v2/service/iot/types"
 
 	"github.com/mendersoftware/iot-manager/crypto"
 )
@@ -35,9 +35,9 @@ var (
 //nolint:lll
 //go:generate ../../utils/mockgen.sh
 type Client interface {
-	GetDevice(ctx context.Context, sess *session.Session, deviceID string) (*Device, error)
-	UpsertDevice(ctx context.Context, sess *session.Session, deviceID string, device *Device, policy string) (*Device, error)
-	DeleteDevice(ctx context.Context, sess *session.Session, deviceID string) error
+	GetDevice(ctx context.Context, cfg *aws.Config, deviceID string) (*Device, error)
+	UpsertDevice(ctx context.Context, cfg *aws.Config, deviceID string, device *Device, policy string) (*Device, error)
+	DeleteDevice(ctx context.Context, cfg *aws.Config, deviceID string) error
 }
 
 type client struct{}
@@ -48,12 +48,12 @@ func NewClient() Client {
 
 func (c *client) GetDevice(
 	ctx context.Context,
-	sess *session.Session,
+	cfg *aws.Config,
 	deviceID string,
 ) (*Device, error) {
-	svc := iot.New(sess)
+	svc := iot.NewFromConfig(*cfg)
 
-	resp, err := svc.DescribeThingWithContext(ctx,
+	resp, err := svc.DescribeThing(ctx,
 		&iot.DescribeThingInput{
 			ThingName: aws.String(deviceID),
 		})
@@ -64,10 +64,10 @@ func (c *client) GetDevice(
 		device = &Device{
 			ID:      *resp.ThingId,
 			Name:    *resp.ThingName,
-			Version: *resp.Version,
+			Version: resp.Version,
 			Status:  StatusDisabled,
 		}
-		respListThingPrincipals, err = svc.ListThingPrincipalsWithContext(ctx,
+		respListThingPrincipals, err = svc.ListThingPrincipals(ctx,
 			&iot.ListThingPrincipalsInput{
 				ThingName: aws.String(deviceID),
 			})
@@ -81,23 +81,24 @@ func (c *client) GetDevice(
 
 	if err == nil {
 		for _, principal := range respListThingPrincipals.Principals {
-			parts := strings.Split(*principal, "/")
+			parts := strings.Split(principal, "/")
 			certificateID := parts[len(parts)-1]
 
-			cert, err := svc.DescribeCertificateWithContext(ctx, &iot.DescribeCertificateInput{
+			cert, err := svc.DescribeCertificate(ctx, &iot.DescribeCertificateInput{
 				CertificateId: aws.String(certificateID),
 			})
 			if err != nil {
 				return nil, err
 			}
 			device.CertificateID = certificateID
-			if *cert.CertificateDescription.Status == iot.CertificateStatusActive {
+			if cert.CertificateDescription.Status == types.CertificateStatusActive {
 				device.Status = StatusEnabled
 			}
 		}
 	}
 
-	if _, ok := err.(*iot.ResourceNotFoundException); ok {
+	var notFoundErr *types.ResourceNotFoundException
+	if errors.As(err, &notFoundErr) {
 		err = ErrDeviceNotFound
 	}
 
@@ -109,32 +110,32 @@ func policyName(deviceID string) string {
 }
 
 func (c *client) UpsertDevice(ctx context.Context,
-	sess *session.Session,
+	cfg *aws.Config,
 	deviceID string,
 	device *Device,
 	policy string,
 ) (*Device, error) {
-	svc := iot.New(sess)
+	svc := iot.NewFromConfig(*cfg)
 
-	awsDevice, err := c.GetDevice(ctx, sess, deviceID)
+	awsDevice, err := c.GetDevice(ctx, cfg, deviceID)
 	if err == nil && awsDevice != nil {
-		cert, err := svc.DescribeCertificateWithContext(ctx, &iot.DescribeCertificateInput{
+		cert, err := svc.DescribeCertificate(ctx, &iot.DescribeCertificateInput{
 			CertificateId: aws.String(awsDevice.CertificateID),
 		})
 		if err == nil {
-			newStatus := iot.CertificateStatusInactive
+			newStatus := types.CertificateStatusInactive
 			awsDevice.Status = StatusDisabled
 			if device.Status == StatusEnabled {
-				newStatus = iot.CertificateStatusActive
+				newStatus = types.CertificateStatusActive
 				awsDevice.Status = StatusEnabled
 			}
 
-			if *cert.CertificateDescription.Status != newStatus {
+			if cert.CertificateDescription.Status != newStatus {
 				paramsUpdateCertificate := &iot.UpdateCertificateInput{
 					CertificateId: aws.String(awsDevice.CertificateID),
-					NewStatus:     aws.String(newStatus),
+					NewStatus:     types.CertificateStatus(newStatus),
 				}
-				_, err = svc.UpdateCertificateWithContext(ctx, paramsUpdateCertificate)
+				_, err = svc.UpdateCertificate(ctx, paramsUpdateCertificate)
 			}
 		}
 
@@ -145,7 +146,7 @@ func (c *client) UpsertDevice(ctx context.Context,
 
 	var resp *iot.CreateThingOutput
 	if err == nil {
-		resp, err = svc.CreateThingWithContext(ctx,
+		resp, err = svc.CreateThing(ctx,
 			&iot.CreateThingInput{
 				ThingName: aws.String(deviceID),
 			})
@@ -153,7 +154,7 @@ func (c *client) UpsertDevice(ctx context.Context,
 
 	var respPolicy *iot.CreatePolicyOutput
 	if err == nil {
-		respPolicy, err = svc.CreatePolicyWithContext(ctx,
+		respPolicy, err = svc.CreatePolicy(ctx,
 			&iot.CreatePolicyInput{
 				PolicyDocument: aws.String(policy),
 				PolicyName:     aws.String(policyName(deviceID)),
@@ -172,15 +173,15 @@ func (c *client) UpsertDevice(ctx context.Context,
 
 	var respCert *iot.CreateCertificateFromCsrOutput
 	if err == nil {
-		respCert, err = svc.CreateCertificateFromCsrWithContext(ctx,
+		respCert, err = svc.CreateCertificateFromCsr(ctx,
 			&iot.CreateCertificateFromCsrInput{
 				CertificateSigningRequest: aws.String(string(csr)),
-				SetAsActive:               aws.Bool(device.Status == StatusEnabled),
+				SetAsActive:               *aws.Bool(device.Status == StatusEnabled),
 			})
 	}
 
 	if err == nil {
-		_, err = svc.AttachPolicyWithContext(ctx,
+		_, err = svc.AttachPolicy(ctx,
 			&iot.AttachPolicyInput{
 				PolicyName: respPolicy.PolicyName,
 				Target:     respCert.CertificateArn,
@@ -188,7 +189,7 @@ func (c *client) UpsertDevice(ctx context.Context,
 	}
 
 	if err == nil {
-		_, err = svc.AttachThingPrincipalWithContext(ctx,
+		_, err = svc.AttachThingPrincipal(ctx,
 			&iot.AttachThingPrincipalInput{
 				Principal: respCert.CertificateArn,
 				ThingName: aws.String(deviceID),
@@ -208,17 +209,17 @@ func (c *client) UpsertDevice(ctx context.Context,
 	return deviceResp, err
 }
 
-func (c *client) DeleteDevice(ctx context.Context, sess *session.Session, deviceID string) error {
-	svc := iot.New(sess)
+func (c *client) DeleteDevice(ctx context.Context, cfg *aws.Config, deviceID string) error {
+	svc := iot.NewFromConfig(*cfg)
 
-	respDescribe, err := svc.DescribeThingWithContext(ctx,
+	respDescribe, err := svc.DescribeThing(ctx,
 		&iot.DescribeThingInput{
 			ThingName: aws.String(deviceID),
 		})
 
 	var respListThingPrincipals *iot.ListThingPrincipalsOutput
 	if err == nil {
-		respListThingPrincipals, err = svc.ListThingPrincipalsWithContext(ctx,
+		respListThingPrincipals, err = svc.ListThingPrincipals(ctx,
 			&iot.ListThingPrincipalsInput{
 				ThingName: aws.String(deviceID),
 			})
@@ -226,27 +227,27 @@ func (c *client) DeleteDevice(ctx context.Context, sess *session.Session, device
 
 	if err == nil {
 		for _, principal := range respListThingPrincipals.Principals {
-			_, err := svc.DetachThingPrincipalWithContext(ctx,
+			_, err := svc.DetachThingPrincipal(ctx,
 				&iot.DetachThingPrincipalInput{
-					Principal: aws.String(*principal),
+					Principal: aws.String(principal),
 					ThingName: aws.String(deviceID),
 				})
 			var certificateID string
 			if err == nil {
-				parts := strings.SplitAfter(*principal, "/")
+				parts := strings.SplitAfter(principal, "/")
 				certificateID = parts[len(parts)-1]
 
-				_, err = svc.UpdateCertificateWithContext(ctx,
+				_, err = svc.UpdateCertificate(ctx,
 					&iot.UpdateCertificateInput{
 						CertificateId: aws.String(certificateID),
-						NewStatus:     aws.String(iot.CertificateStatusInactive),
+						NewStatus:     types.CertificateStatusInactive,
 					})
 			}
 			if err == nil {
-				_, err = svc.DeleteCertificateWithContext(ctx,
+				_, err = svc.DeleteCertificate(ctx,
 					&iot.DeleteCertificateInput{
 						CertificateId: aws.String(certificateID),
-						ForceDelete:   aws.Bool(true),
+						ForceDelete:   *aws.Bool(true),
 					})
 			}
 			if err != nil {
@@ -256,28 +257,30 @@ func (c *client) DeleteDevice(ctx context.Context, sess *session.Session, device
 	}
 
 	if err == nil {
-		_, err = svc.DeleteThingWithContext(ctx,
+		_, err = svc.DeleteThing(ctx,
 			&iot.DeleteThingInput{
 				ThingName:       aws.String(deviceID),
-				ExpectedVersion: aws.Int64(*respDescribe.Version),
+				ExpectedVersion: aws.Int64(respDescribe.Version),
 			})
 	}
 
 	if err != nil {
-		if _, ok := err.(*iot.ResourceNotFoundException); ok {
+		var notFoundErr *types.ResourceNotFoundException
+		if errors.As(err, &notFoundErr) {
 			err = ErrDeviceNotFound
 		}
 		return err
 	}
 
 	if err == nil {
-		_, err = svc.DeletePolicyWithContext(ctx,
+		_, err = svc.DeletePolicy(ctx,
 			&iot.DeletePolicyInput{
 				PolicyName: aws.String(policyName(deviceID)),
 			})
 	}
 
-	if _, ok := err.(*iot.ResourceNotFoundException); ok {
+	var notFoundErr *types.ResourceNotFoundException
+	if errors.As(err, &notFoundErr) {
 		err = ErrDeviceNotFound
 	}
 

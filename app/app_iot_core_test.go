@@ -84,7 +84,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*session.Session"),
+					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusDisabled,
@@ -163,7 +163,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*session.Session"),
+					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusDisabled,
@@ -209,7 +209,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*session.Session"),
+					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusDisabled,
@@ -260,7 +260,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*session.Session"),
+					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusDisabled,
@@ -337,7 +337,7 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*session.Session"), self.DeviceID).
+				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID).
 					Return(nil)
 				return core
 			},
@@ -404,7 +404,7 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*session.Session"), self.DeviceID).
+				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID).
 					Return(nil)
 				return core
 			},
@@ -442,7 +442,7 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*session.Session"), self.DeviceID).
+				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID).
 					Return(errors.New("failed to delete IoT Core device: store: unexpected error"))
 				return core
 			},
@@ -552,7 +552,7 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 					ID:     "foobar",
 					Status: iotcore.StatusDisabled,
 				}
-				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("*session.Session"), self.DeviceID,
+				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
 						return dev.Status == iotcore.StatusEnabled
 					}), awsPolicyDocument).
@@ -624,7 +624,7 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("*session.Session"), self.DeviceID,
+				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
 						return dev.Status == iotcore.StatusEnabled
 					}), awsPolicyDocument).

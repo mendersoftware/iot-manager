@@ -6,12 +6,13 @@ management_api/apis/__init__.py
 management_api/configuration.py
 management_api/exceptions.py
 management_api/model/__init__.py
+management_api/model/aws_credentials.py
+management_api/model/azure_shared_access_secret.py
 management_api/model/credentials.py
 management_api/model/credentials_all_of.py
 management_api/model/device_state.py
 management_api/model/error.py
 management_api/model/integration.py
-management_api/model/shared_access_secret.py
 management_api/model_utils.py
 management_api/models/__init__.py
 management_api/rest.py
