@@ -130,3 +130,55 @@ func (a *app) syncIoCoreDevices(
 ) error {
 	return nil
 }
+
+func (a *app) GetDeviceStateIoTCore(
+	ctx context.Context,
+	deviceID string,
+	integration *model.Integration,
+) (*model.DeviceState, error) {
+	cfg, err := getIoTCoreConfig(*integration)
+	if err != nil {
+		return nil, err
+	}
+	shadow, err := a.iotcoreClient.GetDeviceShadow(ctx, cfg, deviceID)
+	if err != nil {
+		if err == iotcore.ErrDeviceNotFound {
+			return nil, nil
+		} else {
+			return nil, errors.Wrap(err, "failed to get the device shadow")
+		}
+	}
+	return &shadow.Payload, nil
+}
+
+func (a *app) SetDeviceStateIoTCore(
+	ctx context.Context,
+	deviceID string,
+	integration *model.Integration,
+	state *model.DeviceState,
+) (*model.DeviceState, error) {
+	if state == nil {
+		return nil, nil
+	}
+	cfg, err := getIoTCoreConfig(*integration)
+	if err != nil {
+		return nil, err
+	}
+	shadow, err := a.iotcoreClient.UpdateDeviceShadow(
+		ctx,
+		cfg,
+		deviceID,
+		iotcore.DeviceShadowUpdate{
+			State: iotcore.DesiredState{
+				Desired: state.Desired,
+			},
+		},
+	)
+	if err != nil {
+		if err == iotcore.ErrDeviceNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &shadow.Payload, nil
+}

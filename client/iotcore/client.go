@@ -17,12 +17,16 @@ package iotcore
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
+	"net/http"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/iot"
 	"github.com/aws/aws-sdk-go-v2/service/iot/types"
+	"github.com/aws/aws-sdk-go-v2/service/iotdataplane"
 
 	"github.com/mendersoftware/iot-manager/crypto"
 )
@@ -35,8 +39,22 @@ var (
 //nolint:lll
 //go:generate ../../utils/mockgen.sh
 type Client interface {
+	GetDeviceShadow(ctx context.Context, cfg *aws.Config, id string) (*DeviceShadow, error)
+	UpdateDeviceShadow(
+		ctx context.Context,
+		cfg *aws.Config,
+		deviceID string,
+		update DeviceShadowUpdate,
+	) (*DeviceShadow, error)
+
 	GetDevice(ctx context.Context, cfg *aws.Config, deviceID string) (*Device, error)
-	UpsertDevice(ctx context.Context, cfg *aws.Config, deviceID string, device *Device, policy string) (*Device, error)
+	UpsertDevice(
+		ctx context.Context,
+		cfg *aws.Config,
+		deviceID string,
+		device *Device,
+		policy string,
+	) (*Device, error)
 	DeleteDevice(ctx context.Context, cfg *aws.Config, deviceID string) error
 }
 
@@ -285,4 +303,70 @@ func (c *client) DeleteDevice(ctx context.Context, cfg *aws.Config, deviceID str
 	}
 
 	return err
+}
+
+func (c *client) GetDeviceShadow(
+	ctx context.Context,
+	cfg *aws.Config,
+	deviceID string,
+) (*DeviceShadow, error) {
+	svc := iotdataplane.NewFromConfig(*cfg)
+	shadow, err := svc.GetThingShadow(
+		ctx,
+		&iotdataplane.GetThingShadowInput{
+			ThingName: aws.String(deviceID),
+		},
+	)
+	if err != nil {
+		var httpResponseErr *awshttp.ResponseError
+		if errors.As(err, &httpResponseErr) {
+			if httpResponseErr.HTTPStatusCode() == http.StatusNotFound {
+				err = ErrDeviceNotFound
+			}
+		}
+		return nil, err
+	}
+	var devShadow DeviceShadow
+	err = json.Unmarshal(shadow.Payload, &devShadow)
+	if err != nil {
+		return nil, err
+	}
+	return &devShadow, nil
+
+}
+
+func (c *client) UpdateDeviceShadow(
+	ctx context.Context,
+	cfg *aws.Config,
+	deviceID string,
+	update DeviceShadowUpdate,
+) (*DeviceShadow, error) {
+	svc := iotdataplane.NewFromConfig(*cfg)
+	payloadUpdate, err := json.Marshal(update)
+	if err != nil {
+		return nil, err
+	}
+	updated, err := svc.UpdateThingShadow(
+		ctx,
+		&iotdataplane.UpdateThingShadowInput{
+			Payload:   payloadUpdate,
+			ThingName: aws.String(deviceID),
+		},
+	)
+	if err != nil {
+		var httpResponseErr *awshttp.ResponseError
+		if errors.As(err, &httpResponseErr) {
+			if httpResponseErr.HTTPStatusCode() == http.StatusNotFound {
+				err = ErrDeviceNotFound
+			}
+		}
+		return nil, err
+	}
+	var shadow DeviceShadow
+	err = json.Unmarshal(updated.Payload, &shadow)
+	if err != nil {
+		return nil, err
+	}
+	return &shadow, nil
+
 }

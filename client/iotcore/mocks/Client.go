@@ -68,6 +68,52 @@ func (_m *Client) GetDevice(ctx context.Context, cfg *aws.Config, deviceID strin
 	return r0, r1
 }
 
+// GetDeviceShadow provides a mock function with given fields: ctx, cfg, id
+func (_m *Client) GetDeviceShadow(ctx context.Context, cfg *aws.Config, id string) (*iotcore.DeviceShadow, error) {
+	ret := _m.Called(ctx, cfg, id)
+
+	var r0 *iotcore.DeviceShadow
+	if rf, ok := ret.Get(0).(func(context.Context, *aws.Config, string) *iotcore.DeviceShadow); ok {
+		r0 = rf(ctx, cfg, id)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iotcore.DeviceShadow)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *aws.Config, string) error); ok {
+		r1 = rf(ctx, cfg, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// UpdateDeviceShadow provides a mock function with given fields: ctx, cfg, deviceID, update
+func (_m *Client) UpdateDeviceShadow(ctx context.Context, cfg *aws.Config, deviceID string, update iotcore.DeviceShadowUpdate) (*iotcore.DeviceShadow, error) {
+	ret := _m.Called(ctx, cfg, deviceID, update)
+
+	var r0 *iotcore.DeviceShadow
+	if rf, ok := ret.Get(0).(func(context.Context, *aws.Config, string, iotcore.DeviceShadowUpdate) *iotcore.DeviceShadow); ok {
+		r0 = rf(ctx, cfg, deviceID, update)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iotcore.DeviceShadow)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, *aws.Config, string, iotcore.DeviceShadowUpdate) error); ok {
+		r1 = rf(ctx, cfg, deviceID, update)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // UpsertDevice provides a mock function with given fields: ctx, cfg, deviceID, device, policy
 func (_m *Client) UpsertDevice(ctx context.Context, cfg *aws.Config, deviceID string, device *iotcore.Device, policy string) (*iotcore.Device, error) {
 	ret := _m.Called(ctx, cfg, deviceID, device, policy)
