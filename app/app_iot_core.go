@@ -73,17 +73,8 @@ func (a *app) provisionIoTCoreDevice(
 		return errors.Wrap(err, "failed to update iotcore devices")
 	}
 
-	if dev.Certificate != "" && dev.PrivateKey != "" {
-		err = a.wf.ProvisionExternalDevice(ctx, dev.ID, map[string]string{
-			confKeyAWSCertificate: dev.Certificate,
-			confKeyAWSPrivateKey:  dev.PrivateKey,
-		})
-		if err != nil {
-			return errors.Wrap(err, "failed to submit iotcore credentials to deviceconfig")
-		}
-	}
-
-	return nil
+	err = a.deployConfiguration(ctx, deviceID, dev)
+	return err
 }
 
 func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, status model.Status,
@@ -102,6 +93,20 @@ func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, statu
 		*integration.Credentials.DevicePolicyDocument,
 	)
 	return err
+
+}
+
+func (a *app) deployConfiguration(ctx context.Context, deviceID string, dev *iotcore.Device) error {
+	if dev.Certificate != "" && dev.PrivateKey != "" {
+		err := a.wf.ProvisionExternalDevice(ctx, deviceID, map[string]string{
+			confKeyAWSCertificate: dev.Certificate,
+			confKeyAWSPrivateKey:  dev.PrivateKey,
+		})
+		if err != nil {
+			return errors.Wrap(err, "failed to submit iotcore credentials to deviceconfig")
+		}
+	}
+	return nil
 }
 
 func (a *app) decommissionIoTCoreDevice(ctx context.Context, deviceID string,
