@@ -317,7 +317,7 @@ func (a *app) syncBatch(
 				l.Error(err)
 			}
 		case model.ProviderIoTCore:
-			err := a.syncIoCoreDevices(ctx, deviceIDs, *integration, failEarly)
+			err := a.syncIoTCoreDevices(ctx, deviceIDs, *integration, failEarly)
 			if err != nil {
 				if failEarly {
 					return err

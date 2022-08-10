@@ -17,6 +17,7 @@ package app
 import (
 	"context"
 
+	"github.com/mendersoftware/go-lib-micro/log"
 	"github.com/pkg/errors"
 
 	"github.com/mendersoftware/iot-manager/client/iotcore"
@@ -98,7 +99,7 @@ func (a *app) decommissionIoTCoreDevice(ctx context.Context, deviceID string,
 	return nil
 }
 
-func (a *app) syncIoCoreDevices(
+func (a *app) syncIoTCoreDevices(
 	ctx context.Context,
 	deviceIDs []string,
 	integration model.Integration,
@@ -107,6 +108,81 @@ func (a *app) syncIoCoreDevices(
 	if err := assertAWSIntegration(integration); err != nil {
 		return err
 	}
+	l := log.FromContext(ctx)
+
+	// Get device authentication
+	devAuths, err := a.devauth.GetDevices(ctx, deviceIDs)
+	if err != nil {
+		return errors.Wrap(err, "app: failed to lookup device authentication")
+	}
+
+	statuses := make(map[string]model.Status, len(deviceIDs))
+	for _, auth := range devAuths {
+		statuses[auth.ID] = auth.Status
+	}
+
+	// Find devices that shouldn't exist
+	var (
+		i int
+		j int = len(deviceIDs)
+	)
+	for i < j {
+		id := deviceIDs[i]
+		if _, ok := statuses[id]; !ok {
+			l.Warnf("Device '%s' does not have an auth set: deleting device", id)
+			err := a.DecommissionDevice(ctx, id)
+			if err != nil && err != ErrDeviceNotFound {
+				err = errors.Wrap(err, "app: failed to decommission device")
+				if failEarly {
+					return err
+				}
+				l.Error(err)
+			}
+			// swap(deviceIDs[i], deviceIDs[j])
+			j--
+			tmp := deviceIDs[i]
+			deviceIDs[i] = deviceIDs[j]
+			deviceIDs[j] = tmp
+			deviceIDs = deviceIDs[:j]
+		} else {
+			i++
+		}
+	}
+	for _, deviceID := range deviceIDs {
+		// Check if device exists in IoT Core
+		dev, err := a.iotcoreClient.GetDevice(
+			ctx,
+			*integration.Credentials.AWSCredentials,
+			deviceID,
+		)
+		status, ok := statuses[deviceID]
+		if err == iotcore.ErrDeviceNotFound {
+			if ok {
+				// Device should exist, let's provision the device.
+				err := a.provisionIoTCoreDevice(ctx, deviceID, integration, &iotcore.Device{
+					Status: iotcore.NewStatusFromMenderStatus(status),
+				})
+				if err != nil {
+					err = errors.Wrap(err, "failed to provision missing device")
+					if failEarly {
+						return err
+					}
+					l.Warn(err)
+				}
+			}
+		} else if err != nil {
+			return errors.Wrap(err, "app: failed to get Thing from IoT Core")
+		} else if dev.Status != iotcore.NewStatusFromMenderStatus(status) {
+			// Upsert device
+			err := a.setDeviceStatusIoTCore(ctx, dev.ID, status, integration)
+			err = errors.Wrap(err, "failed to update device status")
+			if failEarly {
+				return err
+			}
+			l.Warn(err)
+		}
+	}
+
 	return nil
 }
 
