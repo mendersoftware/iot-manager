@@ -240,7 +240,7 @@ func (a *app) ProvisionDevice(
 			err = a.provisionIoTHubDevice(ctx, deviceID, integration)
 		case model.ProviderIoTCore:
 			err = a.provisionIoTCoreDevice(ctx, deviceID, integration, &iotcore.Device{
-				Status: iotcore.StatusDisabled,
+				Status: iotcore.StatusEnabled,
 			})
 		default:
 			continue

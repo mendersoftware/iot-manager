@@ -87,7 +87,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
-						Status: iotcore.StatusDisabled,
+						Status: iotcore.StatusEnabled,
 					},
 					awsPolicyDocument).
 					Return(&iotcore.Device{
@@ -166,7 +166,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
-						Status: iotcore.StatusDisabled,
+						Status: iotcore.StatusEnabled,
 					},
 					awsPolicyDocument).
 					Return(nil, errors.New("internal error"))
@@ -212,7 +212,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
-						Status: iotcore.StatusDisabled,
+						Status: iotcore.StatusEnabled,
 					},
 					awsPolicyDocument).
 					Return(&iotcore.Device{
@@ -263,7 +263,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					mock.AnythingOfType("*aws.Config"),
 					self.DeviceID,
 					&iotcore.Device{
-						Status: iotcore.StatusDisabled,
+						Status: iotcore.StatusEnabled,
 					},
 					awsPolicyDocument).
 					Return(&iotcore.Device{
