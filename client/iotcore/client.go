@@ -24,6 +24,8 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/iot"
 	"github.com/aws/aws-sdk-go-v2/service/iot/types"
 	"github.com/aws/aws-sdk-go-v2/service/iotdataplane"
@@ -40,23 +42,16 @@ var (
 //nolint:lll
 //go:generate ../../utils/mockgen.sh
 type Client interface {
-	GetDeviceShadow(ctx context.Context, cfg *aws.Config, id string) (*DeviceShadow, error)
+	GetDeviceShadow(ctx context.Context, creds model.AWSCredentials, id string) (*DeviceShadow, error)
 	UpdateDeviceShadow(
 		ctx context.Context,
-		cfg *aws.Config,
+		creds model.AWSCredentials,
 		deviceID string,
 		update DeviceShadowUpdate,
 	) (*DeviceShadow, error)
-
-	GetDevice(ctx context.Context, cfg *aws.Config, deviceID string) (*Device, error)
-	UpsertDevice(
-		ctx context.Context,
-		cfg *aws.Config,
-		deviceID string,
-		device *Device,
-		policy string,
-	) (*Device, error)
-	DeleteDevice(ctx context.Context, cfg *aws.Config, deviceID string) error
+	GetDevice(ctx context.Context, creds model.AWSCredentials, deviceID string) (*Device, error)
+	UpsertDevice(ctx context.Context, creds model.AWSCredentials, deviceID string, device *Device, policy string) (*Device, error)
+	DeleteDevice(ctx context.Context, creds model.AWSCredentials, deviceID string) error
 }
 
 type client struct{}
@@ -65,11 +60,33 @@ func NewClient() Client {
 	return &client{}
 }
 
+func getAWSConfig(creds model.AWSCredentials) (*aws.Config, error) {
+	err := creds.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	appCreds := credentials.NewStaticCredentialsProvider(
+		*creds.AccessKeyID,
+		string(*creds.SecretAccessKey),
+		"",
+	)
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(*creds.Region),
+		config.WithCredentialsProvider(appCreds),
+	)
+	return &cfg, err
+}
+
 func (c *client) GetDevice(
 	ctx context.Context,
-	cfg *aws.Config,
+	creds model.AWSCredentials,
 	deviceID string,
 ) (*Device, error) {
+	cfg, err := getAWSConfig(creds)
+	if err != nil {
+		return nil, err
+	}
 	svc := iot.NewFromConfig(*cfg)
 
 	resp, err := svc.DescribeThing(ctx,
@@ -129,14 +146,19 @@ func policyName(deviceID string) string {
 }
 
 func (c *client) UpsertDevice(ctx context.Context,
-	cfg *aws.Config,
+	creds model.AWSCredentials,
 	deviceID string,
 	device *Device,
 	policy string,
 ) (*Device, error) {
+
+	cfg, err := getAWSConfig(creds)
+	if err != nil {
+		return nil, err
+	}
 	svc := iot.NewFromConfig(*cfg)
 
-	awsDevice, err := c.GetDevice(ctx, cfg, deviceID)
+	awsDevice, err := c.GetDevice(ctx, creds, deviceID)
 	if err == nil && awsDevice != nil {
 		cert, err := svc.DescribeCertificate(ctx, &iot.DescribeCertificateInput{
 			CertificateId: aws.String(awsDevice.CertificateID),
@@ -228,7 +250,15 @@ func (c *client) UpsertDevice(ctx context.Context,
 	return deviceResp, err
 }
 
-func (c *client) DeleteDevice(ctx context.Context, cfg *aws.Config, deviceID string) error {
+func (c *client) DeleteDevice(
+	ctx context.Context,
+	creds model.AWSCredentials,
+	deviceID string,
+) error {
+	cfg, err := getAWSConfig(creds)
+	if err != nil {
+		return err
+	}
 	svc := iot.NewFromConfig(*cfg)
 
 	respDescribe, err := svc.DescribeThing(ctx,
@@ -308,9 +338,13 @@ func (c *client) DeleteDevice(ctx context.Context, cfg *aws.Config, deviceID str
 
 func (c *client) GetDeviceShadow(
 	ctx context.Context,
-	cfg *aws.Config,
+	creds model.AWSCredentials,
 	deviceID string,
 ) (*DeviceShadow, error) {
+	cfg, err := getAWSConfig(creds)
+	if err != nil {
+		return nil, err
+	}
 	svc := iotdataplane.NewFromConfig(*cfg)
 	shadow, err := svc.GetThingShadow(
 		ctx,
@@ -322,7 +356,7 @@ func (c *client) GetDeviceShadow(
 		var httpResponseErr *awshttp.ResponseError
 		if errors.As(err, &httpResponseErr) {
 			if httpResponseErr.HTTPStatusCode() == http.StatusNotFound {
-				_, errDevice := c.GetDevice(ctx, cfg, deviceID)
+				_, errDevice := c.GetDevice(ctx, creds, deviceID)
 				if errDevice == ErrDeviceNotFound {
 					err = ErrDeviceNotFound
 				} else {
@@ -348,10 +382,14 @@ func (c *client) GetDeviceShadow(
 
 func (c *client) UpdateDeviceShadow(
 	ctx context.Context,
-	cfg *aws.Config,
+	creds model.AWSCredentials,
 	deviceID string,
 	update DeviceShadowUpdate,
 ) (*DeviceShadow, error) {
+	cfg, err := getAWSConfig(creds)
+	if err != nil {
+		return nil, err
+	}
 	svc := iotdataplane.NewFromConfig(*cfg)
 	payloadUpdate, err := json.Marshal(update)
 	if err != nil {

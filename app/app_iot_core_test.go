@@ -35,8 +35,8 @@ import (
 var (
 	awsAccessKeyID     = "dummy"
 	awsSecretAccessKey = crypto.String("dummy")
-	awsEndpoint        = "random-id.iot.us-east-1.amazonaws.com"
-	awsPolicyDocument  = "{}"
+	awsRegion          = "us-east-1"
+	awsPolicyDocument  = `{"Id": "123", "Version": "2017-12-3", "Statement": [{}]}`
 )
 
 func TestProvisionDeviceIoTCore(t *testing.T) {
@@ -65,11 +65,13 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -84,7 +86,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
@@ -149,11 +151,13 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -163,7 +167,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
@@ -190,11 +194,13 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -209,7 +215,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
@@ -246,11 +252,13 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -260,7 +268,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
@@ -337,7 +345,7 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID).
+				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID).
 					Return(nil)
 				return core
 			},
@@ -355,11 +363,13 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -404,7 +414,7 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID).
+				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID).
 					Return(nil)
 				return core
 			},
@@ -422,11 +432,13 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -442,7 +454,7 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID).
+				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID).
 					Return(errors.New("failed to delete IoT Core device: store: unexpected error"))
 				return core
 			},
@@ -460,11 +472,13 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -535,11 +549,13 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -551,7 +567,7 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 					ID:     "foobar",
 					Status: iotcore.StatusDisabled,
 				}
-				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID,
+				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
 						return dev.Status == iotcore.StatusEnabled
 					}), awsPolicyDocument).
@@ -611,11 +627,13 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 							ID:       integrationID,
 							Provider: model.ProviderIoTCore,
 							Credentials: model.Credentials{
-								Type:                 model.CredentialTypeAWS,
-								AccessKeyID:          &awsAccessKeyID,
-								SecretAccessKey:      &awsSecretAccessKey,
-								EndpointURL:          &awsEndpoint,
-								DevicePolicyDocument: &awsPolicyDocument,
+								Type: model.CredentialTypeAWS,
+								AWSCredentials: &model.AWSCredentials{
+									AccessKeyID:          &awsAccessKeyID,
+									SecretAccessKey:      &awsSecretAccessKey,
+									Region:               &awsRegion,
+									DevicePolicyDocument: &awsPolicyDocument,
+								},
 							},
 						},
 					}, nil)
@@ -623,7 +641,7 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
-				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("*aws.Config"), self.DeviceID,
+				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
 						return dev.Status == iotcore.StatusEnabled
 					}), awsPolicyDocument).
@@ -683,11 +701,13 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				ID:       integrationID,
 				Provider: model.ProviderIoTCore,
 				Credentials: model.Credentials{
-					Type:                 model.CredentialTypeAWS,
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					EndpointURL:          &awsEndpoint,
-					DevicePolicyDocument: &awsPolicyDocument,
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:          &awsAccessKeyID,
+						SecretAccessKey:      &awsSecretAccessKey,
+						Region:               &awsRegion,
+						DevicePolicyDocument: &awsPolicyDocument,
+					},
 				},
 			},
 			DeviceState: &model.DeviceState{
@@ -707,7 +727,7 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				core.On(
 					"GetDeviceShadow",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 				).Return(self.DeviceShadow, nil)
 				return core
@@ -720,11 +740,13 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				ID:       integrationID,
 				Provider: model.ProviderIoTCore,
 				Credentials: model.Credentials{
-					Type:                 model.CredentialTypeAWS,
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					EndpointURL:          &awsEndpoint,
-					DevicePolicyDocument: &awsPolicyDocument,
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:          &awsAccessKeyID,
+						SecretAccessKey:      &awsSecretAccessKey,
+						Region:               &awsRegion,
+						DevicePolicyDocument: &awsPolicyDocument,
+					},
 				},
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
@@ -732,7 +754,7 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				core.On(
 					"GetDeviceShadow",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 				).Return(self.DeviceShadow, iotcore.ErrDeviceNotFound)
 				return core
@@ -745,11 +767,13 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				ID:       integrationID,
 				Provider: model.ProviderIoTCore,
 				Credentials: model.Credentials{
-					Type:                 model.CredentialTypeAWS,
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					EndpointURL:          &awsEndpoint,
-					DevicePolicyDocument: &awsPolicyDocument,
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:          &awsAccessKeyID,
+						SecretAccessKey:      &awsSecretAccessKey,
+						Region:               &awsRegion,
+						DevicePolicyDocument: &awsPolicyDocument,
+					},
 				},
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
@@ -757,7 +781,7 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				core.On(
 					"GetDeviceShadow",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 				).Return(self.DeviceShadow, errors.New("get shadow error"))
 				return core
@@ -813,11 +837,13 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				ID:       integrationID,
 				Provider: model.ProviderIoTCore,
 				Credentials: model.Credentials{
-					Type:                 model.CredentialTypeAWS,
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					EndpointURL:          &awsEndpoint,
-					DevicePolicyDocument: &awsPolicyDocument,
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:          &awsAccessKeyID,
+						SecretAccessKey:      &awsSecretAccessKey,
+						Region:               &awsRegion,
+						DevicePolicyDocument: &awsPolicyDocument,
+					},
 				},
 			},
 			DeviceUpdate: &model.DeviceState{
@@ -842,7 +868,7 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				core.On(
 					"UpdateDeviceShadow",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 					iotcore.DeviceShadowUpdate{
 						State: iotcore.DesiredState{
@@ -865,11 +891,13 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				ID:       integrationID,
 				Provider: model.ProviderIoTCore,
 				Credentials: model.Credentials{
-					Type:                 model.CredentialTypeAWS,
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					EndpointURL:          &awsEndpoint,
-					DevicePolicyDocument: &awsPolicyDocument,
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:          &awsAccessKeyID,
+						SecretAccessKey:      &awsSecretAccessKey,
+						Region:               &awsRegion,
+						DevicePolicyDocument: &awsPolicyDocument,
+					},
 				},
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
@@ -877,7 +905,7 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				core.On(
 					"UpdateDeviceShadow",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 					iotcore.DeviceShadowUpdate{
 						State: iotcore.DesiredState{
@@ -900,11 +928,13 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				ID:       integrationID,
 				Provider: model.ProviderIoTCore,
 				Credentials: model.Credentials{
-					Type:                 model.CredentialTypeAWS,
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					EndpointURL:          &awsEndpoint,
-					DevicePolicyDocument: &awsPolicyDocument,
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:          &awsAccessKeyID,
+						SecretAccessKey:      &awsSecretAccessKey,
+						Region:               &awsRegion,
+						DevicePolicyDocument: &awsPolicyDocument,
+					},
 				},
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
@@ -912,7 +942,7 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				core.On(
 					"UpdateDeviceShadow",
 					contextMatcher,
-					mock.AnythingOfType("*aws.Config"),
+					mock.AnythingOfType("model.AWSCredentials"),
 					self.DeviceID,
 					iotcore.DeviceShadowUpdate{
 						State: iotcore.DesiredState{

@@ -23,6 +23,7 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 )
 
+// nolint:lll
 type AWSCredentials struct {
 	AccessKeyID          *string        `json:"access_key_id,omitempty" bson:"access_key_id,omitempty"`
 	SecretAccessKey      *crypto.String `json:"secret_access_key,omitempty" bson:"secret_access_key,omitempty"`
@@ -35,7 +36,10 @@ func (c AWSCredentials) Validate() error {
 		validation.Field(&c.AccessKeyID, validation.Required),
 		validation.Field(&c.SecretAccessKey, validation.Required),
 		validation.Field(&c.Region, validation.Required),
-		validation.Field(&c.DevicePolicyDocument, validation.Required, validation.By(validatePolicy)),
+		validation.Field(&c.DevicePolicyDocument,
+			validation.Required,
+			validation.By(validatePolicy),
+		),
 	)
 }
 
