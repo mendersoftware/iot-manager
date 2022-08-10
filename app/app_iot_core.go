@@ -23,12 +23,24 @@ import (
 	"github.com/mendersoftware/iot-manager/model"
 )
 
+func assertAWSIntegration(integration model.Integration) error {
+	if err := integration.Validate(); err != nil {
+		return ErrNoCredentials
+	} else if integration.Credentials.Type != model.CredentialTypeAWS {
+		return ErrNoCredentials
+	}
+	return nil
+}
+
 func (a *app) provisionIoTCoreDevice(
 	ctx context.Context,
 	deviceID string,
 	integration model.Integration,
 	device *iotcore.Device,
 ) error {
+	if err := assertAWSIntegration(integration); err != nil {
+		return err
+	}
 
 	dev, err := a.iotcoreClient.UpsertDevice(ctx,
 		*integration.Credentials.AWSCredentials,
@@ -45,6 +57,9 @@ func (a *app) provisionIoTCoreDevice(
 
 func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, status model.Status,
 	integration model.Integration) error {
+	if err := assertAWSIntegration(integration); err != nil {
+		return err
+	}
 	_, err := a.iotcoreClient.UpsertDevice(
 		ctx,
 		*integration.Credentials.AWSCredentials,
@@ -73,6 +88,9 @@ func (a *app) deployConfiguration(ctx context.Context, deviceID string, dev *iot
 
 func (a *app) decommissionIoTCoreDevice(ctx context.Context, deviceID string,
 	integration model.Integration) error {
+	if err := assertAWSIntegration(integration); err != nil {
+		return err
+	}
 	err := a.iotcoreClient.DeleteDevice(ctx, *integration.Credentials.AWSCredentials, deviceID)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete IoT Core device")
@@ -86,6 +104,9 @@ func (a *app) syncIoCoreDevices(
 	integration model.Integration,
 	failEarly bool,
 ) error {
+	if err := assertAWSIntegration(integration); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -94,6 +115,9 @@ func (a *app) GetDeviceStateIoTCore(
 	deviceID string,
 	integration *model.Integration,
 ) (*model.DeviceState, error) {
+	if err := assertAWSIntegration(*integration); err != nil {
+		return nil, err
+	}
 	shadow, err := a.iotcoreClient.GetDeviceShadow(
 		ctx,
 		*integration.Credentials.AWSCredentials,
@@ -117,6 +141,9 @@ func (a *app) SetDeviceStateIoTCore(
 ) (*model.DeviceState, error) {
 	if state == nil {
 		return nil, nil
+	}
+	if err := assertAWSIntegration(*integration); err != nil {
+		return nil, err
 	}
 	shadow, err := a.iotcoreClient.UpdateDeviceShadow(
 		ctx,
