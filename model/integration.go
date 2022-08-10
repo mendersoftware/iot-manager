@@ -15,14 +15,8 @@
 package model
 
 import (
-	"encoding/json"
-	"net/url"
-
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
-
-	"github.com/mendersoftware/iot-manager/crypto"
 )
 
 type Integration struct {
@@ -60,44 +54,11 @@ type Credentials struct {
 	Type CredentialType `json:"type" bson:"type"`
 
 	// AWS Iot Core
-	AccessKeyID          *string        `json:"access_key_id,omitempty" bson:"access_key_id,omitempty"`
-	SecretAccessKey      *crypto.String `json:"secret_access_key,omitempty" bson:"secret_access_key,omitempty"`
-	EndpointURL          *string        `json:"endpoint_url,omitempty" bson:"endpoint_url,omitempty"`
-	DevicePolicyDocument *string        `json:"device_policy_document,omitempty" bson:"device_policy_arn,omitempty"`
+	AWSCredentials *AWSCredentials `json:"aws,omitempty" bson:"aws,omitempty"`
 
 	// Azure IoT Hub
 	//nolint:lll
 	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
-}
-
-func validateHostname(value interface{}) error {
-	c, ok := value.(*string)
-	if !ok {
-		return errors.New("value is not a string")
-	}
-	parsed, err := url.Parse(*c)
-	if err != nil {
-		return err
-	}
-	return trustedHostnames.Validate(parsed.Hostname())
-}
-
-func validatePolicy(value interface{}) error {
-	err := errors.New("value is not a string")
-	if c, ok := value.(*string); ok {
-		policy := struct {
-			Id        string        `json:"Id"`
-			Version   string        `json:"Version"`
-			Statement []interface{} `json:"Statement"`
-		}{}
-		err = json.Unmarshal([]byte(*c), &policy)
-		if err != nil || policy.Statement == nil {
-			err = errors.New("not an AWS IAM policy document")
-		} else {
-			err = nil
-		}
-	}
-	return err
 }
 
 func (s Credentials) Validate() error {
@@ -105,16 +66,8 @@ func (s Credentials) Validate() error {
 		validation.Field(&s.Type, validation.Required),
 		validation.Field(&s.ConnectionString,
 			validation.When(s.Type == CredentialTypeSAS, validation.Required)),
-		validation.Field(&s.AccessKeyID,
+		validation.Field(&s.AWSCredentials,
 			validation.When(s.Type == CredentialTypeAWS, validation.Required)),
-		validation.Field(&s.SecretAccessKey,
-			validation.When(s.Type == CredentialTypeAWS, validation.Required)),
-		validation.Field(&s.EndpointURL,
-			validation.When(s.Type == CredentialTypeAWS, validation.Required,
-				validation.By(validateHostname))),
-		validation.Field(&s.DevicePolicyDocument,
-			validation.When(s.Type == CredentialTypeAWS, validation.Required,
-				validation.By(validatePolicy))),
 	)
 }
 

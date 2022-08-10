@@ -52,6 +52,7 @@ const (
 )
 
 // App interface describes app objects
+//
 //nolint:lll
 //go:generate ../utils/mockgen.sh
 type App interface {

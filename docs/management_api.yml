@@ -335,6 +335,9 @@ components:
             type:
               description: The credential type
               type: string
+              enum:
+                - aws
+                - sas
           required:
             - type
         - oneOf:
@@ -344,6 +347,7 @@ components:
       discriminator:
         propertyName: type
         mapping:
+          aws: '#/components/schemas/AWSCredentials'
           sas: '#/components/schemas/AzureSharedAccessSecret'
 
     AWSCredentials:
@@ -356,7 +360,7 @@ components:
           type: string
         secret_access_key:
           type: string
-        endpoint_url:
+        region:
           type: string
         device_policy_document:
           type: string

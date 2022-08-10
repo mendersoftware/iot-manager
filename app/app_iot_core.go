@@ -16,7 +16,6 @@ package app
 
 import (
 	"context"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -27,30 +26,18 @@ import (
 	"github.com/mendersoftware/iot-manager/model"
 )
 
-func getRegionFromEndpoint(endpointURL string) string {
-	// expected endpoint: https://random-id.iot.us-east-1.amazonaws.com
-	if strings.Contains(endpointURL, ".amazonaws.com") {
-		parts := strings.Split(endpointURL, ".")
-		if len(parts) >= 3 {
-			return parts[2]
-		}
-	}
-	return ""
-}
-
 func getIoTCoreConfig(integration model.Integration) (*aws.Config, error) {
-	accessKeyID := integration.Credentials.AccessKeyID
-	secretAccessKey := integration.Credentials.SecretAccessKey
-	endpointURL := integration.Credentials.EndpointURL
-	if accessKeyID == nil || secretAccessKey == nil || endpointURL == nil {
+	accessKeyID := integration.Credentials.AWSCredentials.AccessKeyID
+	secretAccessKey := integration.Credentials.AWSCredentials.SecretAccessKey
+	region := integration.Credentials.AWSCredentials.Region
+	if accessKeyID == nil || secretAccessKey == nil || region == nil {
 		return nil, ErrNoCredentials
 	}
 
-	region := getRegionFromEndpoint(*endpointURL)
 	appCreds := aws.NewCredentialsCache(
 		credentials.NewStaticCredentialsProvider(*accessKeyID, string(*secretAccessKey), ""))
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(*aws.String(region)),
+		config.WithRegion(*region),
 		config.WithCredentialsProvider(appCreds),
 	)
 	return &cfg, err
@@ -68,7 +55,7 @@ func (a *app) provisionIoTCoreDevice(
 	}
 
 	dev, err := a.iotcoreClient.UpsertDevice(ctx, cfg, deviceID, device,
-		*integration.Credentials.DevicePolicyDocument)
+		*integration.Credentials.AWSCredentials.DevicePolicyDocument)
 	if err != nil {
 		return errors.Wrap(err, "failed to update iotcore devices")
 	}
@@ -90,7 +77,7 @@ func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, statu
 		&iotcore.Device{
 			Status: iotcore.NewStatusFromMenderStatus(status),
 		},
-		*integration.Credentials.DevicePolicyDocument,
+		*integration.Credentials.AWSCredentials.DevicePolicyDocument,
 	)
 	return err
 

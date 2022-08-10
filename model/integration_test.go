@@ -60,26 +60,15 @@ func TestIntegrationValidate(t *testing.T) {
 			integration: &Integration{
 				Provider: ProviderIoTCore,
 				Credentials: Credentials{
-					Type:                 CredentialTypeAWS,
-					AccessKeyID:          str2ptr("x"),
-					SecretAccessKey:      str2cyptoptr("x"),
-					EndpointURL:          str2ptr("https://abcdefg123456.iot.us-east-1.amazonaws.com"),
-					DevicePolicyDocument: str2ptr("{\"Statement\": []}"),
+					Type: CredentialTypeAWS,
+					AWSCredentials: &AWSCredentials{
+						AccessKeyID:          str2ptr("x"),
+						SecretAccessKey:      str2cyptoptr("x"),
+						Region:               str2ptr("us-east-1"),
+						DevicePolicyDocument: str2ptr("{\"Statement\": []}"),
+					},
 				},
 			},
-		},
-		"ko, AWS IoT Core wrong URL": {
-			integration: &Integration{
-				Provider: ProviderIoTCore,
-				Credentials: Credentials{
-					Type:                 CredentialTypeAWS,
-					AccessKeyID:          str2ptr("x"),
-					SecretAccessKey:      str2cyptoptr("x"),
-					EndpointURL:          str2ptr("https://mender.io"),
-					DevicePolicyDocument: str2ptr("{\"Statement\": []}"),
-				},
-			},
-			err: errors.New("credentials: (endpoint_url: hostname does not refer to a trusted domain.)."),
 		},
 		"ko, AWS IoT Core": {
 			integration: &Integration{
@@ -88,20 +77,22 @@ func TestIntegrationValidate(t *testing.T) {
 					Type: CredentialTypeAWS,
 				},
 			},
-			err: errors.New("credentials: (access_key_id: cannot be blank; device_policy_document: cannot be blank; endpoint_url: cannot be blank; secret_access_key: cannot be blank.)."),
+			err: errors.New("credentials: (aws: cannot be blank.)."),
 		},
 		"ko, AWS IoT Core wrong policy": {
 			integration: &Integration{
 				Provider: ProviderIoTCore,
 				Credentials: Credentials{
-					Type:                 CredentialTypeAWS,
-					AccessKeyID:          str2ptr("x"),
-					SecretAccessKey:      str2cyptoptr("x"),
-					EndpointURL:          str2ptr("https://abcdefg123456.iot.us-east-1.amazonaws.com"),
-					DevicePolicyDocument: str2ptr("{}"),
+					Type: CredentialTypeAWS,
+					AWSCredentials: &AWSCredentials{
+						AccessKeyID:          str2ptr("x"),
+						SecretAccessKey:      str2cyptoptr("x"),
+						Region:               str2ptr("us-east-1"),
+						DevicePolicyDocument: str2ptr("{}"),
+					},
 				},
 			},
-			err: errors.New("credentials: (device_policy_document: not an AWS IAM policy document.)."),
+			err: errors.New("credentials: (aws: (device_policy_document: not an AWS IAM policy document.).)."),
 		},
 	}
 
