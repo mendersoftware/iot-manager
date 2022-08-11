@@ -61,3 +61,15 @@ var validateStatus = validation.In(
 func (s Status) Validate() error {
 	return validateStatus.Validate(s)
 }
+
+type DeviceShadow struct {
+	Payload model.DeviceState `json:"state"`
+}
+
+type DesiredState struct {
+	Desired map[string]interface{} `json:"desired"`
+}
+
+type DeviceShadowUpdate struct {
+	State DesiredState `json:"state"`
+}

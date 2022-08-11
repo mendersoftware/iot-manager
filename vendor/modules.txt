@@ -2,7 +2,7 @@
 ## explicit
 github.com/ant0ine/go-json-rest/rest
 github.com/ant0ine/go-json-rest/rest/trie
-# github.com/aws/aws-sdk-go-v2 v1.16.8
+# github.com/aws/aws-sdk-go-v2 v1.16.9
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2
 github.com/aws/aws-sdk-go-v2/aws
@@ -38,10 +38,10 @@ github.com/aws/aws-sdk-go-v2/credentials/stscreds
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
-# github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.15
+# github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.16
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/configsources
-# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.9
+# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.10
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
 # github.com/aws/aws-sdk-go-v2/internal/ini v1.3.16
@@ -55,6 +55,11 @@ github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
 github.com/aws/aws-sdk-go-v2/service/iot
 github.com/aws/aws-sdk-go-v2/service/iot/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/iot/types
+# github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.12.8
+## explicit; go 1.15
+github.com/aws/aws-sdk-go-v2/service/iotdataplane
+github.com/aws/aws-sdk-go-v2/service/iotdataplane/internal/endpoints
+github.com/aws/aws-sdk-go-v2/service/iotdataplane/types
 # github.com/aws/aws-sdk-go-v2/service/sso v1.11.13
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/sso

@@ -737,6 +737,18 @@ func TestGetDeviceStateIntegration(t *testing.T) {
 			},
 			GetDeviceStateIntegrationError: ErrNoCredentials,
 		},
+		{
+			Name: "ko, IoT Core, no credentials",
+
+			DeviceID:      "1",
+			IntegrationID: integrationID,
+
+			GetDeviceByIntegrationID: &model.Device{},
+			GetIntegration: &model.Integration{
+				Provider: model.ProviderIoTCore,
+			},
+			GetDeviceStateIntegrationError: ErrNoCredentials,
+		},
 	}
 	for i := range testCases {
 		tc := testCases[i]

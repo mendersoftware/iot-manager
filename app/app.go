@@ -70,6 +70,8 @@ type App interface {
 	SetDeviceStateIntegration(context.Context, string, uuid.UUID, *model.DeviceState) (*model.DeviceState, error)
 	GetDeviceStateIoTHub(context.Context, string, *model.Integration) (*model.DeviceState, error)
 	SetDeviceStateIoTHub(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
+	GetDeviceStateIoTCore(context.Context, string, *model.Integration) (*model.DeviceState, error)
+	SetDeviceStateIoTCore(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
 	ProvisionDevice(context.Context, string) error
 	DecommissionDevice(context.Context, string) error
 
@@ -471,6 +473,8 @@ func (a *app) GetDeviceStateIntegration(
 	switch integration.Provider {
 	case model.ProviderIoTHub:
 		return a.GetDeviceStateIoTHub(ctx, deviceID, integration)
+	case model.ProviderIoTCore:
+		return a.GetDeviceStateIoTCore(ctx, deviceID, integration)
 	default:
 		return nil, ErrUnknownIntegration
 	}
@@ -497,6 +501,8 @@ func (a *app) SetDeviceStateIntegration(
 	switch integration.Provider {
 	case model.ProviderIoTHub:
 		return a.SetDeviceStateIoTHub(ctx, deviceID, integration, state)
+	case model.ProviderIoTCore:
+		return a.SetDeviceStateIoTCore(ctx, deviceID, integration, state)
 	default:
 		return nil, ErrUnknownIntegration
 	}

@@ -211,3 +211,67 @@ func TestUpsertDevice(t *testing.T) {
 	err = client.DeleteDevice(ctx, &cfg, deviceID)
 	assert.NoError(t, err)
 }
+
+func TestIoTCoreExternal(t *testing.T) {
+	if !validAWSSettings(t) {
+		return
+	}
+
+	appCreds := aws.NewCredentialsCache(
+		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
+	cfg, _ := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(*aws.String("us-east-1")),
+		config.WithCredentialsProvider(appCreds),
+	)
+
+	ctx := context.Background()
+	deviceID := uuid.NewString()
+
+	client := NewClient()
+
+	// no device
+	shadow, err := client.GetDeviceShadow(ctx, &cfg, deviceID)
+	assert.EqualError(t, err, ErrDeviceNotFound.Error())
+	assert.Nil(t, shadow)
+
+	_, err = client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
+	assert.NoError(t, err)
+
+	device, err := client.GetDevice(ctx, &cfg, deviceID)
+	assert.NoError(t, err)
+	assert.NotNil(t, device)
+
+	// no shadow set in IoT Core, it returns an empty shadow
+	shadow, err = client.GetDeviceShadow(ctx, &cfg, deviceID)
+	assert.NoError(t, err)
+	assert.Equal(t, shadow, &DeviceShadow{
+		Payload: model.DeviceState{
+			Desired:  map[string]interface{}{},
+			Reported: map[string]interface{}{},
+		},
+	})
+
+	// update shadow
+	update := DeviceShadowUpdate{
+		State: DesiredState{
+			Desired: map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+	}
+	updatedShadow, err := client.UpdateDeviceShadow(ctx, &cfg, deviceID, update)
+	assert.NoError(t, err)
+	assert.NotNil(t, updatedShadow)
+
+	// get shadow and compare with update result
+	shadow, err = client.GetDeviceShadow(ctx, &cfg, deviceID)
+	assert.NoError(t, err)
+	assert.Equal(t, updatedShadow, shadow)
+
+	err = client.DeleteDevice(ctx, &cfg, device.Name)
+	assert.NoError(t, err)
+
+	device, err = client.GetDevice(ctx, &cfg, deviceID)
+	assert.EqualError(t, err, ErrDeviceNotFound.Error())
+	assert.Nil(t, device)
+}

@@ -506,7 +506,6 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 	type testCase struct {
 		Name string
 
-		ConnStr  *model.ConnectionString
 		DeviceID string
 		Status   model.Status
 
@@ -656,6 +655,300 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetDeviceStateIoTCore(t *testing.T) {
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+	type testCase struct {
+		Name string
+
+		DeviceID     string
+		DeviceState  *model.DeviceState
+		DeviceShadow *iotcore.DeviceShadow
+		Integration  *model.Integration
+
+		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Core  func(t *testing.T, self *testCase) *coreMocks.Client
+
+		Error error
+	}
+	testCases := []testCase{
+		{
+			Name:     "ok",
+			DeviceID: "1",
+			Integration: &model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type:                 model.CredentialTypeAWS,
+					AccessKeyID:          &awsAccessKeyID,
+					SecretAccessKey:      &awsSecretAccessKey,
+					EndpointURL:          &awsEndpoint,
+					DevicePolicyDocument: &awsPolicyDocument,
+				},
+			},
+			DeviceState: &model.DeviceState{
+				Desired: map[string]interface{}{
+					"key": "value",
+				},
+			},
+			DeviceShadow: &iotcore.DeviceShadow{
+				Payload: model.DeviceState{
+					Desired: map[string]interface{}{
+						"key": "value",
+					},
+				},
+			},
+			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On(
+					"GetDeviceShadow",
+					contextMatcher,
+					mock.AnythingOfType("*aws.Config"),
+					self.DeviceID,
+				).Return(self.DeviceShadow, nil)
+				return core
+			},
+		},
+		{
+			Name:     "ok, not found",
+			DeviceID: "1",
+			Integration: &model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type:                 model.CredentialTypeAWS,
+					AccessKeyID:          &awsAccessKeyID,
+					SecretAccessKey:      &awsSecretAccessKey,
+					EndpointURL:          &awsEndpoint,
+					DevicePolicyDocument: &awsPolicyDocument,
+				},
+			},
+			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On(
+					"GetDeviceShadow",
+					contextMatcher,
+					mock.AnythingOfType("*aws.Config"),
+					self.DeviceID,
+				).Return(self.DeviceShadow, iotcore.ErrDeviceNotFound)
+				return core
+			},
+		},
+		{
+			Name:     "ko, some error",
+			DeviceID: "1",
+			Integration: &model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type:                 model.CredentialTypeAWS,
+					AccessKeyID:          &awsAccessKeyID,
+					SecretAccessKey:      &awsSecretAccessKey,
+					EndpointURL:          &awsEndpoint,
+					DevicePolicyDocument: &awsPolicyDocument,
+				},
+			},
+			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On(
+					"GetDeviceShadow",
+					contextMatcher,
+					mock.AnythingOfType("*aws.Config"),
+					self.DeviceID,
+				).Return(self.DeviceShadow, errors.New("get shadow error"))
+				return core
+			},
+			Error: errors.New("get shadow error"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			ctx := context.Background()
+
+			app := New(nil, nil, nil)
+
+			core := tc.Core(t, &tc)
+			defer core.AssertExpectations(t)
+			app = app.WithIoTCore(core)
+
+			state, err := app.GetDeviceStateIoTCore(ctx, tc.DeviceID, tc.Integration)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.DeviceState, state)
+			}
+		})
+	}
+}
+
+func TestSetDeviceStateIoTCore(t *testing.T) {
+	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
+	type testCase struct {
+		Name string
+
+		DeviceID     string
+		DeviceUpdate *model.DeviceState
+		DeviceState  *model.DeviceState
+		DeviceShadow *iotcore.DeviceShadow
+		Integration  *model.Integration
+
+		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Core  func(t *testing.T, self *testCase) *coreMocks.Client
+
+		Error error
+	}
+	testCases := []testCase{
+		{
+			Name:     "ok",
+			DeviceID: "1",
+			Integration: &model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type:                 model.CredentialTypeAWS,
+					AccessKeyID:          &awsAccessKeyID,
+					SecretAccessKey:      &awsSecretAccessKey,
+					EndpointURL:          &awsEndpoint,
+					DevicePolicyDocument: &awsPolicyDocument,
+				},
+			},
+			DeviceUpdate: &model.DeviceState{
+				Desired: map[string]interface{}{
+					"key": "value",
+				},
+			},
+			DeviceState: &model.DeviceState{
+				Desired: map[string]interface{}{
+					"key": "value",
+				},
+			},
+			DeviceShadow: &iotcore.DeviceShadow{
+				Payload: model.DeviceState{
+					Desired: map[string]interface{}{
+						"key": "value",
+					},
+				},
+			},
+			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On(
+					"UpdateDeviceShadow",
+					contextMatcher,
+					mock.AnythingOfType("*aws.Config"),
+					self.DeviceID,
+					iotcore.DeviceShadowUpdate{
+						State: iotcore.DesiredState{
+							Desired: self.DeviceUpdate.Desired,
+						},
+					},
+				).Return(self.DeviceShadow, nil)
+				return core
+			},
+		},
+		{
+			Name:     "ok, not found",
+			DeviceID: "1",
+			DeviceUpdate: &model.DeviceState{
+				Desired: map[string]interface{}{
+					"key": "value",
+				},
+			},
+			Integration: &model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type:                 model.CredentialTypeAWS,
+					AccessKeyID:          &awsAccessKeyID,
+					SecretAccessKey:      &awsSecretAccessKey,
+					EndpointURL:          &awsEndpoint,
+					DevicePolicyDocument: &awsPolicyDocument,
+				},
+			},
+			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On(
+					"UpdateDeviceShadow",
+					contextMatcher,
+					mock.AnythingOfType("*aws.Config"),
+					self.DeviceID,
+					iotcore.DeviceShadowUpdate{
+						State: iotcore.DesiredState{
+							Desired: self.DeviceUpdate.Desired,
+						},
+					},
+				).Return(nil, iotcore.ErrDeviceNotFound)
+				return core
+			},
+		},
+		{
+			Name:     "ko, some error",
+			DeviceID: "1",
+			DeviceUpdate: &model.DeviceState{
+				Desired: map[string]interface{}{
+					"key": "value",
+				},
+			},
+			Integration: &model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type:                 model.CredentialTypeAWS,
+					AccessKeyID:          &awsAccessKeyID,
+					SecretAccessKey:      &awsSecretAccessKey,
+					EndpointURL:          &awsEndpoint,
+					DevicePolicyDocument: &awsPolicyDocument,
+				},
+			},
+			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On(
+					"UpdateDeviceShadow",
+					contextMatcher,
+					mock.AnythingOfType("*aws.Config"),
+					self.DeviceID,
+					iotcore.DeviceShadowUpdate{
+						State: iotcore.DesiredState{
+							Desired: self.DeviceUpdate.Desired,
+						},
+					},
+				).Return(self.DeviceShadow, errors.New("set shadow error"))
+				return core
+			},
+			Error: errors.New("set shadow error"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			ctx := context.Background()
+
+			app := New(nil, nil, nil)
+
+			core := tc.Core(t, &tc)
+			defer core.AssertExpectations(t)
+			app = app.WithIoTCore(core)
+
+			state, err := app.SetDeviceStateIoTCore(
+				ctx,
+				tc.DeviceID,
+				tc.Integration,
+				tc.DeviceUpdate,
+			)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.DeviceState, state)
 			}
 		})
 	}
