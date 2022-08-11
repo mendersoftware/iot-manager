@@ -228,17 +228,28 @@ func TestIoTCoreExternal(t *testing.T) {
 	deviceID := uuid.NewString()
 
 	client := NewClient()
-	_, err := client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
+
+	// no device
+	shadow, err := client.GetDeviceShadow(ctx, &cfg, deviceID)
+	assert.EqualError(t, err, ErrDeviceNotFound.Error())
+	assert.Nil(t, shadow)
+
+	_, err = client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
 	assert.NoError(t, err)
 
 	device, err := client.GetDevice(ctx, &cfg, deviceID)
 	assert.NoError(t, err)
 	assert.NotNil(t, device)
 
-	// no shadow
-	shadow, err := client.GetDeviceShadow(ctx, &cfg, deviceID)
-	assert.EqualError(t, err, ErrDeviceNotFound.Error())
-	assert.Nil(t, shadow)
+	// no shadow set in IoT Core, it returns an empty shadow
+	shadow, err = client.GetDeviceShadow(ctx, &cfg, deviceID)
+	assert.NoError(t, err)
+	assert.Equal(t, shadow, &DeviceShadow{
+		Payload: model.DeviceState{
+			Desired:  map[string]interface{}{},
+			Reported: map[string]interface{}{},
+		},
+	})
 
 	// update shadow
 	update := DeviceShadowUpdate{

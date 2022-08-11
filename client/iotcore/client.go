@@ -29,6 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/iotdataplane"
 
 	"github.com/mendersoftware/iot-manager/crypto"
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 var (
@@ -321,7 +322,17 @@ func (c *client) GetDeviceShadow(
 		var httpResponseErr *awshttp.ResponseError
 		if errors.As(err, &httpResponseErr) {
 			if httpResponseErr.HTTPStatusCode() == http.StatusNotFound {
-				err = ErrDeviceNotFound
+				_, errDevice := c.GetDevice(ctx, cfg, deviceID)
+				if errDevice == ErrDeviceNotFound {
+					err = ErrDeviceNotFound
+				} else {
+					return &DeviceShadow{
+						Payload: model.DeviceState{
+							Desired:  map[string]interface{}{},
+							Reported: make(map[string]interface{}),
+						},
+					}, nil
+				}
 			}
 		}
 		return nil, err
