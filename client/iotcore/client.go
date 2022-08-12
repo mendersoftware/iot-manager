@@ -141,10 +141,6 @@ func (c *client) GetDevice(
 	return device, err
 }
 
-func policyName(deviceID string) string {
-	return deviceID + "-policy"
-}
-
 func (c *client) UpsertDevice(ctx context.Context,
 	creds model.AWSCredentials,
 	deviceID string,
@@ -193,15 +189,6 @@ func (c *client) UpsertDevice(ctx context.Context,
 			})
 	}
 
-	var respPolicy *iot.CreatePolicyOutput
-	if err == nil {
-		respPolicy, err = svc.CreatePolicy(ctx,
-			&iot.CreatePolicyInput{
-				PolicyDocument: aws.String(policy),
-				PolicyName:     aws.String(policyName(deviceID)),
-			})
-	}
-
 	var privKey *ecdsa.PrivateKey
 	if err == nil {
 		privKey, err = crypto.NewPrivateKey()
@@ -224,7 +211,7 @@ func (c *client) UpsertDevice(ctx context.Context,
 	if err == nil {
 		_, err = svc.AttachPolicy(ctx,
 			&iot.AttachPolicyInput{
-				PolicyName: respPolicy.PolicyName,
+				PolicyName: aws.String(policy),
 				Target:     respCert.CertificateArn,
 			})
 	}
@@ -319,18 +306,6 @@ func (c *client) DeleteDevice(
 			err = ErrDeviceNotFound
 		}
 		return err
-	}
-
-	if err == nil {
-		_, err = svc.DeletePolicy(ctx,
-			&iot.DeletePolicyInput{
-				PolicyName: aws.String(policyName(deviceID)),
-			})
-	}
-
-	var notFoundErr *types.ResourceNotFoundException
-	if errors.As(err, &notFoundErr) {
-		err = ErrDeviceNotFound
 	}
 
 	return err

@@ -62,10 +62,10 @@ func TestIntegrationValidate(t *testing.T) {
 				Credentials: Credentials{
 					Type: CredentialTypeAWS,
 					AWSCredentials: &AWSCredentials{
-						AccessKeyID:          str2ptr("x"),
-						SecretAccessKey:      str2cyptoptr("x"),
-						Region:               str2ptr("us-east-1"),
-						DevicePolicyDocument: str2ptr("{\"Statement\": []}"),
+						AccessKeyID:      str2ptr("x"),
+						SecretAccessKey:  str2cyptoptr("x"),
+						Region:           str2ptr("us-east-1"),
+						DevicePolicyName: str2ptr("{\"Statement\": []}"),
 					},
 				},
 			},
@@ -78,21 +78,6 @@ func TestIntegrationValidate(t *testing.T) {
 				},
 			},
 			err: errors.New("credentials: (aws: cannot be blank.)."),
-		},
-		"ko, AWS IoT Core wrong policy": {
-			integration: &Integration{
-				Provider: ProviderIoTCore,
-				Credentials: Credentials{
-					Type: CredentialTypeAWS,
-					AWSCredentials: &AWSCredentials{
-						AccessKeyID:          str2ptr("x"),
-						SecretAccessKey:      str2cyptoptr("x"),
-						Region:               str2ptr("us-east-1"),
-						DevicePolicyDocument: str2ptr("{}"),
-					},
-				},
-			},
-			err: errors.New("credentials: (aws: (device_policy_document: not an AWS IAM policy document.).)."),
 		},
 	}
 

@@ -47,7 +47,7 @@ func (a *app) provisionIoTCoreDevice(
 		*integration.Credentials.AWSCredentials,
 		deviceID,
 		device,
-		*integration.Credentials.AWSCredentials.DevicePolicyDocument)
+		*integration.Credentials.AWSCredentials.DevicePolicyName)
 	if err != nil {
 		return errors.Wrap(err, "failed to update iotcore devices")
 	}
@@ -68,7 +68,7 @@ func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, statu
 		&iotcore.Device{
 			Status: iotcore.NewStatusFromMenderStatus(status),
 		},
-		*integration.Credentials.AWSCredentials.DevicePolicyDocument,
+		*integration.Credentials.AWSCredentials.DevicePolicyName,
 	)
 	return err
 

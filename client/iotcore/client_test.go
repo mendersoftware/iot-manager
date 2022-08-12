@@ -32,45 +32,12 @@ func init() {
 }
 
 var (
-	accessKeyID     string
-	secretAccessKey string
-	awsRegion       string
-	awsCredentials  = model.AWSCredentials{}
+	accessKeyID         string
+	secretAccessKey     string
+	awsRegion           string
+	awsDevicePolicyName string
+	awsCredentials      = model.AWSCredentials{}
 )
-
-const testPolicy = `{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Action": [
-				"iot:Publish",
-				"iot:Receive"
-			],
-			"Resource": [
-				"arn:aws:iot:us-east-1:304194462000:topic/sdk/test/Python"
-			]
-		},
-		{
-			"Effect": "Allow",
-			"Action": [
-				"iot:Subscribe"
-			],
-			"Resource": [
-				"arn:aws:iot:us-east-1:304194462000:topicfilter/sdk/test/Python"
-			]
-		},
-		{
-			"Effect": "Allow",
-			"Action": [
-				"iot:Connect"
-			],
-			"Resource": [
-				"arn:aws:iot:us-east-1:304194462000:client/basicPubSub"
-			]
-		}
-	]
-}`
 
 func init() {
 	flag.StringVar(&accessKeyID,
@@ -98,13 +65,21 @@ func init() {
 		awsRegion = val
 	}
 
+	flag.StringVar(&awsDevicePolicyName,
+		"test.aws-device-policy-name",
+		"",
+		"AWS IoT Core device policy name (overwrite with env var TEST_AWS_DEVICE_POLICY_NAME).",
+	)
+	if val, ok := os.LookupEnv("TEST_AWS_DEVICE_POLICY_NAME"); ok && val != "" {
+		awsDevicePolicyName = val
+	}
+
 	testing.Init()
 
 	awsCredentials.AccessKeyID = &accessKeyID
 	awsCredentials.SecretAccessKey = (*crypto.String)(&secretAccessKey)
 	awsCredentials.Region = &awsRegion
-	devicePolicy := testPolicy
-	awsCredentials.DevicePolicyDocument = &devicePolicy
+	awsCredentials.DevicePolicyName = &awsDevicePolicyName
 }
 
 func validAWSSettings(t *testing.T) bool {
@@ -124,7 +99,7 @@ func TestGetDevice(t *testing.T) {
 	deviceID := uuid.NewString()
 
 	client := NewClient()
-	_, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, testPolicy)
+	_, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, awsDevicePolicyName)
 	assert.NoError(t, err)
 
 	device, err := client.GetDevice(ctx, awsCredentials, deviceID)
@@ -154,7 +129,7 @@ func TestDeleteDevice(t *testing.T) {
 
 	client := NewClient()
 
-	device, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, testPolicy)
+	device, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, awsDevicePolicyName)
 	assert.NoError(t, err)
 
 	err = client.DeleteDevice(ctx, awsCredentials, device.Name)
@@ -179,7 +154,7 @@ func TestUpsertDevice(t *testing.T) {
 	client := NewClient()
 	device, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{
 		Status: StatusDisabled,
-	}, testPolicy)
+	}, awsDevicePolicyName)
 	assert.NoError(t, err)
 	assert.Equal(t, StatusDisabled, device.Status)
 
@@ -188,7 +163,7 @@ func TestUpsertDevice(t *testing.T) {
 	assert.NotEmpty(t, device.Certificate)
 
 	device.Status = StatusEnabled
-	device, err = client.UpsertDevice(ctx, awsCredentials, deviceID, device, testPolicy)
+	device, err = client.UpsertDevice(ctx, awsCredentials, deviceID, device, awsDevicePolicyName)
 	assert.NoError(t, err)
 	assert.Equal(t, StatusEnabled, device.Status)
 
@@ -211,7 +186,7 @@ func TestIoTCoreExternal(t *testing.T) {
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 	assert.Nil(t, shadow)
 
-	_, err = client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, testPolicy)
+	_, err = client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, awsDevicePolicyName)
 	assert.NoError(t, err)
 
 	device, err := client.GetDevice(ctx, awsCredentials, deviceID)

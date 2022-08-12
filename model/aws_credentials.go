@@ -15,9 +15,6 @@
 package model
 
 import (
-	"encoding/json"
-	"errors"
-
 	"github.com/mendersoftware/iot-manager/crypto"
 
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -25,10 +22,10 @@ import (
 
 // nolint:lll
 type AWSCredentials struct {
-	AccessKeyID          *string        `json:"access_key_id,omitempty" bson:"access_key_id,omitempty"`
-	SecretAccessKey      *crypto.String `json:"secret_access_key,omitempty" bson:"secret_access_key,omitempty"`
-	Region               *string        `json:"region,omitempty" bson:"region,omitempty"`
-	DevicePolicyDocument *string        `json:"device_policy_document,omitempty" bson:"device_policy_arn,omitempty"`
+	AccessKeyID      *string        `json:"access_key_id,omitempty" bson:"access_key_id,omitempty"`
+	SecretAccessKey  *crypto.String `json:"secret_access_key,omitempty" bson:"secret_access_key,omitempty"`
+	Region           *string        `json:"region,omitempty" bson:"region,omitempty"`
+	DevicePolicyName *string        `json:"device_policy_name,omitempty" bson:"device_policydevice_policy_name,omitempty"`
 }
 
 func (c AWSCredentials) Validate() error {
@@ -36,27 +33,6 @@ func (c AWSCredentials) Validate() error {
 		validation.Field(&c.AccessKeyID, validation.Required),
 		validation.Field(&c.SecretAccessKey, validation.Required),
 		validation.Field(&c.Region, validation.Required),
-		validation.Field(&c.DevicePolicyDocument,
-			validation.Required,
-			validation.By(validatePolicy),
-		),
+		validation.Field(&c.DevicePolicyName, validation.Required),
 	)
-}
-
-func validatePolicy(value interface{}) error {
-	err := errors.New("value is not a string")
-	if c, ok := value.(*string); ok {
-		policy := struct {
-			Id        string        `json:"Id"`
-			Version   string        `json:"Version"`
-			Statement []interface{} `json:"Statement"`
-		}{}
-		err = json.Unmarshal([]byte(*c), &policy)
-		if err != nil || policy.Statement == nil {
-			err = errors.New("not an AWS IAM policy document")
-		} else {
-			err = nil
-		}
-	}
-	return err
 }

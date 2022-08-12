@@ -354,7 +354,7 @@ components:
       type: object
       description: |
         AWS credentials in the form of access key id and secret access key, a region and a
-        device policy document.
+        device policy name.
       properties:
         aws:
           type: object
@@ -365,9 +365,9 @@ components:
               type: string
             region:
               type: string
-            device_policy_document:
+            device_policy_name:
               type: string
-          required: [access_key_id,secret_access_key,region,device_policy_document]
+          required: [access_key_id,secret_access_key,region,device_policy_name]
       required: [aws]
 
     AzureSharedAccessSecret:

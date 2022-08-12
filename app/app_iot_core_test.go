@@ -44,10 +44,10 @@ import (
 )
 
 var (
-	awsAccessKeyID     = "dummy"
-	awsSecretAccessKey = crypto.String("dummy")
-	awsRegion          = "us-east-1"
-	awsPolicyDocument  = `{"Id": "123", "Version": "2017-12-3", "Statement": [{}]}`
+	awsAccessKeyID      = "dummy"
+	awsSecretAccessKey  = crypto.String("dummy")
+	awsRegion           = "us-east-1"
+	awsDevicePolicyName = `device-policy-name`
 )
 
 func statusPtr(s model.Status) *model.Status {
@@ -82,10 +82,10 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -106,7 +106,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
 					},
-					awsPolicyDocument).
+					awsDevicePolicyName).
 					Return(&iotcore.Device{
 						ID:          self.DeviceID,
 						PrivateKey:  "private_key",
@@ -168,10 +168,10 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -187,7 +187,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
 					},
-					awsPolicyDocument).
+					awsDevicePolicyName).
 					Return(nil, errors.New("internal error"))
 				return core
 			},
@@ -211,10 +211,10 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -235,7 +235,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
 					},
-					awsPolicyDocument).
+					awsDevicePolicyName).
 					Return(&iotcore.Device{
 						ID:          self.DeviceID,
 						PrivateKey:  "private_key",
@@ -269,10 +269,10 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -288,7 +288,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					&iotcore.Device{
 						Status: iotcore.StatusEnabled,
 					},
-					awsPolicyDocument).
+					awsDevicePolicyName).
 					Return(&iotcore.Device{
 						ID:          self.DeviceID,
 						PrivateKey:  "private_key",
@@ -380,10 +380,10 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -449,10 +449,10 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -489,10 +489,10 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -566,10 +566,10 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -585,7 +585,7 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
 						return dev.Status == iotcore.StatusEnabled
-					}), awsPolicyDocument).
+					}), awsDevicePolicyName).
 					Return(dev, nil)
 				return core
 			},
@@ -644,10 +644,10 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 							Credentials: model.Credentials{
 								Type: model.CredentialTypeAWS,
 								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:          &awsAccessKeyID,
-									SecretAccessKey:      &awsSecretAccessKey,
-									Region:               &awsRegion,
-									DevicePolicyDocument: &awsPolicyDocument,
+									AccessKeyID:      &awsAccessKeyID,
+									SecretAccessKey:  &awsSecretAccessKey,
+									Region:           &awsRegion,
+									DevicePolicyName: &awsDevicePolicyName,
 								},
 							},
 						},
@@ -659,7 +659,7 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
 						return dev.Status == iotcore.StatusEnabled
-					}), awsPolicyDocument).
+					}), awsDevicePolicyName).
 					Return(nil, errors.New("failed to update IoT Hub device: hub: unexpected error"))
 				return core
 			},
@@ -718,10 +718,10 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				Credentials: model.Credentials{
 					Type: model.CredentialTypeAWS,
 					AWSCredentials: &model.AWSCredentials{
-						AccessKeyID:          &awsAccessKeyID,
-						SecretAccessKey:      &awsSecretAccessKey,
-						Region:               &awsRegion,
-						DevicePolicyDocument: &awsPolicyDocument,
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
 				},
 			},
@@ -757,10 +757,10 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				Credentials: model.Credentials{
 					Type: model.CredentialTypeAWS,
 					AWSCredentials: &model.AWSCredentials{
-						AccessKeyID:          &awsAccessKeyID,
-						SecretAccessKey:      &awsSecretAccessKey,
-						Region:               &awsRegion,
-						DevicePolicyDocument: &awsPolicyDocument,
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
 				},
 			},
@@ -784,10 +784,10 @@ func TestGetDeviceStateIoTCore(t *testing.T) {
 				Credentials: model.Credentials{
 					Type: model.CredentialTypeAWS,
 					AWSCredentials: &model.AWSCredentials{
-						AccessKeyID:          &awsAccessKeyID,
-						SecretAccessKey:      &awsSecretAccessKey,
-						Region:               &awsRegion,
-						DevicePolicyDocument: &awsPolicyDocument,
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
 				},
 			},
@@ -854,10 +854,10 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				Credentials: model.Credentials{
 					Type: model.CredentialTypeAWS,
 					AWSCredentials: &model.AWSCredentials{
-						AccessKeyID:          &awsAccessKeyID,
-						SecretAccessKey:      &awsSecretAccessKey,
-						Region:               &awsRegion,
-						DevicePolicyDocument: &awsPolicyDocument,
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
 				},
 			},
@@ -908,10 +908,10 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				Credentials: model.Credentials{
 					Type: model.CredentialTypeAWS,
 					AWSCredentials: &model.AWSCredentials{
-						AccessKeyID:          &awsAccessKeyID,
-						SecretAccessKey:      &awsSecretAccessKey,
-						Region:               &awsRegion,
-						DevicePolicyDocument: &awsPolicyDocument,
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
 				},
 			},
@@ -945,10 +945,10 @@ func TestSetDeviceStateIoTCore(t *testing.T) {
 				Credentials: model.Credentials{
 					Type: model.CredentialTypeAWS,
 					AWSCredentials: &model.AWSCredentials{
-						AccessKeyID:          &awsAccessKeyID,
-						SecretAccessKey:      &awsSecretAccessKey,
-						Region:               &awsRegion,
-						DevicePolicyDocument: &awsPolicyDocument,
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
 				},
 			},
@@ -1105,10 +1105,10 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeAWS,
 				AWSCredentials: &model.AWSCredentials{
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					Region:               &awsRegion,
-					DevicePolicyDocument: &awsPolicyDocument,
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
 				},
 			},
 		},
@@ -1121,10 +1121,10 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeSAS, // NOTE Invalid for provider
 				AWSCredentials: &model.AWSCredentials{
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					Region:               &awsRegion,
-					DevicePolicyDocument: &awsPolicyDocument,
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
 				},
 			},
 		},
@@ -1139,10 +1139,10 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeAWS,
 				AWSCredentials: &model.AWSCredentials{
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					Region:               &awsRegion,
-					DevicePolicyDocument: &awsPolicyDocument,
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
 				},
 			},
 		},
@@ -1166,10 +1166,10 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeAWS,
 				AWSCredentials: &model.AWSCredentials{
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					Region:               &awsRegion,
-					DevicePolicyDocument: &awsPolicyDocument,
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
 				},
 			},
 		},
@@ -1192,10 +1192,10 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeAWS,
 				AWSCredentials: &model.AWSCredentials{
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					Region:               &awsRegion,
-					DevicePolicyDocument: &awsPolicyDocument,
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
 				},
 			},
 		},
@@ -1218,10 +1218,10 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeAWS,
 				AWSCredentials: &model.AWSCredentials{
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					Region:               &awsRegion,
-					DevicePolicyDocument: &awsPolicyDocument,
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
 				},
 			},
 		},
@@ -1244,10 +1244,10 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeAWS,
 				AWSCredentials: &model.AWSCredentials{
-					AccessKeyID:          &awsAccessKeyID,
-					SecretAccessKey:      &awsSecretAccessKey,
-					Region:               &awsRegion,
-					DevicePolicyDocument: &awsPolicyDocument,
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
 				},
 			},
 		},
@@ -1329,7 +1329,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 								})),
 								*tc.Integration.Credentials.
 									AWSCredentials.
-									DevicePolicyDocument).
+									DevicePolicyName).
 								Return(&desiredDev, dev.UpsertDeviceError).
 								Once()
 						}
