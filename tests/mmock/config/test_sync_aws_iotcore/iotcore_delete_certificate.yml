@@ -1,0 +1,7 @@
+request:
+  description: Delete a certificate in AWS IoT Core
+  host: iot.region.amazonaws.com
+  method: DELETE
+  path: /certificates/:principalId
+response:
+  statusCode: 200

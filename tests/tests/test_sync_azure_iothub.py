@@ -26,7 +26,7 @@ from utils import compare_expectations
 
 
 class TestSyncAzureIoTHub:
-    connection_string = "HostName=mock.azure-devices.net:8443;SharedAccessKeyName=TestSyncEnterprise;SharedAccessKey=c2VjcmV0"
+    connection_string = "HostName=mock.azure-devices.net:443;SharedAccessKeyName=TestSyncEnterprise;SharedAccessKey=c2VjcmV0"
     tenant_devices = {
         "TestSyncAzureIoTHub01": [
             {
@@ -291,14 +291,14 @@ class TestSyncAzureIoTHub:
                 "path": "/api/v1/workflow/provision_external_device",
                 # Ensure the request body contains the expected connection string
                 "body": re.compile(
-                    r".*HostName=mock\.azure-devices\.net:8443;"
+                    r".*HostName=mock\.azure-devices\.net:443;"
                     + r"DeviceId=93406e21-8e3f-4435-9786-a294a70298ee;"
                     + r"SharedAccessKey=secr.*"
                 ),
             },
             "result": {
                 "match": True,
-                "uri": "test_sync_azure_iothub/workflows_provision_external_device_"
+                "uri": "shared/workflows_provision_external_device_"
                 + "93406e21-8e3f-4435-9786-a294a70298ee.yml",
             },
         },
@@ -365,7 +365,7 @@ class TestSyncAzureIoTHub:
         mmock = clean_mmock
         dc = docker.from_env()
         for tenant_id, devices in self.tenant_devices.items():
-            conn_str = f"HostName=mock.azure-devices.net:8443;SharedAccessKeyName={tenant_id};SharedAccessKey=c2VjcmV0"
+            conn_str = f"HostName=mock.azure-devices.net:443;SharedAccessKeyName={tenant_id};SharedAccessKey=c2VjcmV0"
             client = ManagementAPIClient(tenant_id)
             _, code, hdr = client.register_integration(
                 models.Integration(
@@ -397,7 +397,7 @@ class TestSyncAzureIoTHub:
 
         assert (
             mmock.unmatched == []
-        ), "%d requests did match expected request criteria" % len(mmock.unmatched())
+        ), "%d requests did match expected request criteria" % len(mmock.unmatched)
 
         matched_requests = mmock.matched
         assert len(self.expected_requests) == len(matched_requests)

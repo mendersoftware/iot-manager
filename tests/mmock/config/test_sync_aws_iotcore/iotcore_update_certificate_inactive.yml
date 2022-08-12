@@ -1,0 +1,9 @@
+request:
+  description: Set certificate status to INACTIVE in AWS IoT Core
+  host: iot.region.amazonaws.com
+  method: PUT
+  path: /certificates/:certificateId
+  queryStringParameters:
+    newStatus: ["INACTIVE"]
+response:
+  statusCode: 200

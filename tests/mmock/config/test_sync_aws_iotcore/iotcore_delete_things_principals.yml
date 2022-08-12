@@ -1,0 +1,7 @@
+request:
+  description: Detach a principal from a thing in AWS IoT Core
+  host: iot.region.amazonaws.com
+  method: DELETE
+  path: /things/:principalId/principals
+response:
+  statusCode: 200
