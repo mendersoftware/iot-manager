@@ -93,7 +93,7 @@ func (a *app) decommissionIoTCoreDevice(ctx context.Context, deviceID string,
 		return err
 	}
 	err := a.iotcoreClient.DeleteDevice(ctx, *integration.Credentials.AWSCredentials, deviceID)
-	if err != nil {
+	if err != nil && err != iotcore.ErrDeviceNotFound {
 		return errors.Wrap(err, "failed to delete IoT Core device")
 	}
 	return nil
@@ -171,15 +171,22 @@ func (a *app) syncIoTCoreDevices(
 				}
 			}
 		} else if err != nil {
-			return errors.Wrap(err, "app: failed to get Thing from IoT Core")
-		} else if dev.Status != iotcore.NewStatusFromMenderStatus(status) {
-			// Upsert device
-			err := a.setDeviceStatusIoTCore(ctx, dev.ID, status, integration)
-			err = errors.Wrap(err, "failed to update device status")
+			err = errors.Wrap(err, "app: failed to get Thing from IoT Core")
 			if failEarly {
 				return err
 			}
 			l.Warn(err)
+
+		} else if dev.Status != iotcore.NewStatusFromMenderStatus(status) {
+			// Upsert device
+			err := a.setDeviceStatusIoTCore(ctx, dev.ID, status, integration)
+			if err != nil {
+				err = errors.Wrap(err, "failed to update device status")
+				if failEarly {
+					return err
+				}
+				l.Warn(err)
+			}
 		}
 	}
 
