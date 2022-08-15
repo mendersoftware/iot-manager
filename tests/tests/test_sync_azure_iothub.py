@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import logging
 import re
 import uuid
 
@@ -23,26 +22,13 @@ import pytest
 
 from client import ManagementAPIClient
 from management_api import models
+from utils import compare_expectations
 
 
-def compare_expectations(expected, actual):
-    for key, expected_value in expected.items():
-        assert key in actual
-        actual_value = actual[key]
-        if isinstance(expected_value, dict):
-            compare_expectations(expected_value, actual_value)
-        elif isinstance(expected_value, re.Pattern):
-            assert bool(
-                expected_value.match(actual_value)
-            ), "expected value did not match the actual value"
-        else:
-            assert expected_value == actual_value, f"{expected} != {actual}"
-
-
-class TestSync:
-    connection_string = "HostName=mock.azure-devices.net:8443;SharedAccessKeyName=TestSyncEnterprise;SharedAccessKey=c2VjcmV0"
+class TestSyncAzureIoTHub:
+    connection_string = "HostName=mock.azure-devices.net:443;SharedAccessKeyName=TestSyncEnterprise;SharedAccessKey=c2VjcmV0"
     tenant_devices = {
-        "TestSync01": [
+        "TestSyncAzureIoTHub01": [
             {
                 "id": "44a66a7e-4b09-4665-b343-0c5d3ad9a2ed",
                 "deviceauth": "accepted",
@@ -86,7 +72,7 @@ class TestSync:
             {"id": "93406e21-8e3f-4435-9786-a294a70298ee", "deviceauth": "accepted"},
             {"id": "7abb6133-ad97-44ba-a159-674242ee565e", "hub": "disabled"},
         ],
-        "TestSync02": [
+        "TestSyncAzureIoTHub02": [
             # All devices are in sync (2x batches)
             {
                 "id": "1e657abe-ad58-4d20-af7a-3a3449a405e7",
@@ -196,11 +182,11 @@ class TestSync:
             "request": {
                 "method": "GET",
                 "host": "mender-device-auth",
-                "path": "/api/internal/v1/devauth/tenants/TestSync01/devices",
+                "path": "/api/internal/v1/devauth/tenants/TestSyncAzureIoTHub01/devices",
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/deviceauth_get_devices_TenantSync01.yml",
+                "uri": "test_sync_azure_iothub/deviceauth_get_devices_TenantSync01.yml",
             },
         },
         {
@@ -211,7 +197,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_delete_device_"
+                "uri": "test_sync_azure_iothub/iothub_delete_device_"
                 + "7abb6133-ad97-44ba-a159-674242ee565e.yml",
             },
         },
@@ -223,7 +209,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_delete_device_"
+                "uri": "test_sync_azure_iothub/iothub_delete_device_"
                 + "9b2083e4-83b6-41d3-b089-4d2ec137620b.yml",
             },
         },
@@ -235,7 +221,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_query_devices_TenantSync01.yml",
+                "uri": "test_sync_azure_iothub/iothub_query_devices_TenantSync01.yml",
             },
         },
         {
@@ -246,7 +232,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_get_device_"
+                "uri": "test_sync_azure_iothub/iothub_get_device_"
                 + "1424a387-3431-425b-9f44-1c8eba21812d.yml",
             },
         },
@@ -258,7 +244,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_put_device_"
+                "uri": "test_sync_azure_iothub/iothub_put_device_"
                 + "1424a387-3431-425b-9f44-1c8eba21812d.yml",
             },
         },
@@ -270,7 +256,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_get_device_"
+                "uri": "test_sync_azure_iothub/iothub_get_device_"
                 + "966095ec-6bdd-4a76-8498-3c0dffdb9ee2.yml",
             },
         },
@@ -282,7 +268,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_put_device_"
+                "uri": "test_sync_azure_iothub/iothub_put_device_"
                 + "966095ec-6bdd-4a76-8498-3c0dffdb9ee2.yml",
             },
         },
@@ -294,7 +280,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_put_device_"
+                "uri": "test_sync_azure_iothub/iothub_put_device_"
                 + "93406e21-8e3f-4435-9786-a294a70298ee.yml",
             },
         },
@@ -305,14 +291,14 @@ class TestSync:
                 "path": "/api/v1/workflow/provision_external_device",
                 # Ensure the request body contains the expected connection string
                 "body": re.compile(
-                    r".*HostName=mock\.azure-devices\.net:8443;"
+                    r".*HostName=mock\.azure-devices\.net:443;"
                     + r"DeviceId=93406e21-8e3f-4435-9786-a294a70298ee;"
                     + r"SharedAccessKey=secr.*"
                 ),
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/workflows_provision_external_device_"
+                "uri": "shared/workflows_provision_external_device_"
                 + "93406e21-8e3f-4435-9786-a294a70298ee.yml",
             },
         },
@@ -324,7 +310,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_patch_twins_"
+                "uri": "test_sync_azure_iothub/iothub_patch_twins_"
                 + "93406e21-8e3f-4435-9786-a294a70298ee.yml",
             },
         },
@@ -332,11 +318,11 @@ class TestSync:
             "request": {
                 "method": "GET",
                 "host": "mender-device-auth",
-                "path": "/api/internal/v1/devauth/tenants/TestSync02/devices",
+                "path": "/api/internal/v1/devauth/tenants/TestSyncAzureIoTHub02/devices",
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/deviceauth_get_devices_TenantSync02_batch_1.yml",
+                "uri": "test_sync_azure_iothub/deviceauth_get_devices_TenantSync02_batch_1.yml",
             },
         },
         {
@@ -347,18 +333,18 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_query_devices_TenantSync02_batch_1.yml",
+                "uri": "test_sync_azure_iothub/iothub_query_devices_TenantSync02_batch_1.yml",
             },
         },
         {
             "request": {
                 "method": "GET",
                 "host": "mender-device-auth",
-                "path": "/api/internal/v1/devauth/tenants/TestSync02/devices",
+                "path": "/api/internal/v1/devauth/tenants/TestSyncAzureIoTHub02/devices",
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/deviceauth_get_devices_TenantSync02_batch_2.yml",
+                "uri": "test_sync_azure_iothub/deviceauth_get_devices_TenantSync02_batch_2.yml",
             },
         },
         {
@@ -369,7 +355,7 @@ class TestSync:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync/iothub_query_devices_TenantSync02_batch_2.yml",
+                "uri": "test_sync_azure_iothub/iothub_query_devices_TenantSync02_batch_2.yml",
             },
         },
     ]
@@ -379,7 +365,7 @@ class TestSync:
         mmock = clean_mmock
         dc = docker.from_env()
         for tenant_id, devices in self.tenant_devices.items():
-            conn_str = f"HostName=mock.azure-devices.net:8443;SharedAccessKeyName={tenant_id};SharedAccessKey=c2VjcmV0"
+            conn_str = f"HostName=mock.azure-devices.net:443;SharedAccessKeyName={tenant_id};SharedAccessKey=c2VjcmV0"
             client = ManagementAPIClient(tenant_id)
             _, code, hdr = client.register_integration(
                 models.Integration(
@@ -406,14 +392,12 @@ class TestSync:
             ]
             mgo.iot_manager.devices.insert_many(dev_docs)
 
-            # ... to be continued (FIXME)
-
         code, output = cli_iot_manager.sync_devices(batch_size=10)
         assert code == 0, output.decode("ascii")
 
         assert (
             mmock.unmatched == []
-        ), "%d requests did match expected request criteria" % len(mmock.unmatched())
+        ), "%d requests did match expected request criteria" % len(mmock.unmatched)
 
         matched_requests = mmock.matched
         assert len(self.expected_requests) == len(matched_requests)

@@ -2,7 +2,7 @@ request:
   description: First call to device auth for tenant "TenantSync02"
   host: mender-device-auth
   method: GET
-  path: /api/internal/v1/devauth/tenants/TestSync02/devices
+  path: /api/internal/v1/devauth/tenants/TestSyncAzureIoTHub02/devices
   queryStringParameters:
     per_page: ["10"]
     id:

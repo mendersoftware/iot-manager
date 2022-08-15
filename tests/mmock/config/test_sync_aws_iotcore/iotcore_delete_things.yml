@@ -1,0 +1,7 @@
+request:
+  description: Delete a thing from AWS IoT Core
+  host: iot.region.amazonaws.com
+  method: DELETE
+  path: /things/:thingId
+response:
+  statusCode: 200

@@ -16,44 +16,21 @@ package app
 
 import (
 	"context"
-	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/mendersoftware/go-lib-micro/log"
 	"github.com/pkg/errors"
 
 	"github.com/mendersoftware/iot-manager/client/iotcore"
 	"github.com/mendersoftware/iot-manager/model"
 )
 
-func getRegionFromEndpoint(endpointURL string) string {
-	// expected endpoint: https://random-id.iot.us-east-1.amazonaws.com
-	if strings.Contains(endpointURL, ".amazonaws.com") {
-		parts := strings.Split(endpointURL, ".")
-		if len(parts) >= 3 {
-			return parts[2]
-		}
+func assertAWSIntegration(integration model.Integration) error {
+	if err := integration.Validate(); err != nil {
+		return ErrNoCredentials
+	} else if integration.Credentials.Type != model.CredentialTypeAWS {
+		return ErrNoCredentials
 	}
-	return ""
-}
-
-func getIoTCoreConfig(integration model.Integration) (*aws.Config, error) {
-	accessKeyID := integration.Credentials.AccessKeyID
-	secretAccessKey := integration.Credentials.SecretAccessKey
-	endpointURL := integration.Credentials.EndpointURL
-	if accessKeyID == nil || secretAccessKey == nil || endpointURL == nil {
-		return nil, ErrNoCredentials
-	}
-
-	region := getRegionFromEndpoint(*endpointURL)
-	appCreds := aws.NewCredentialsCache(
-		credentials.NewStaticCredentialsProvider(*accessKeyID, string(*secretAccessKey), ""))
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(*aws.String(region)),
-		config.WithCredentialsProvider(appCreds),
-	)
-	return &cfg, err
+	return nil
 }
 
 func (a *app) provisionIoTCoreDevice(
@@ -62,13 +39,15 @@ func (a *app) provisionIoTCoreDevice(
 	integration model.Integration,
 	device *iotcore.Device,
 ) error {
-	cfg, err := getIoTCoreConfig(integration)
-	if err != nil {
+	if err := assertAWSIntegration(integration); err != nil {
 		return err
 	}
 
-	dev, err := a.iotcoreClient.UpsertDevice(ctx, cfg, deviceID, device,
-		*integration.Credentials.DevicePolicyDocument)
+	dev, err := a.iotcoreClient.UpsertDevice(ctx,
+		*integration.Credentials.AWSCredentials,
+		deviceID,
+		device,
+		*integration.Credentials.AWSCredentials.DevicePolicyName)
 	if err != nil {
 		return errors.Wrap(err, "failed to update iotcore devices")
 	}
@@ -79,18 +58,17 @@ func (a *app) provisionIoTCoreDevice(
 
 func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, status model.Status,
 	integration model.Integration) error {
-	cfg, err := getIoTCoreConfig(integration)
-	if err != nil {
+	if err := assertAWSIntegration(integration); err != nil {
 		return err
 	}
-	_, err = a.iotcoreClient.UpsertDevice(
+	_, err := a.iotcoreClient.UpsertDevice(
 		ctx,
-		cfg,
+		*integration.Credentials.AWSCredentials,
 		deviceID,
 		&iotcore.Device{
 			Status: iotcore.NewStatusFromMenderStatus(status),
 		},
-		*integration.Credentials.DevicePolicyDocument,
+		*integration.Credentials.AWSCredentials.DevicePolicyName,
 	)
 	return err
 
@@ -111,23 +89,107 @@ func (a *app) deployConfiguration(ctx context.Context, deviceID string, dev *iot
 
 func (a *app) decommissionIoTCoreDevice(ctx context.Context, deviceID string,
 	integration model.Integration) error {
-	cfg, err := getIoTCoreConfig(integration)
-	if err != nil {
+	if err := assertAWSIntegration(integration); err != nil {
 		return err
 	}
-	err = a.iotcoreClient.DeleteDevice(ctx, cfg, deviceID)
-	if err != nil {
+	err := a.iotcoreClient.DeleteDevice(ctx, *integration.Credentials.AWSCredentials, deviceID)
+	if err != nil && err != iotcore.ErrDeviceNotFound {
 		return errors.Wrap(err, "failed to delete IoT Core device")
 	}
 	return nil
 }
 
-func (a *app) syncIoCoreDevices(
+func (a *app) syncIoTCoreDevices(
 	ctx context.Context,
 	deviceIDs []string,
 	integration model.Integration,
 	failEarly bool,
 ) error {
+	if err := assertAWSIntegration(integration); err != nil {
+		return err
+	}
+	l := log.FromContext(ctx)
+
+	// Get device authentication
+	devAuths, err := a.devauth.GetDevices(ctx, deviceIDs)
+	if err != nil {
+		return errors.Wrap(err, "app: failed to lookup device authentication")
+	}
+
+	statuses := make(map[string]model.Status, len(deviceIDs))
+	for _, auth := range devAuths {
+		statuses[auth.ID] = auth.Status
+	}
+
+	// Find devices that shouldn't exist
+	var (
+		i int
+		j int = len(deviceIDs)
+	)
+	for i < j {
+		id := deviceIDs[i]
+		if _, ok := statuses[id]; !ok {
+			l.Warnf("Device '%s' does not have an auth set: deleting device", id)
+			err := a.DecommissionDevice(ctx, id)
+			if err != nil && err != ErrDeviceNotFound {
+				err = errors.Wrap(err, "app: failed to decommission device")
+				if failEarly {
+					return err
+				}
+				l.Error(err)
+			}
+			// swap(deviceIDs[i], deviceIDs[j])
+			j--
+			tmp := deviceIDs[i]
+			deviceIDs[i] = deviceIDs[j]
+			deviceIDs[j] = tmp
+			deviceIDs = deviceIDs[:j]
+		} else {
+			i++
+		}
+	}
+	for _, deviceID := range deviceIDs {
+		// Check if device exists in IoT Core
+		dev, err := a.iotcoreClient.GetDevice(
+			ctx,
+			*integration.Credentials.AWSCredentials,
+			deviceID,
+		)
+		status, ok := statuses[deviceID]
+		if err == iotcore.ErrDeviceNotFound {
+			if ok {
+				// Device should exist, let's provision the device.
+				err := a.provisionIoTCoreDevice(ctx, deviceID, integration, &iotcore.Device{
+					Status: iotcore.NewStatusFromMenderStatus(status),
+				})
+				if err != nil {
+					err = errors.Wrap(err, "failed to provision missing device")
+					if failEarly {
+						return err
+					}
+					l.Warn(err)
+				}
+			}
+		} else if err != nil {
+			err = errors.Wrap(err, "app: failed to get Thing from IoT Core")
+			if failEarly {
+				return err
+			}
+			l.Warn(err)
+
+		} else if dev.Status != iotcore.NewStatusFromMenderStatus(status) {
+			// Upsert device
+			err := a.setDeviceStatusIoTCore(ctx, dev.ID, status, integration)
+			if err != nil {
+				err = errors.Wrap(err, "failed to update device status")
+				if failEarly {
+					return err
+				}
+				l.Warn(err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -136,11 +198,14 @@ func (a *app) GetDeviceStateIoTCore(
 	deviceID string,
 	integration *model.Integration,
 ) (*model.DeviceState, error) {
-	cfg, err := getIoTCoreConfig(*integration)
-	if err != nil {
+	if err := assertAWSIntegration(*integration); err != nil {
 		return nil, err
 	}
-	shadow, err := a.iotcoreClient.GetDeviceShadow(ctx, cfg, deviceID)
+	shadow, err := a.iotcoreClient.GetDeviceShadow(
+		ctx,
+		*integration.Credentials.AWSCredentials,
+		deviceID,
+	)
 	if err != nil {
 		if err == iotcore.ErrDeviceNotFound {
 			return nil, nil
@@ -160,13 +225,12 @@ func (a *app) SetDeviceStateIoTCore(
 	if state == nil {
 		return nil, nil
 	}
-	cfg, err := getIoTCoreConfig(*integration)
-	if err != nil {
+	if err := assertAWSIntegration(*integration); err != nil {
 		return nil, err
 	}
 	shadow, err := a.iotcoreClient.UpdateDeviceShadow(
 		ctx,
-		cfg,
+		*integration.Credentials.AWSCredentials,
 		deviceID,
 		iotcore.DeviceShadowUpdate{
 			State: iotcore.DesiredState{

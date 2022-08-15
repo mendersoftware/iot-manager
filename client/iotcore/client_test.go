@@ -20,12 +20,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 )
 
@@ -34,44 +32,12 @@ func init() {
 }
 
 var (
-	accessKeyID     string
-	secretAccessKey string
-	endpointURL     string
+	accessKeyID         string
+	secretAccessKey     string
+	awsRegion           string
+	awsDevicePolicyName string
+	awsCredentials      = model.AWSCredentials{}
 )
-
-const testPolicy = `{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Action": [
-				"iot:Publish",
-				"iot:Receive"
-			],
-			"Resource": [
-				"arn:aws:iot:us-east-1:304194462000:topic/sdk/test/Python"
-			]
-		},
-		{
-			"Effect": "Allow",
-			"Action": [
-				"iot:Subscribe"
-			],
-			"Resource": [
-				"arn:aws:iot:us-east-1:304194462000:topicfilter/sdk/test/Python"
-			]
-		},
-		{
-			"Effect": "Allow",
-			"Action": [
-				"iot:Connect"
-			],
-			"Resource": [
-				"arn:aws:iot:us-east-1:304194462000:client/basicPubSub"
-			]
-		}
-	]
-}`
 
 func init() {
 	flag.StringVar(&accessKeyID,
@@ -90,20 +56,34 @@ func init() {
 	if val, ok := os.LookupEnv("TEST_AWS_SECRET_ACCESS_KEY"); ok && val != "" {
 		secretAccessKey = val
 	}
-	flag.StringVar(&endpointURL,
-		"test.aws-endpoint-url",
+	flag.StringVar(&awsRegion,
+		"test.aws-region",
 		"",
-		"AWS IoT Core Endpoint URL (overwrite with env var TEST_AWS_ENDPOINT_URL).",
+		"AWS IoT Core region (overwrite with env var TEST_AWS_REGION).",
 	)
-	if val, ok := os.LookupEnv("TEST_AWS_ENDPOINT_URL"); ok && val != "" {
-		endpointURL = val
+	if val, ok := os.LookupEnv("TEST_AWS_REGION"); ok && val != "" {
+		awsRegion = val
+	}
+
+	flag.StringVar(&awsDevicePolicyName,
+		"test.aws-device-policy-name",
+		"",
+		"AWS IoT Core device policy name (overwrite with env var TEST_AWS_DEVICE_POLICY_NAME).",
+	)
+	if val, ok := os.LookupEnv("TEST_AWS_DEVICE_POLICY_NAME"); ok && val != "" {
+		awsDevicePolicyName = val
 	}
 
 	testing.Init()
+
+	awsCredentials.AccessKeyID = &accessKeyID
+	awsCredentials.SecretAccessKey = (*crypto.String)(&secretAccessKey)
+	awsCredentials.Region = &awsRegion
+	awsCredentials.DevicePolicyName = &awsDevicePolicyName
 }
 
 func validAWSSettings(t *testing.T) bool {
-	if accessKeyID == "" || secretAccessKey == "" || endpointURL == "" {
+	if accessKeyID == "" || secretAccessKey == "" || awsRegion == "" {
 		t.Skip("AWS settings not provided or invalid")
 		return false
 	}
@@ -115,33 +95,26 @@ func TestGetDevice(t *testing.T) {
 		return
 	}
 
-	appCreds := aws.NewCredentialsCache(
-		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
-	cfg, _ := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(*aws.String("us-east-1")),
-		config.WithCredentialsProvider(appCreds),
-	)
-
 	ctx := context.Background()
 	deviceID := uuid.NewString()
 
 	client := NewClient()
-	_, err := client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
+	_, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, awsDevicePolicyName)
 	assert.NoError(t, err)
 
-	device, err := client.GetDevice(ctx, &cfg, deviceID)
+	device, err := client.GetDevice(ctx, awsCredentials, deviceID)
 	assert.NoError(t, err)
 	assert.NotNil(t, device)
 
 	assert.Equal(t, deviceID, device.Name)
 
-	_, err = client.GetDevice(ctx, &cfg, "dummy")
+	_, err = client.GetDevice(ctx, awsCredentials, "dummy")
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 
-	err = client.DeleteDevice(ctx, &cfg, device.Name)
+	err = client.DeleteDevice(ctx, awsCredentials, device.Name)
 	assert.NoError(t, err)
 
-	device, err = client.GetDevice(ctx, &cfg, deviceID)
+	device, err = client.GetDevice(ctx, awsCredentials, deviceID)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 	assert.Nil(t, device)
 }
@@ -151,28 +124,21 @@ func TestDeleteDevice(t *testing.T) {
 		return
 	}
 
-	appCreds := aws.NewCredentialsCache(
-		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
-	cfg, _ := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(*aws.String("us-east-1")),
-		config.WithCredentialsProvider(appCreds),
-	)
-
 	ctx := context.Background()
 	deviceID := uuid.NewString()
 
 	client := NewClient()
 
-	device, err := client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
+	device, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, awsDevicePolicyName)
 	assert.NoError(t, err)
 
-	err = client.DeleteDevice(ctx, &cfg, device.Name)
+	err = client.DeleteDevice(ctx, awsCredentials, device.Name)
 	assert.NoError(t, err)
 
-	err = client.DeleteDevice(ctx, &cfg, device.Name)
+	err = client.DeleteDevice(ctx, awsCredentials, device.Name)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 
-	device, err = client.GetDevice(ctx, &cfg, deviceID)
+	device, err = client.GetDevice(ctx, awsCredentials, deviceID)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 	assert.Nil(t, device)
 }
@@ -182,20 +148,13 @@ func TestUpsertDevice(t *testing.T) {
 		return
 	}
 
-	appCreds := aws.NewCredentialsCache(
-		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
-	cfg, _ := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(*aws.String("us-east-1")),
-		config.WithCredentialsProvider(appCreds),
-	)
-
 	ctx := context.Background()
 	deviceID := uuid.NewString()
 
 	client := NewClient()
-	device, err := client.UpsertDevice(ctx, &cfg, deviceID, &Device{
+	device, err := client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{
 		Status: StatusDisabled,
-	}, testPolicy)
+	}, awsDevicePolicyName)
 	assert.NoError(t, err)
 	assert.Equal(t, StatusDisabled, device.Status)
 
@@ -204,11 +163,11 @@ func TestUpsertDevice(t *testing.T) {
 	assert.NotEmpty(t, device.Certificate)
 
 	device.Status = StatusEnabled
-	device, err = client.UpsertDevice(ctx, &cfg, deviceID, device, testPolicy)
+	device, err = client.UpsertDevice(ctx, awsCredentials, deviceID, device, awsDevicePolicyName)
 	assert.NoError(t, err)
 	assert.Equal(t, StatusEnabled, device.Status)
 
-	err = client.DeleteDevice(ctx, &cfg, deviceID)
+	err = client.DeleteDevice(ctx, awsCredentials, deviceID)
 	assert.NoError(t, err)
 }
 
@@ -217,32 +176,25 @@ func TestIoTCoreExternal(t *testing.T) {
 		return
 	}
 
-	appCreds := aws.NewCredentialsCache(
-		credentials.NewStaticCredentialsProvider(accessKeyID, secretAccessKey, ""))
-	cfg, _ := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(*aws.String("us-east-1")),
-		config.WithCredentialsProvider(appCreds),
-	)
-
 	ctx := context.Background()
 	deviceID := uuid.NewString()
 
 	client := NewClient()
 
 	// no device
-	shadow, err := client.GetDeviceShadow(ctx, &cfg, deviceID)
+	shadow, err := client.GetDeviceShadow(ctx, awsCredentials, deviceID)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 	assert.Nil(t, shadow)
 
-	_, err = client.UpsertDevice(ctx, &cfg, deviceID, &Device{}, testPolicy)
+	_, err = client.UpsertDevice(ctx, awsCredentials, deviceID, &Device{}, awsDevicePolicyName)
 	assert.NoError(t, err)
 
-	device, err := client.GetDevice(ctx, &cfg, deviceID)
+	device, err := client.GetDevice(ctx, awsCredentials, deviceID)
 	assert.NoError(t, err)
 	assert.NotNil(t, device)
 
 	// no shadow set in IoT Core, it returns an empty shadow
-	shadow, err = client.GetDeviceShadow(ctx, &cfg, deviceID)
+	shadow, err = client.GetDeviceShadow(ctx, awsCredentials, deviceID)
 	assert.NoError(t, err)
 	assert.Equal(t, shadow, &DeviceShadow{
 		Payload: model.DeviceState{
@@ -259,19 +211,19 @@ func TestIoTCoreExternal(t *testing.T) {
 			},
 		},
 	}
-	updatedShadow, err := client.UpdateDeviceShadow(ctx, &cfg, deviceID, update)
+	updatedShadow, err := client.UpdateDeviceShadow(ctx, awsCredentials, deviceID, update)
 	assert.NoError(t, err)
 	assert.NotNil(t, updatedShadow)
 
 	// get shadow and compare with update result
-	shadow, err = client.GetDeviceShadow(ctx, &cfg, deviceID)
+	shadow, err = client.GetDeviceShadow(ctx, awsCredentials, deviceID)
 	assert.NoError(t, err)
 	assert.Equal(t, updatedShadow, shadow)
 
-	err = client.DeleteDevice(ctx, &cfg, device.Name)
+	err = client.DeleteDevice(ctx, awsCredentials, device.Name)
 	assert.NoError(t, err)
 
-	device, err = client.GetDevice(ctx, &cfg, deviceID)
+	device, err = client.GetDevice(ctx, awsCredentials, deviceID)
 	assert.EqualError(t, err, ErrDeviceNotFound.Error())
 	assert.Nil(t, device)
 }

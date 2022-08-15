@@ -1,5 +1,5 @@
 request:
-  description: Query to IoT Hub for tenant "TestSync01"
+  description: Query to IoT Hub for tenant "TestSyncAzureIoTHub01"
   host: mock.azure-devices.net
   method: POST
   path: /devices/query
