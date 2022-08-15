@@ -78,7 +78,7 @@ const (
 	SettingDomainWhitelist = "domain_whitelist"
 	// SettingDomainWhitelist sets the default to the set of potential IoT
 	// Hub domains included in connection strings.
-	SettingDomainWhitelistDefault = "*.azure-devices.net"
+	SettingDomainWhitelistDefault = "*.azure-devices.net *.iot.*.amazonaws.com"
 )
 
 var (

@@ -56,6 +56,12 @@ var (
 )
 
 type ResolveError string
+type lookupHost func(hostname string) error
+
+var lookupHostFunc lookupHost = func(hostname string) error {
+	_, err := net.LookupHost(hostname)
+	return err
+}
 
 func (err ResolveError) Error() string {
 	return fmt.Sprintf("failed to lookup host with name '%s'", string(err))
@@ -248,7 +254,7 @@ func (patterns hostnameValidator) matchHostname(hostname string) bool {
 		}
 		allMatch := true
 		for i, patternPart := range patternParts {
-			if i == 0 && patternPart == "*" {
+			if patternPart == "*" {
 				continue
 			}
 			if patternPart != hostParts[i] {
@@ -274,7 +280,7 @@ func (patterns hostnameValidator) Validate(v interface{}) error {
 	hostname = strings.SplitN(hostname, ":", 2)[0]
 	if !patterns.matchHostname(hostname) {
 		return ErrHostnameTrust
-	} else if _, err := net.LookupHost(hostname); err != nil {
+	} else if err := lookupHostFunc(hostname); err != nil {
 		return ResolveError(hostname)
 	}
 	return nil

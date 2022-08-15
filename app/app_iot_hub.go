@@ -51,15 +51,15 @@ func (a *app) provisionIoTHubDevice(
 ) error {
 	cs := integration.Credentials.ConnectionString
 	if cs == nil {
-		return ErrNoConnectionString
+		return ErrNoCredentials
 	}
 
-	dev, err := a.hub.UpsertDevice(ctx, cs, deviceID, deviceUpdate...)
+	dev, err := a.iothubClient.UpsertDevice(ctx, cs, deviceID, deviceUpdate...)
 	if err != nil {
 		if htErr, ok := err.(client.HTTPError); ok {
 			switch htErr.Code() {
 			case http.StatusUnauthorized:
-				return ErrNoConnectionString
+				return ErrNoCredentials
 			case http.StatusConflict:
 				return ErrDeviceAlreadyExists
 			}
@@ -81,12 +81,49 @@ func (a *app) provisionIoTHubDevice(
 	if err != nil {
 		return errors.Wrap(err, "failed to submit iothub authn to deviceconfig")
 	}
-	err = a.hub.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
+	err = a.iothubClient.UpdateDeviceTwin(ctx, cs, dev.DeviceID, &iothub.DeviceTwinUpdate{
 		Tags: map[string]interface{}{
 			"mender": true,
 		},
 	})
 	return errors.Wrap(err, "failed to tag provisioned iothub device")
+}
+
+func (a *app) setDeviceStatusIoTHub(ctx context.Context, deviceID string, status model.Status,
+	integration model.Integration) error {
+	cs := integration.Credentials.ConnectionString
+	if cs == nil {
+		return ErrNoCredentials
+	}
+	azureStatus := iothub.NewStatusFromMenderStatus(status)
+	dev, err := a.iothubClient.GetDevice(ctx, cs, deviceID)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve device from IoT Hub")
+	} else if dev.Status == azureStatus {
+		// We're done...
+		return nil
+	}
+
+	dev.Status = azureStatus
+	_, err = a.iothubClient.UpsertDevice(ctx, cs, deviceID, dev)
+	return err
+}
+
+func (a *app) decommissionIoTHubDevice(ctx context.Context, deviceID string,
+	integration model.Integration) error {
+	cs := integration.Credentials.ConnectionString
+	if cs == nil {
+		return ErrNoCredentials
+	}
+	err := a.iothubClient.DeleteDevice(ctx, cs, deviceID)
+	if err != nil {
+		if htErr, ok := err.(client.HTTPError); ok &&
+			htErr.Code() == http.StatusNotFound {
+			return nil
+		}
+		return errors.Wrap(err, "failed to delete IoT Hub device")
+	}
+	return nil
 }
 
 func (a *app) syncIoTHubDevices(
@@ -136,7 +173,7 @@ func (a *app) syncIoTHubDevices(
 	}
 
 	// Fetch IoT Hub device twins
-	hubDevs, err := a.hub.GetDeviceTwins(ctx, cs, deviceIDs[:j])
+	hubDevs, err := a.iothubClient.GetDeviceTwins(ctx, cs, deviceIDs[:j])
 	if err != nil {
 		return errors.Wrap(err, "app: failed to get devices from IoT Hub")
 	}
@@ -155,7 +192,7 @@ func (a *app) syncIoTHubDevices(
 				twin.DeviceID)
 			// Update the device's status
 			// NOTE need to fetch device identity first
-			dev, err := a.hub.GetDevice(ctx, cs, twin.DeviceID)
+			dev, err := a.iothubClient.GetDevice(ctx, cs, twin.DeviceID)
 			if err != nil {
 				err = errors.Wrap(err, "failed to retrieve IoT Hub device identity")
 				if failEarly {
@@ -165,7 +202,7 @@ func (a *app) syncIoTHubDevices(
 				continue
 			}
 			dev.Status = stat
-			_, err = a.hub.UpsertDevice(ctx, cs, twin.DeviceID, dev)
+			_, err = a.iothubClient.UpsertDevice(ctx, cs, twin.DeviceID, dev)
 			if err != nil {
 				err = errors.Wrap(err, "failed to update IoT Hub device identity")
 				if failEarly {
@@ -205,9 +242,9 @@ func (a *app) GetDeviceStateIoTHub(
 ) (*model.DeviceState, error) {
 	cs := integration.Credentials.ConnectionString
 	if cs == nil {
-		return nil, ErrNoConnectionString
+		return nil, ErrNoCredentials
 	}
-	twin, err := a.hub.GetDeviceTwin(ctx, cs, deviceID)
+	twin, err := a.iothubClient.GetDeviceTwin(ctx, cs, deviceID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get the device twin")
 	}
@@ -225,9 +262,9 @@ func (a *app) SetDeviceStateIoTHub(
 ) (*model.DeviceState, error) {
 	cs := integration.Credentials.ConnectionString
 	if cs == nil {
-		return nil, ErrNoConnectionString
+		return nil, ErrNoCredentials
 	}
-	twin, err := a.hub.GetDeviceTwin(ctx, cs, deviceID)
+	twin, err := a.iothubClient.GetDeviceTwin(ctx, cs, deviceID)
 	if err == nil {
 		update := &iothub.DeviceTwinUpdate{
 			Tags: twin.Tags,
@@ -237,7 +274,7 @@ func (a *app) SetDeviceStateIoTHub(
 			ETag:    twin.ETag,
 			Replace: true,
 		}
-		err = a.hub.UpdateDeviceTwin(ctx, cs, deviceID, update)
+		err = a.iothubClient.UpdateDeviceTwin(ctx, cs, deviceID, update)
 	}
 	if errHTTP, ok := err.(client.HTTPError); ok &&
 		errHTTP.Code() == http.StatusPreconditionFailed {

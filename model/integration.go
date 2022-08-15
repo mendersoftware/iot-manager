@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -36,10 +36,12 @@ func (itg Integration) Validate() error {
 type CredentialType string
 
 const (
+	CredentialTypeAWS CredentialType = "aws"
 	CredentialTypeSAS CredentialType = "sas"
 )
 
 var credentialTypeRule = validation.In(
+	CredentialTypeAWS,
 	CredentialTypeSAS,
 )
 
@@ -47,8 +49,14 @@ func (typ CredentialType) Validate() error {
 	return credentialTypeRule.Validate(typ)
 }
 
+//nolint:lll
 type Credentials struct {
 	Type CredentialType `json:"type" bson:"type"`
+
+	// AWS Iot Core
+	AWSCredentials *AWSCredentials `json:"aws,omitempty" bson:"aws,omitempty"`
+
+	// Azure IoT Hub
 	//nolint:lll
 	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
 }
@@ -58,6 +66,8 @@ func (s Credentials) Validate() error {
 		validation.Field(&s.Type, validation.Required),
 		validation.Field(&s.ConnectionString,
 			validation.When(s.Type == CredentialTypeSAS, validation.Required)),
+		validation.Field(&s.AWSCredentials,
+			validation.When(s.Type == CredentialTypeAWS, validation.Required)),
 	)
 }
 

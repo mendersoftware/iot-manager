@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -19,11 +19,12 @@ import validation "github.com/go-ozzo/ozzo-validation/v4"
 type Provider string
 
 const (
-	ProviderEmpty  Provider = ""
-	ProviderIoTHub Provider = "iot-hub"
+	ProviderEmpty   Provider = ""
+	ProviderIoTHub  Provider = "iot-hub"
+	ProviderIoTCore Provider = "iot-core"
 )
 
-var validateProvider = validation.In(ProviderIoTHub)
+var validateProvider = validation.In(ProviderIoTHub, ProviderIoTCore)
 
 func (p Provider) Validate() error {
 	return validateProvider.Validate(p)

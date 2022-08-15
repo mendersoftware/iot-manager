@@ -1,0 +1,7 @@
+request:
+  description: Attach a principal to a thing in AWS IoT Core
+  host: iot.region.amazonaws.com
+  method: PUT
+  path: /things/:thingId/principals
+response:
+  statusCode: 200

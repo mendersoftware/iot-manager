@@ -30,6 +30,7 @@ import (
 	api "github.com/mendersoftware/iot-manager/api/http"
 	"github.com/mendersoftware/iot-manager/app"
 	"github.com/mendersoftware/iot-manager/client/devauth"
+	"github.com/mendersoftware/iot-manager/client/iotcore"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
 	dconfig "github.com/mendersoftware/iot-manager/config"
@@ -45,6 +46,7 @@ func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 		workflows.NewOptions().SetClient(httpClient),
 	)
 	hub := iothub.NewClient(iothub.NewOptions().SetClient(httpClient))
+	core := iotcore.NewClient()
 
 	log.Setup(conf.GetBool(dconfig.SettingDebugLog))
 	l := log.FromContext(ctx)
@@ -57,7 +59,7 @@ func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 		return errors.Wrap(err, "failed to initialize devicauth client")
 	}
 
-	azureIotManagerApp := app.New(dataStore, hub, wf, da)
+	azureIotManagerApp := app.New(dataStore, wf, da).WithIoTHub(hub).WithIoTCore(core)
 
 	router := api.NewRouter(azureIotManagerApp, api.NewConfig().SetClient(httpClient))
 

@@ -10,7 +10,6 @@ services:
       environment:
         IOT_MANAGER_URL: "http://mender-iot-manager:8080"
         MMOCK_CONTROL_URL: "http://mmock:8081"
-        MMOCK_API_URL: "http://mmock:8080"
       depends_on:
           - mender-iot-manager
           - mender-mongo
@@ -43,11 +42,12 @@ services:
         - "-config-path=/config"
         - "-console-ip=0.0.0.0"
         - "-console-port=8081"
+        - "-request-storage-capacity=1000"
         - "-server-ip=0.0.0.0"
         - "-server-port=8080"
         - "-server-statistics=false"
         - "-tls-path=/cert"
-        - "-server-tls-port=8443"
+        - "-server-tls-port=443"
       volumes:
         - "./mmock/config:/config"
         - "./mmock/cert:/cert"
@@ -58,6 +58,7 @@ services:
             - mender-device-auth
             - mender-workflows-server
             - mock.azure-devices.net
+            - iot.region.amazonaws.com
 
 networks:
   mender: {}

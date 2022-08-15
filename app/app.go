@@ -16,7 +16,6 @@ package app
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -24,8 +23,8 @@ import (
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/log"
 
-	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/devauth"
+	"github.com/mendersoftware/iot-manager/client/iotcore"
 	"github.com/mendersoftware/iot-manager/client/iothub"
 	"github.com/mendersoftware/iot-manager/client/workflows"
 	"github.com/mendersoftware/iot-manager/model"
@@ -33,10 +32,11 @@ import (
 )
 
 var (
-	ErrIntegrationNotFound      = errors.New("integration not found")
-	ErrIntegrationExists        = errors.New("integration already exists")
-	ErrUnknownIntegration       = errors.New("unknown integration provider")
-	ErrNoConnectionString       = errors.New("no connection string configured for tenant")
+	ErrIntegrationNotFound = errors.New("integration not found")
+	ErrIntegrationExists   = errors.New("integration already exists")
+	ErrUnknownIntegration  = errors.New("unknown integration provider")
+	ErrNoCredentials       = errors.New("no connection string or credentials " +
+		"configured for the tenant")
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
 
 	ErrDeviceAlreadyExists     = errors.New("device already exists")
@@ -46,15 +46,18 @@ var (
 )
 
 const (
-	confKeyPrimaryKey = "azureConnectionString"
+	confKeyPrimaryKey     = "azureConnectionString"
+	confKeyAWSCertificate = "awsCertificate"
+	confKeyAWSPrivateKey  = "awsPrivateKey"
 )
 
-type DeviceUpdate iothub.Device
-
 // App interface describes app objects
+//
 //nolint:lll
 //go:generate ../utils/mockgen.sh
 type App interface {
+	WithIoTCore(client iotcore.Client) App
+	WithIoTHub(client iothub.Client) App
 	HealthCheck(context.Context) error
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
@@ -68,6 +71,8 @@ type App interface {
 	SetDeviceStateIntegration(context.Context, string, uuid.UUID, *model.DeviceState) (*model.DeviceState, error)
 	GetDeviceStateIoTHub(context.Context, string, *model.Integration) (*model.DeviceState, error)
 	SetDeviceStateIoTHub(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
+	GetDeviceStateIoTCore(context.Context, string, *model.Integration) (*model.DeviceState, error)
+	SetDeviceStateIoTCore(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
 	ProvisionDevice(context.Context, string) error
 	DecommissionDevice(context.Context, string) error
 
@@ -76,20 +81,32 @@ type App interface {
 
 // app is an app object
 type app struct {
-	store   store.DataStore
-	hub     iothub.Client
-	wf      workflows.Client
-	devauth devauth.Client
+	store         store.DataStore
+	iothubClient  iothub.Client
+	iotcoreClient iotcore.Client
+	wf            workflows.Client
+	devauth       devauth.Client
 }
 
 // NewApp initialize a new iot-manager App
-func New(ds store.DataStore, hub iothub.Client, wf workflows.Client, da devauth.Client) App {
+func New(ds store.DataStore, wf workflows.Client, da devauth.Client) App {
 	return &app{
 		store:   ds,
-		hub:     hub,
 		wf:      wf,
 		devauth: da,
 	}
+}
+
+// WithIoTHub sets the IoT Hub client
+func (a *app) WithIoTHub(client iothub.Client) App {
+	a.iothubClient = client
+	return a
+}
+
+// WithIoTCore sets the IoT Core client
+func (a *app) WithIoTCore(client iotcore.Client) App {
+	a.iotcoreClient = client
+	return a
 }
 
 // HealthCheck performs a health check and returns an error if it fails
@@ -195,21 +212,12 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 	for _, integration := range integrations {
 		switch integration.Provider {
 		case model.ProviderIoTHub:
-			cs := integration.Credentials.ConnectionString
-			if cs == nil {
-				return ErrNoConnectionString
-			}
-			azureStatus := iothub.NewStatusFromMenderStatus(status)
-			dev, err := a.hub.GetDevice(ctx, cs, deviceID)
+			err = a.setDeviceStatusIoTHub(ctx, deviceID, status, integration)
 			if err != nil {
-				return errors.Wrap(err, "failed to retrieve device from IoT Hub")
-			} else if dev.Status == azureStatus {
-				// We're done...
-				return nil
+				return errors.Wrap(err, "failed to update IoT Hub device")
 			}
-
-			dev.Status = azureStatus
-			_, err = a.hub.UpsertDevice(ctx, cs, deviceID, dev)
+		case model.ProviderIoTCore:
+			err = a.setDeviceStatusIoTCore(ctx, deviceID, status, integration)
 			if err != nil {
 				return errors.Wrap(err, "failed to update IoT Hub device")
 			}
@@ -233,6 +241,10 @@ func (a *app) ProvisionDevice(
 		switch integration.Provider {
 		case model.ProviderIoTHub:
 			err = a.provisionIoTHubDevice(ctx, deviceID, integration)
+		case model.ProviderIoTCore:
+			err = a.provisionIoTCoreDevice(ctx, deviceID, integration, &iotcore.Device{
+				Status: iotcore.StatusEnabled,
+			})
 		default:
 			continue
 		}
@@ -298,6 +310,14 @@ func (a *app) syncBatch(
 		switch integration.Provider {
 		case model.ProviderIoTHub:
 			err := a.syncIoTHubDevices(ctx, deviceIDs, *integration, failEarly)
+			if err != nil {
+				if failEarly {
+					return err
+				}
+				l.Error(err)
+			}
+		case model.ProviderIoTCore:
+			err := a.syncIoTCoreDevices(ctx, deviceIDs, *integration, failEarly)
 			if err != nil {
 				if failEarly {
 					return err
@@ -405,17 +425,14 @@ func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 	for _, integration := range integrations {
 		switch integration.Provider {
 		case model.ProviderIoTHub:
-			cs := integration.Credentials.ConnectionString
-			if cs == nil {
-				return ErrNoConnectionString
-			}
-			err = a.hub.DeleteDevice(ctx, cs, deviceID)
+			err := a.decommissionIoTHubDevice(ctx, deviceID, integration)
 			if err != nil {
-				if htErr, ok := err.(client.HTTPError); ok &&
-					htErr.Code() == http.StatusNotFound {
-					continue
-				}
-				return errors.Wrap(err, "failed to delete IoT Hub device")
+				return err
+			}
+		case model.ProviderIoTCore:
+			err := a.decommissionIoTCoreDevice(ctx, deviceID, integration)
+			if err != nil {
+				return err
 			}
 		default:
 			continue
@@ -457,6 +474,8 @@ func (a *app) GetDeviceStateIntegration(
 	switch integration.Provider {
 	case model.ProviderIoTHub:
 		return a.GetDeviceStateIoTHub(ctx, deviceID, integration)
+	case model.ProviderIoTCore:
+		return a.GetDeviceStateIoTCore(ctx, deviceID, integration)
 	default:
 		return nil, ErrUnknownIntegration
 	}
@@ -483,6 +502,8 @@ func (a *app) SetDeviceStateIntegration(
 	switch integration.Provider {
 	case model.ProviderIoTHub:
 		return a.SetDeviceStateIoTHub(ctx, deviceID, integration, state)
+	case model.ProviderIoTCore:
+		return a.SetDeviceStateIoTCore(ctx, deviceID, integration, state)
 	default:
 		return nil, ErrUnknownIntegration
 	}
