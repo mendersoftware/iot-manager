@@ -23,7 +23,7 @@ from datetime import datetime, timedelta
 
 def compare_expectations(expected, actual):
     for key, expected_value in expected.items():
-        assert key in actual
+        assert key in actual, f"key: '{key}' not in '{actual}'"
         actual_value = actual[key]
         if isinstance(expected_value, dict):
             compare_expectations(expected_value, actual_value)

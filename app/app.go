@@ -38,6 +38,7 @@ var (
 	ErrNoCredentials       = errors.New("no connection string or credentials " +
 		"configured for the tenant")
 	ErrNoDeviceConnectionString = errors.New("device has no connection string")
+	ErrInvalidCredentials       = errors.New("credentials invalid for integration")
 
 	ErrDeviceAlreadyExists     = errors.New("device already exists")
 	ErrDeviceNotFound          = errors.New("device not found")
@@ -135,7 +136,33 @@ func (a *app) CreateIntegration(
 	ctx context.Context,
 	integration model.Integration,
 ) (*model.Integration, error) {
+	switch integration.Provider {
+	case model.ProviderIoTCore:
+		if integration.Credentials.Type != model.CredentialTypeAWS {
+			return nil, &model.ValidationError{
+				Reason: ErrInvalidCredentials,
+			}
+		}
+
+		_, err := a.iotcoreClient.GetDevicePolicy(ctx,
+			*integration.Credentials.AWSCredentials,
+			*integration.Credentials.AWSCredentials.DevicePolicyName)
+		if err != nil {
+			return nil, errors.WithMessage(&model.ValidationError{
+				Reason: err,
+			}, "failed to validate device policy")
+		}
+
+	case model.ProviderIoTHub:
+		if integration.Credentials.Type != model.CredentialTypeSAS {
+			return nil, &model.ValidationError{
+				Reason: ErrInvalidCredentials,
+			}
+		}
+	}
+
 	result, err := a.store.CreateIntegration(ctx, integration)
+
 	if err == store.ErrObjectExists {
 		return nil, ErrIntegrationExists
 	}

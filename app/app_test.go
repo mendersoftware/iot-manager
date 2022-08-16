@@ -24,6 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/mendersoftware/iot-manager/client/iotcore"
+	coreMocks "github.com/mendersoftware/iot-manager/client/iotcore/mocks"
 	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/store"
@@ -230,13 +232,20 @@ func TestGetIntegrationByID(t *testing.T) {
 	}
 }
 
+func strPtr(s string) *string {
+	return &s
+}
+
 func TestCreateIntegration(t *testing.T) {
 	t.Parallel()
 	type testCase struct {
 		Name                  string
 		Store                 func(t *testing.T, self *testCase) *storeMocks.DataStore
+		CoreClient            func(t *testing.T, self *testCase) *coreMocks.Client
 		CreateIntegrationData model.Integration
-		Error                 error
+
+		ErrCheck assert.ErrorAssertionFunc
+		Error    error
 	}
 
 	testCases := []testCase{
@@ -260,6 +269,110 @@ func TestCreateIntegration(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			Name: "ok/iot core",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+				ds.On("CreateIntegration", contextMatcher, self.CreateIntegrationData).
+					Return(&self.CreateIntegrationData, nil)
+				return ds
+			},
+			CoreClient: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On("GetDevicePolicy",
+					contextMatcher,
+					*self.CreateIntegrationData.Credentials.AWSCredentials,
+					*self.CreateIntegrationData.Credentials.AWSCredentials.DevicePolicyName).
+					Return(new(iotcore.DevicePolicy), nil).
+					Once()
+				return core
+			},
+			CreateIntegrationData: model.Integration{
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      strPtr("1234"),
+						SecretAccessKey:  (*crypto.String)(strPtr("123456")),
+						Region:           strPtr("eu-north-1"),
+						DevicePolicyName: strPtr("suchAuthz"),
+					},
+				},
+			},
+		},
+		{
+			Name: "error/device policy not found",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				return new(storeMocks.DataStore)
+			},
+			CoreClient: func(t *testing.T, self *testCase) *coreMocks.Client {
+				core := new(coreMocks.Client)
+				core.On("GetDevicePolicy",
+					contextMatcher,
+					*self.CreateIntegrationData.Credentials.AWSCredentials,
+					*self.CreateIntegrationData.Credentials.AWSCredentials.DevicePolicyName).
+					Return(nil, iotcore.ErrNotFound).
+					Once()
+				return core
+			},
+			CreateIntegrationData: model.Integration{
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      strPtr("1234"),
+						SecretAccessKey:  (*crypto.String)(strPtr("123456")),
+						Region:           strPtr("eu-north-1"),
+						DevicePolicyName: strPtr("suchAuthz"),
+					},
+				},
+			},
+			ErrCheck: func(t assert.TestingT, err error, _ ...interface{}) bool {
+				var target *model.ValidationError
+				return assert.ErrorAs(t, err, &target)
+			},
+		},
+		{
+			Name: "error/invalid credentials for iot core",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				return new(storeMocks.DataStore)
+			},
+			CreateIntegrationData: model.Integration{
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeSAS,
+					ConnectionString: &model.ConnectionString{
+						HostName: "localhost",
+						Key:      crypto.String("secret"),
+						Name:     "foobar",
+					},
+				},
+			},
+			Error: ErrInvalidCredentials,
+		},
+		{
+			Name: "error/invalid credentials for iot hub",
+
+			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				return new(storeMocks.DataStore)
+			},
+			CreateIntegrationData: model.Integration{
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      strPtr("1234"),
+						SecretAccessKey:  (*crypto.String)(strPtr("123456")),
+						Region:           strPtr("eu-north-1"),
+						DevicePolicyName: strPtr("suchAuthz"),
+					},
+				},
+			},
+			Error: ErrInvalidCredentials,
 		},
 		{
 			Name: "create integration error",
@@ -286,18 +399,23 @@ func TestCreateIntegration(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
-			store := &storeMocks.DataStore{}
-			store.On("CreateIntegration",
-				mock.MatchedBy(func(ctx context.Context) bool {
-					return true
-				}),
-				mock.AnythingOfType("model.Integration"),
-			).Return(nil, tc.Error)
+			store := tc.Store(t, &tc)
+			var core *coreMocks.Client
+			if tc.CoreClient != nil {
+				core = tc.CoreClient(t, &tc)
+			} else {
+				core = new(coreMocks.Client)
+			}
+			defer core.AssertExpectations(t)
+			defer store.AssertExpectations(t)
 			app := New(store, nil, nil)
+			app = app.WithIoTCore(core)
 
 			ctx := context.Background()
 			_, err := app.CreateIntegration(ctx, tc.CreateIntegrationData)
-			if tc.Error != nil {
+			if tc.ErrCheck != nil {
+				tc.ErrCheck(t, err)
+			} else if tc.Error != nil {
 				assert.EqualError(t, err, tc.Error.Error())
 			} else {
 				assert.NoError(t, err)

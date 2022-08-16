@@ -95,16 +95,21 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 
 	inserted, err := h.app.CreateIntegration(ctx, integration)
 	if err != nil {
-		switch cause := errors.Cause(err); cause {
-		case app.ErrIntegrationExists:
-			// NOTE: temporary limitation
-			rest.RenderError(c, http.StatusConflict, cause)
-		default:
-			_ = c.Error(err)
-			rest.RenderError(c,
-				http.StatusInternalServerError,
-				err,
-			)
+		var verr *model.ValidationError
+		if errors.As(err, &verr) {
+			rest.RenderError(c, http.StatusBadRequest, err)
+		} else {
+			switch cause := errors.Cause(err); cause {
+			case app.ErrIntegrationExists:
+				// NOTE: temporary limitation
+				rest.RenderError(c, http.StatusConflict, cause)
+			default:
+				_ = c.Error(err)
+				rest.RenderError(c,
+					http.StatusInternalServerError,
+					err,
+				)
+			}
 		}
 		return
 	}

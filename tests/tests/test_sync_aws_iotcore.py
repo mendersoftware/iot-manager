@@ -179,6 +179,22 @@ class TestSyncAWSIoTCore:
     expected_requests = [
         {
             "request": {
+                "host": "iot.region.amazonaws.com",
+                "method": "GET",
+                "path": "/policies/device-policy",
+            },
+            "result": {"match": True},
+        },
+        {
+            "request": {
+                "host": "iot.region.amazonaws.com",
+                "method": "GET",
+                "path": "/policies/device-policy",
+            },
+            "result": {"match": True},
+        },
+        {
+            "request": {
                 "host": "mender-device-auth",
                 "method": "GET",
                 "path": "/api/internal/v1/devauth/tenants/TestSyncAWSIoTCore01/devices",

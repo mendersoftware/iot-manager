@@ -306,6 +306,40 @@ func TestCreateIntegration(t *testing.T) {
 		RspCode: http.StatusConflict,
 		Error:   app.ErrIntegrationExists,
 	}, {
+		Name: "duplicate integration",
+
+		RequestBody: map[string]interface{}{
+			"provider": model.ProviderIoTCore,
+			"credentials": map[string]interface{}{
+				"type": model.CredentialTypeAWS,
+				"aws": map[string]string{
+					"access_key_id":      "1234",
+					"secret_access_key":  "4567890",
+					"region":             "eu-central-1",
+					"device_policy_name": "suchAuthz",
+				},
+			},
+		},
+		RequestHdrs: http.Header{
+			"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+				Subject: uuid.NewString(),
+				Tenant:  "123456789012345678901234",
+				IsUser:  true,
+			})},
+		},
+
+		App: func(t *testing.T) *mapp.App {
+			a := new(mapp.App)
+			a.On("CreateIntegration", contextMatcher, mock.AnythingOfType("model.Integration")).
+				Return(nil, &model.ValidationError{
+					Reason: errors.New("client error"),
+				})
+			return a
+		},
+
+		RspCode: http.StatusBadRequest,
+		Error:   errors.New("client error"),
+	}, {
 		Name: "internal error",
 
 		RequestBody: map[string]interface{}{

@@ -67,6 +67,29 @@ func (_m *Client) GetDevice(ctx context.Context, creds model.AWSCredentials, dev
 	return r0, r1
 }
 
+// GetDevicePolicy provides a mock function with given fields: ctx, creds, policyName
+func (_m *Client) GetDevicePolicy(ctx context.Context, creds model.AWSCredentials, policyName string) (*iotcore.DevicePolicy, error) {
+	ret := _m.Called(ctx, creds, policyName)
+
+	var r0 *iotcore.DevicePolicy
+	if rf, ok := ret.Get(0).(func(context.Context, model.AWSCredentials, string) *iotcore.DevicePolicy); ok {
+		r0 = rf(ctx, creds, policyName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*iotcore.DevicePolicy)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, model.AWSCredentials, string) error); ok {
+		r1 = rf(ctx, creds, policyName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetDeviceShadow provides a mock function with given fields: ctx, creds, id
 func (_m *Client) GetDeviceShadow(ctx context.Context, creds model.AWSCredentials, id string) (*iotcore.DeviceShadow, error) {
 	ret := _m.Called(ctx, creds, id)

@@ -1,0 +1,20 @@
+request:
+  description: Call to device auth for tenant "TenantSync01"
+  host: iot.region.amazonaws.com
+  method: GET
+  path: /policies/:policyName
+response:
+  statusCode: 200
+  headers:
+    Content-Type:
+      - "application/json"
+  body: |-
+    {
+        "creationDate": 1660042069,
+        "defaultVersionId": "1",
+        "generationId": "1234",
+        "lastModifiedDate": 1660069420,
+        "policyArn": "arn:aws:iot:region:1234567890:policy/{request.path.policyName}",
+        "policyDocument": "{}",
+        "policyName": "{request.path.policyName}"
+    }

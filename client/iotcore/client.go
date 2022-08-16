@@ -19,8 +19,10 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -37,6 +39,9 @@ import (
 var (
 	ErrDeviceNotFound    = errors.New("device not found")
 	ErrDeviceIncosistent = errors.New("device is not consistent")
+	ErrMalformedPolicy   = errors.New("malformed device policy document")
+	ErrNotFound          = errors.New("resource not found")
+	ErrUnauthorized      = errors.New("unauthorized")
 )
 
 //nolint:lll
@@ -52,12 +57,56 @@ type Client interface {
 	GetDevice(ctx context.Context, creds model.AWSCredentials, deviceID string) (*Device, error)
 	UpsertDevice(ctx context.Context, creds model.AWSCredentials, deviceID string, device *Device, policy string) (*Device, error)
 	DeleteDevice(ctx context.Context, creds model.AWSCredentials, deviceID string) error
+	GetDevicePolicy(ctx context.Context, creds model.AWSCredentials, policyName string) (*DevicePolicy, error)
 }
 
-type client struct{}
+func defaultDialer() *net.Dialer {
+	return &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+}
+
+var defaultTransport = &http.Transport{
+	DialContext:           defaultDialer().DialContext,
+	ForceAttemptHTTP2:     true,
+	MaxIdleConns:          100,
+	IdleConnTimeout:       90 * time.Second,
+	TLSHandshakeTimeout:   10 * time.Second,
+	ExpectContinueTimeout: 1 * time.Second,
+}
+
+type DevicePolicy struct {
+	PolicyARN      string
+	PolicyDocument string
+}
+
+type client struct {
+	transport http.RoundTripper
+}
 
 func NewClient() Client {
-	return &client{}
+	return &client{
+		transport: defaultTransport,
+	}
+}
+
+func IsNotFoundError(err error) bool {
+	return err == ErrDeviceNotFound || err == ErrNotFound
+}
+
+func convertError(err error) error {
+	var (
+		notFound     *types.ResourceNotFoundException
+		noPermission *types.UnauthorizedException
+	)
+	switch {
+	case errors.As(err, &notFound):
+		err = ErrNotFound
+	case errors.As(err, &noPermission):
+		err = ErrUnauthorized
+	}
+	return err
 }
 
 func getAWSConfig(creds model.AWSCredentials) (*aws.Config, error) {
@@ -139,6 +188,28 @@ func (c *client) GetDevice(
 	}
 
 	return device, err
+}
+
+func (c *client) GetDevicePolicy(
+	ctx context.Context,
+	creds model.AWSCredentials,
+	policyName string,
+) (*DevicePolicy, error) {
+	cfg, err := getAWSConfig(creds)
+	if err != nil {
+		return nil, err
+	}
+	svc := iot.NewFromConfig(*cfg)
+	out, err := svc.GetPolicy(ctx, &iot.GetPolicyInput{PolicyName: aws.String(policyName)})
+	if err != nil {
+		return nil, convertError(err)
+	} else if out.PolicyArn == nil || out.PolicyDocument == nil {
+		return nil, ErrMalformedPolicy
+	}
+	return &DevicePolicy{
+		PolicyARN:      *out.PolicyArn,
+		PolicyDocument: *out.PolicyDocument,
+	}, nil
 }
 
 func (c *client) UpsertDevice(ctx context.Context,
