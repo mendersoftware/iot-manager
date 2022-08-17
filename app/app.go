@@ -77,6 +77,8 @@ type App interface {
 	DecommissionDevice(context.Context, string) error
 
 	SyncDevices(context.Context, int, bool) error
+
+	GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error)
 }
 
 // app is an app object
@@ -538,4 +540,8 @@ func (a *app) SetDeviceStateIntegration(
 	default:
 		return nil, ErrUnknownIntegration
 	}
+}
+
+func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error) {
+	return a.store.GetEvents(ctx, filter)
 }
