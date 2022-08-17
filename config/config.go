@@ -79,6 +79,13 @@ const (
 	// SettingDomainWhitelist sets the default to the set of potential IoT
 	// Hub domains included in connection strings.
 	SettingDomainWhitelistDefault = "*.azure-devices.net *.iot.*.amazonaws.com"
+
+	// SettingEventExpirationTimeout sets the expiration timeout for stored
+	// events. After this time events will be removed from the storage.
+	SettingEventExpirationTimeout = "event_exp_timeout"
+	// SettingEventExpirationTimeoutDefault definse the defautl expiration
+	// timeout for events.
+	SettingEventExpirationTimeoutDefault = "604800" //one week
 )
 
 var (
@@ -93,5 +100,6 @@ var (
 		{Key: SettingWorkflowsURL, Value: SettingWorkflowsURLDefault},
 		{Key: SettingDeviceauthURL, Value: SettingDeviceauthURLDefault},
 		{Key: SettingDomainWhitelist, Value: SettingDomainWhitelistDefault},
+		{Key: SettingEventExpirationTimeout, Value: SettingEventExpirationTimeoutDefault},
 	}
 )
