@@ -15,22 +15,28 @@
 package client
 
 import (
+	"bytes"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"syscall"
 	"time"
 
 	inet "github.com/mendersoftware/iot-manager/internal/net"
+	"github.com/mendersoftware/iot-manager/model"
 )
 
 const (
 	ParamAlgorithmType = "X-Men-Algorithm"
-	//	ParamExpire        = "X-Men-Expire"
-	ParamSignedHeaders = "X-Men-Signedheaders"
 	ParamSignature     = "X-Men-Signature"
 
-	AlgorithmTypeHMAC256 = "MEN-HMAC-SHA256"
+	AlgorithmTypeHMAC256 = "MEN-HMAC-SHA256-Payload"
 )
 
 func New() *http.Client {
@@ -72,4 +78,61 @@ func NewTransport() http.RoundTripper {
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
+}
+
+// NewSignedRequest appends header X-Men-Signature with value:
+// HMAC256(Request.Body, secret)
+func NewSignedRequest(
+	ctx context.Context,
+	secret []byte,
+	method string,
+	url string,
+	body []byte,
+) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(ParamAlgorithmType, AlgorithmTypeHMAC256)
+
+	sign := hmac.New(sha256.New, secret)
+	_, _ = sign.Write(body) // Writer cannot error
+
+	req.Header.Set(ParamSignature, hex.EncodeToString(sign.Sum(nil)))
+
+	return req, nil
+}
+
+func NewWebhookRequest(
+	ctx context.Context,
+	creds *model.Credentials,
+	event model.WebhookEvent,
+) (*http.Request, error) {
+	err := creds.Validate()
+	if err != nil {
+		return nil, err
+	} else if creds.Type != model.CredentialTypeHTTP {
+		return nil, errors.New("invalid credentials for webhooks")
+	}
+
+	b, err := json.Marshal(event)
+	if err != nil {
+		return nil, err
+	}
+	var req *http.Request
+	if creds.HTTP.Secret != nil {
+		req, err = NewSignedRequest(
+			ctx,
+			[]byte(*creds.HTTP.Secret),
+			http.MethodPost,
+			creds.HTTP.URL,
+			b,
+		)
+	} else {
+		req, err = http.NewRequestWithContext(
+			ctx, http.MethodPost,
+			creds.HTTP.URL, bytes.NewReader(b),
+		)
+	}
+	return req, err
 }
