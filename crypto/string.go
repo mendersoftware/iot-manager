@@ -27,11 +27,18 @@ type stringBSON struct {
 	Data      []byte `bson:"data"`
 }
 
-const algorithmAES_256_CFB_HMAC_SHA512 = "AES_256_CFB_HMAC_SHA512"
+const (
+	algorithmAES_256_CFB_HMAC_SHA512 = "AES_256_CFB_HMAC_SHA512"
+	omitted                          = "<omitted>"
+)
 
 var (
 	ErrUnknownAlgorithm = errors.New("unknown algorithm")
 )
+
+func (c *String) MarshalText() ([]byte, error) {
+	return []byte(omitted), nil
+}
 
 func (s *String) MarshalBSON() ([]byte, error) {
 	out, err := AESEncrypt(string(*s))
