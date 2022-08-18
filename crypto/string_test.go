@@ -71,3 +71,11 @@ func TestUnmarshalBSONUnknownAlgorithm(t *testing.T) {
 	assert.Error(t, err)
 	assert.EqualError(t, err, ErrUnknownAlgorithm.Error())
 }
+
+func TestMarshalText(t *testing.T) {
+	cryptoString := String("value")
+
+	s, _ := cryptoString.MarshalText()
+	assert.Equal(t, []byte(omitted), s)
+	assert.NotContains(t, s, "value")
+}
