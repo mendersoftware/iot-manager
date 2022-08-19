@@ -17,6 +17,7 @@ package model
 import (
 	"testing"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 
@@ -54,7 +55,15 @@ func TestIntegrationValidate(t *testing.T) {
 			integration: &Integration{
 				Provider: ProviderIoTHub,
 			},
-			err: errors.New("credentials: (type: cannot be blank.)."),
+			//err: errors.New("credentials: (type: cannot be blank.)."),
+			err: validation.Errors{
+				"credentials": validation.Errors{
+					"type": validation.ErrRequired,
+				},
+				"provider": errors.New(
+					"'iot-hub' incompatible with credential type ''",
+				),
+			},
 		},
 		"ok, AWS IoT Core": {
 			integration: &Integration{

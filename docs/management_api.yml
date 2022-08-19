@@ -364,8 +364,13 @@ components:
           enum:
             - "iot-hub"
             - "iot-core"
+            - "webhook"
         credentials:
           $ref: '#/components/schemas/Credentials'
+        description:
+          type: string
+          description: |
+            A short human readable description (max 1024 characters).
       required:
         - provider
         - credentials
@@ -380,6 +385,7 @@ components:
               enum:
                 - aws
                 - sas
+                - http
           required:
             - type
         - oneOf:
@@ -391,6 +397,7 @@ components:
         mapping:
           aws: '#/components/schemas/AWSCredentials'
           sas: '#/components/schemas/AzureSharedAccessSecret'
+          http: '#/components/schemas/HTTPSecret'
 
     AWSCredentials:
       type: object
@@ -433,6 +440,18 @@ components:
           description: |
             State reported by the device, this cannot be changed from the cloud.
           additionalProperties: true
+
+    HTTPSecret:
+      type: object
+      description: |
+        FIXME
+      properties:
+        secret:
+          type: string
+          description: FIXME
+        url:
+          type: string
+          description: FIXME
 
     Error:
       type: object

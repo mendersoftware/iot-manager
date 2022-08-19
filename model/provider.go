@@ -22,9 +22,10 @@ const (
 	ProviderEmpty   Provider = ""
 	ProviderIoTHub  Provider = "iot-hub"
 	ProviderIoTCore Provider = "iot-core"
+	ProviderWebhook Provider = "webhook"
 )
 
-var validateProvider = validation.In(ProviderIoTHub, ProviderIoTCore)
+var validateProvider = validation.In(ProviderIoTHub, ProviderIoTCore, ProviderWebhook)
 
 func (p Provider) Validate() error {
 	return validateProvider.Validate(p)

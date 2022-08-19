@@ -165,22 +165,23 @@ func (a *app) RemoveIntegration(
 	ctx context.Context,
 	integrationID uuid.UUID,
 ) error {
-	// check if there are any devices with given integration enabled
-	devicesExist, err := a.store.DoDevicesExistByIntegrationID(ctx, integrationID)
-	if err != nil {
-		return err
-	}
-	if devicesExist {
-		return ErrCannotRemoveIntegration
-	}
-	err = a.store.RemoveIntegration(ctx, integrationID)
-	if err != nil {
-		switch cause := errors.Cause(err); cause {
-		case store.ErrObjectNotFound:
-			return ErrIntegrationNotFound
-		default:
-			return err
+	itg, err := a.store.GetIntegrationById(ctx, integrationID)
+	if err == nil {
+		if itg.Provider != model.ProviderWebhook {
+			// check if there are any devices with given integration enabled
+			devicesExist, err := a.store.
+				DoDevicesExistByIntegrationID(ctx, integrationID)
+			if err != nil {
+				return err
+			}
+			if devicesExist {
+				return ErrCannotRemoveIntegration
+			}
 		}
+		err = a.store.RemoveIntegration(ctx, integrationID)
+	}
+	if errors.Is(err, store.ErrObjectNotFound) {
+		return ErrIntegrationNotFound
 	}
 	return err
 }
