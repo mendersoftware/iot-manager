@@ -222,7 +222,7 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 		case model.ProviderIoTCore:
 			err = a.setDeviceStatusIoTCore(ctx, deviceID, status, integration)
 			if err != nil {
-				return errors.Wrap(err, "failed to update IoT Hub device")
+				return errors.Wrap(err, "failed to update IoT Core device")
 			}
 		default:
 			continue
