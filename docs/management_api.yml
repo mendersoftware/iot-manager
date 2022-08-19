@@ -46,7 +46,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Integration'
+                type: array
+                items:
+                    $ref: '#/components/schemas/Integration'
         400:
           $ref: '#/components/responses/InvalidRequestError'
         401:
