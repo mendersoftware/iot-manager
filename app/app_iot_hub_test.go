@@ -79,6 +79,16 @@ func TestProvisionDeviceIoTHub(t *testing.T) {
 						ID:             self.DeviceID,
 						IntegrationIDs: []uuid.UUID{integrationID},
 					}, nil)
+				store.On(
+					"SaveEvent",
+					contextMatcher,
+					model.Event{
+						Type: model.EventTypeDeviceProvisioned,
+						Data: model.EventDeviceProvisionedData{
+							DeviceID: self.DeviceID,
+						},
+					},
+				).Return(nil)
 				return store
 			},
 			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
@@ -281,6 +291,16 @@ func TestDecommissionDeviceIoTHub(t *testing.T) {
 					}, nil)
 				store.On("DeleteDevice", contextMatcher, self.DeviceID).
 					Return(nil)
+				store.On(
+					"SaveEvent",
+					contextMatcher,
+					model.Event{
+						Type: model.EventTypeDeviceDecommissioned,
+						Data: model.EventDeviceDecommissionedData{
+							DeviceID: self.DeviceID,
+						},
+					},
+				).Return(nil)
 				return store
 			},
 		},
@@ -453,6 +473,17 @@ func TestSetDeviceStatusIoTHub(t *testing.T) {
 							},
 						},
 					}, nil)
+				store.On(
+					"SaveEvent",
+					contextMatcher,
+					model.Event{
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: model.EventDeviceStatusChangedData{
+							DeviceID:  self.DeviceID,
+							NewStatus: self.Status,
+						},
+					},
+				).Return(nil)
 				return store
 			},
 			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
@@ -495,6 +526,17 @@ func TestSetDeviceStatusIoTHub(t *testing.T) {
 							},
 						},
 					}, nil)
+				store.On(
+					"SaveEvent",
+					contextMatcher,
+					model.Event{
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: model.EventDeviceStatusChangedData{
+							DeviceID:  self.DeviceID,
+							NewStatus: self.Status,
+						},
+					},
+				).Return(nil)
 				return store
 			},
 			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
