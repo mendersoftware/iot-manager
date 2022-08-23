@@ -381,10 +381,18 @@ func TestRemoveIntegration(t *testing.T) {
 
 			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 				ds := new(storeMocks.DataStore)
+				ds.On("GetIntegrationById", contextMatcher, integrationID).
+					Return(&model.Integration{
+						ID:       uuid.Nil,
+						Provider: model.ProviderIoTHub,
+					}, nil).
+					Once()
 				ds.On("DoDevicesExistByIntegrationID", contextMatcher, integrationID).
-					Return(false, nil)
+					Return(false, nil).
+					Once()
 				ds.On("RemoveIntegration", contextMatcher, integrationID).
-					Return(nil)
+					Return(nil).
+					Once()
 				return ds
 			},
 		},
@@ -392,6 +400,12 @@ func TestRemoveIntegration(t *testing.T) {
 			Name: "error: get devices by integration ID issue",
 			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 				ds := new(storeMocks.DataStore)
+				ds.On("GetIntegrationById", contextMatcher, integrationID).
+					Return(&model.Integration{
+						ID:       uuid.Nil,
+						Provider: model.ProviderIoTHub,
+					}, nil).
+					Once()
 				ds.On("DoDevicesExistByIntegrationID", contextMatcher, integrationID).
 					Return(false, errors.New("some error: error retrieving integration collection results"))
 				return ds
@@ -402,6 +416,12 @@ func TestRemoveIntegration(t *testing.T) {
 			Name: "error: devices with given integration ID exist",
 			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 				ds := new(storeMocks.DataStore)
+				ds.On("GetIntegrationById", contextMatcher, integrationID).
+					Return(&model.Integration{
+						ID:       uuid.Nil,
+						Provider: model.ProviderIoTHub,
+					}, nil).
+					Once()
 				ds.On("DoDevicesExistByIntegrationID", contextMatcher, integrationID).
 					Return(true, nil)
 				return ds
@@ -413,10 +433,15 @@ func TestRemoveIntegration(t *testing.T) {
 
 			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 				ds := new(storeMocks.DataStore)
+				ds.On("GetIntegrationById", contextMatcher, integrationID).
+					Return(nil, store.ErrObjectNotFound).
+					Once()
 				ds.On("DoDevicesExistByIntegrationID", contextMatcher, integrationID).
-					Return(false, nil)
+					Return(false, nil).
+					Once()
 				ds.On("RemoveIntegration", contextMatcher, integrationID).
-					Return(store.ErrObjectNotFound)
+					Return(store.ErrObjectNotFound).
+					Once()
 				return ds
 			},
 			Error: ErrIntegrationNotFound,
@@ -426,6 +451,12 @@ func TestRemoveIntegration(t *testing.T) {
 
 			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 				ds := new(storeMocks.DataStore)
+				ds.On("GetIntegrationById", contextMatcher, integrationID).
+					Return(&model.Integration{
+						ID:       uuid.Nil,
+						Provider: model.ProviderIoTHub,
+					}, nil).
+					Once()
 				ds.On("DoDevicesExistByIntegrationID", contextMatcher, integrationID).
 					Return(false, nil)
 				ds.On("RemoveIntegration", contextMatcher, integrationID).
@@ -488,7 +519,7 @@ func TestProvisionDevice(t *testing.T) {
 			defer ds.AssertExpectations(t)
 
 			app := New(ds, nil, nil)
-			err := app.ProvisionDevice(ctx, tc.DeviceID)
+			err := app.ProvisionDevice(ctx, model.DeviceEvent{ID: tc.DeviceID})
 
 			if tc.Error != nil {
 				if assert.Error(t, err) {

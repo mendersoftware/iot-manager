@@ -16,6 +16,8 @@ package app
 
 import (
 	"context"
+	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -23,6 +25,7 @@ import (
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/log"
 
+	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/devauth"
 	"github.com/mendersoftware/iot-manager/client/iotcore"
 	"github.com/mendersoftware/iot-manager/client/iothub"
@@ -73,7 +76,7 @@ type App interface {
 	SetDeviceStateIoTHub(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
 	GetDeviceStateIoTCore(context.Context, string, *model.Integration) (*model.DeviceState, error)
 	SetDeviceStateIoTCore(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
-	ProvisionDevice(context.Context, string) error
+	ProvisionDevice(context.Context, model.DeviceEvent) error
 	DecommissionDevice(context.Context, string) error
 
 	SyncDevices(context.Context, int, bool) error
@@ -88,14 +91,21 @@ type app struct {
 	iotcoreClient iotcore.Client
 	wf            workflows.Client
 	devauth       devauth.Client
+	httpClient    *http.Client
 }
 
 // NewApp initialize a new iot-manager App
 func New(ds store.DataStore, wf workflows.Client, da devauth.Client) App {
+	c := client.New()
+	hubClient := iothub.NewClient(
+		iothub.NewOptions().SetClient(c),
+	)
 	return &app{
-		store:   ds,
-		wf:      wf,
-		devauth: da,
+		store:        ds,
+		wf:           wf,
+		devauth:      da,
+		iothubClient: hubClient,
+		httpClient:   c,
 	}
 }
 
@@ -211,76 +221,158 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve device integrations")
 	}
+	var errStack model.ErrorStack
+	event := model.Event{
+		WebhookEvent: model.WebhookEvent{
+			ID:   uuid.New(),
+			Type: model.EventTypeDeviceStatusChanged,
+			Data: model.DeviceEvent{
+				ID:     deviceID,
+				Status: status,
+			},
+			EventTS: time.Now(),
+		},
+		DeliveryStatus: make([]model.DeliveryStatus, 0, len(integrations)),
+	}
 
 	for _, integration := range integrations {
+		deliver := model.DeliveryStatus{
+			IntegrationID: integration.ID,
+			Success:       true,
+		}
 		switch integration.Provider {
 		case model.ProviderIoTHub:
 			err = a.setDeviceStatusIoTHub(ctx, deviceID, status, integration)
-			if err != nil {
-				return errors.Wrap(err, "failed to update IoT Hub device")
-			}
 		case model.ProviderIoTCore:
 			err = a.setDeviceStatusIoTCore(ctx, deviceID, status, integration)
+
+		case model.ProviderWebhook:
+			var (
+				req *http.Request
+				rsp *http.Response
+			)
+			req, err = client.NewWebhookRequest(ctx,
+				&integration.Credentials,
+				event.WebhookEvent)
 			if err != nil {
-				return errors.Wrap(err, "failed to update IoT Core device")
+				break // switch
 			}
+			rsp, err = a.httpClient.Do(req)
+			if err != nil {
+				break // switch
+			}
+			deliver.StatusCode = &rsp.StatusCode
+			if rsp.StatusCode >= 300 {
+				err = client.NewHTTPError(rsp.StatusCode)
+			}
+			_ = rsp.Body.Close()
+
 		default:
 			continue
 		}
+		if err != nil {
+			var httpError client.HTTPError
+			if errors.As(err, &httpError) {
+				errCode := httpError.Code()
+				deliver.StatusCode = &errCode
+			}
+			deliver.Success = false
+			deliver.Error = err.Error()
+			_ = errStack.Push(err)
+		}
+		event.DeliveryStatus = append(event.DeliveryStatus, deliver)
 	}
-	err = a.store.SaveEvent(
-		ctx,
-		model.Event{
-			WebhookEvent: model.WebhookEvent{
-				Type: model.EventTypeDeviceStatusChanged,
-				Data: model.DeviceEvent{
-					ID:     deviceID,
-					Status: status,
-				},
-			},
-		})
+	err = a.store.SaveEvent(ctx, event)
+	if errStack != nil {
+		if err != nil {
+			err = errors.WithMessage(err, errStack.Error())
+		} else {
+			err = errStack
+		}
+	}
 	return err
 }
 
 func (a *app) ProvisionDevice(
 	ctx context.Context,
-	deviceID string,
+	device model.DeviceEvent,
 ) error {
 	integrations, err := a.GetIntegrations(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve integrations")
 	}
+	var errStack model.ErrorStack
+	event := model.Event{
+		WebhookEvent: model.WebhookEvent{
+			ID:      uuid.New(),
+			Type:    model.EventTypeDeviceProvisioned,
+			Data:    device,
+			EventTS: time.Now(),
+		},
+		DeliveryStatus: make([]model.DeliveryStatus, 0, len(integrations)),
+	}
 	integrationIDs := make([]uuid.UUID, 0, len(integrations))
 	for _, integration := range integrations {
+		deliver := model.DeliveryStatus{
+			IntegrationID: integration.ID,
+			Success:       true,
+		}
 		switch integration.Provider {
 		case model.ProviderIoTHub:
-			err = a.provisionIoTHubDevice(ctx, deviceID, integration)
+			err = a.provisionIoTHubDevice(ctx, device.ID, integration)
 		case model.ProviderIoTCore:
-			err = a.provisionIoTCoreDevice(ctx, deviceID, integration, &iotcore.Device{
+			err = a.provisionIoTCoreDevice(ctx, device.ID, integration, &iotcore.Device{
 				Status: iotcore.StatusEnabled,
 			})
+		case model.ProviderWebhook:
+			var (
+				req *http.Request
+				rsp *http.Response
+			)
+			req, err = client.NewWebhookRequest(ctx,
+				&integration.Credentials,
+				event.WebhookEvent)
+			if err != nil {
+				break // switch
+			}
+			rsp, err = a.httpClient.Do(req)
+			if err != nil {
+				break // switch
+			}
+			deliver.StatusCode = &rsp.StatusCode
+			if rsp.StatusCode >= 300 {
+				err = client.NewHTTPError(rsp.StatusCode)
+			}
+			_ = rsp.Body.Close()
+
 		default:
 			continue
 		}
 		if err != nil {
-			return err
+			var httpError client.HTTPError
+			if errors.As(err, &httpError) {
+				errCode := httpError.Code()
+				deliver.StatusCode = &errCode
+			}
+			deliver.Success = false
+			deliver.Error = err.Error()
+			_ = errStack.Push(err)
 		}
+		event.DeliveryStatus = append(event.DeliveryStatus, deliver)
 		integrationIDs = append(integrationIDs, integration.ID)
 	}
-	_, err = a.store.UpsertDeviceIntegrations(ctx, deviceID, integrationIDs)
-	if err != nil {
-		return err
+	_, err = a.store.UpsertDeviceIntegrations(ctx, device.ID, integrationIDs)
+	errSave := a.store.SaveEvent(ctx, event)
+	if errSave != nil {
+		_ = errStack.Push(errSave)
 	}
-	err = a.store.SaveEvent(
-		ctx,
-		model.Event{
-			WebhookEvent: model.WebhookEvent{
-				Type: model.EventTypeDeviceProvisioned,
-				Data: model.DeviceEvent{
-					ID: deviceID,
-				},
-			},
-		})
+	if errStack != nil {
+		if err != nil {
+			err = errors.Wrap(err, errStack.Error())
+		} else {
+			err = errStack
+		}
+	}
 	return err
 }
 
@@ -448,40 +540,81 @@ func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 	if err != nil {
 		return err
 	}
+	var errStack model.ErrorStack
+	event := model.Event{
+		WebhookEvent: model.WebhookEvent{
+			ID:   uuid.New(),
+			Type: model.EventTypeDeviceDecommissioned,
+			Data: model.DeviceEvent{
+				ID: deviceID,
+			},
+			EventTS: time.Now(),
+		},
+		DeliveryStatus: make([]model.DeliveryStatus, 0, len(integrations)),
+	}
 
 	for _, integration := range integrations {
+		var err error
+		deliver := model.DeliveryStatus{
+			IntegrationID: integration.ID,
+			Success:       true,
+		}
 		switch integration.Provider {
 		case model.ProviderIoTHub:
-			err := a.decommissionIoTHubDevice(ctx, deviceID, integration)
-			if err != nil {
-				return err
-			}
+			err = a.decommissionIoTHubDevice(ctx, deviceID, integration)
 		case model.ProviderIoTCore:
-			err := a.decommissionIoTCoreDevice(ctx, deviceID, integration)
+			err = a.decommissionIoTCoreDevice(ctx, deviceID, integration)
+		case model.ProviderWebhook:
+			var (
+				req *http.Request
+				rsp *http.Response
+			)
+			req, err = client.NewWebhookRequest(ctx,
+				&integration.Credentials,
+				event.WebhookEvent)
 			if err != nil {
-				return err
+				break // switch
 			}
+			rsp, err = a.httpClient.Do(req)
+			if err != nil {
+				break // switch
+			}
+			deliver.StatusCode = &rsp.StatusCode
+			if rsp.StatusCode >= 300 {
+				err = client.NewHTTPError(rsp.StatusCode)
+			}
+			_ = rsp.Body.Close()
+
 		default:
 			continue
 		}
+		if err != nil {
+			var httpError client.HTTPError
+			if errors.As(err, &httpError) {
+				errCode := httpError.Code()
+				deliver.StatusCode = &errCode
+			}
+			deliver.Success = false
+			deliver.Error = err.Error()
+			_ = errStack.Push(err)
+		}
+		event.DeliveryStatus = append(event.DeliveryStatus, deliver)
 	}
 	err = a.store.DeleteDevice(ctx, deviceID)
 	if err == store.ErrObjectNotFound {
-		return ErrDeviceNotFound
+		err = ErrDeviceNotFound
 	}
-	if err != nil {
-		return err
+	errSave := a.store.SaveEvent(ctx, event)
+	if errSave != nil {
+		_ = errStack.Push(errSave)
 	}
-	err = a.store.SaveEvent(
-		ctx,
-		model.Event{
-			WebhookEvent: model.WebhookEvent{
-				Type: model.EventTypeDeviceDecommissioned,
-				Data: model.DeviceEvent{
-					ID: deviceID,
-				},
-			},
-		})
+	if errStack != nil {
+		if err != nil {
+			err = errors.Wrap(err, errStack.Error())
+		} else {
+			err = errStack
+		}
+	}
 	return err
 }
 

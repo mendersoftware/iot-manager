@@ -1038,25 +1038,36 @@ func TestGetEvents(t *testing.T) {
 			App: func(t *testing.T) *mapp.App {
 				app := new(mapp.App)
 				app.On("GetEvents", contextMatcher, model.EventsFilter{Limit: 20}).
-					Return([]model.Event{
-						{
-							ID:             uuid.Nil,
-							Type:           model.EventTypeDeviceProvisioned,
-							Data:           model.EventDeviceProvisionedData{DeviceID: uuid.Nil.String()},
-							DeliveryStatus: model.DeliveryStatusNotDelivered,
-							EventTS:        time.Time{},
+					Return([]model.Event{{
+						WebhookEvent: model.WebhookEvent{
+							ID:      uuid.Nil,
+							Type:    model.EventTypeDeviceProvisioned,
+							Data:    model.DeviceEvent{ID: uuid.Nil.String()},
+							EventTS: time.Time{},
 						},
-					}, nil)
+						DeliveryStatus: []model.DeliveryStatus{{
+							IntegrationID: uuid.Nil,
+							Success:       true,
+							StatusCode: func() *int {
+								i := 200
+								return &i
+							}(),
+						}},
+					}}, nil)
 				return app
 			},
 
 			StatusCode: http.StatusOK,
 			Response: []map[string]interface{}{{
-				"id":              uuid.Nil,
-				"data":            map[string]interface{}{"device_id": "00000000-0000-0000-0000-000000000000"},
-				"delivery_status": model.DeliveryStatusNotDelivered,
-				"time":            "0001-01-01T00:00:00Z",
-				"type":            "device-provisioned",
+				"id":   uuid.Nil,
+				"data": map[string]interface{}{"id": "00000000-0000-0000-0000-000000000000"},
+				"delivery_statuses": []map[string]interface{}{{
+					"integration_id": uuid.Nil,
+					"success":        true,
+					"status_code":    200,
+				}},
+				"time": "0001-01-01T00:00:00Z",
+				"type": "device-provisioned",
 			}},
 		},
 		{
@@ -1075,25 +1086,36 @@ func TestGetEvents(t *testing.T) {
 			App: func(t *testing.T) *mapp.App {
 				app := new(mapp.App)
 				app.On("GetEvents", contextMatcher, model.EventsFilter{Skip: 1000, Limit: 500}).
-					Return([]model.Event{
-						{
-							ID:             uuid.Nil,
-							Type:           model.EventTypeDeviceProvisioned,
-							Data:           model.EventDeviceProvisionedData{DeviceID: uuid.Nil.String()},
-							DeliveryStatus: model.DeliveryStatusNotDelivered,
-							EventTS:        time.Time{},
+					Return([]model.Event{{
+						WebhookEvent: model.WebhookEvent{
+							ID:      uuid.Nil,
+							Type:    model.EventTypeDeviceProvisioned,
+							Data:    model.DeviceEvent{ID: uuid.Nil.String()},
+							EventTS: time.Time{},
 						},
-					}, nil)
+						DeliveryStatus: []model.DeliveryStatus{{
+							IntegrationID: uuid.Nil,
+							Success:       true,
+							StatusCode: func() *int {
+								i := 200
+								return &i
+							}(),
+						}},
+					}}, nil)
 				return app
 			},
 
 			StatusCode: http.StatusOK,
 			Response: []map[string]interface{}{{
-				"id":              uuid.Nil,
-				"data":            map[string]interface{}{"device_id": "00000000-0000-0000-0000-000000000000"},
-				"delivery_status": model.DeliveryStatusNotDelivered,
-				"time":            "0001-01-01T00:00:00Z",
-				"type":            "device-provisioned",
+				"id":   uuid.Nil,
+				"data": map[string]interface{}{"id": "00000000-0000-0000-0000-000000000000"},
+				"delivery_statuses": []map[string]interface{}{{
+					"integration_id": uuid.Nil,
+					"success":        true,
+					"status_code":    200,
+				}},
+				"time": "0001-01-01T00:00:00Z",
+				"type": "device-provisioned",
 			}},
 		},
 		{
