@@ -18,12 +18,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/mendersoftware/iot-manager/client"
+	coreMocks "github.com/mendersoftware/iot-manager/client/iotcore/mocks"
+	hubMocks "github.com/mendersoftware/iot-manager/client/iothub/mocks"
 	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
 	"github.com/mendersoftware/iot-manager/store"
@@ -532,30 +539,388 @@ func TestProvisionDevice(t *testing.T) {
 	}
 }
 
+type roundTripperFunc func(req *http.Request) (*http.Response, error)
+
+func (tRT roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return tRT(req)
+}
+
 func TestDecommissionDevice(t *testing.T) {
 	t.Parallel()
+	testIntegrations := map[model.Provider]model.Integration{
+		model.ProviderWebhook: {
+			ID:       uuid.MustParse("00000000-0000-0000-0000-000000000000"),
+			Provider: model.ProviderWebhook,
+			Credentials: model.Credentials{
+				Type: model.CredentialTypeHTTP,
+				HTTP: &model.HTTPCredentials{
+					URL: "http://localhost",
+					Secret: func() *model.HexSecret {
+						sec := model.HexSecret([]byte{'1', '2', '3'})
+						return &sec
+					}(),
+				},
+			},
+		},
+		model.ProviderIoTHub: {
+			ID:       uuid.MustParse("00000000-0000-0000-0000-000000000001"),
+			Provider: model.ProviderIoTHub,
+			Credentials: model.Credentials{
+				Type:             model.CredentialTypeSAS,
+				ConnectionString: validConnString,
+			},
+		},
+		model.ProviderIoTCore: {
+			ID:       uuid.MustParse("00000000-0000-0000-0000-000000000002"),
+			Provider: model.ProviderIoTCore,
+			Credentials: model.Credentials{
+				Type: model.CredentialTypeAWS,
+				AWSCredentials: &model.AWSCredentials{
+					AccessKeyID: func() *string {
+						s := "1234567890"
+						return &s
+					}(),
+					SecretAccessKey: func() *crypto.String {
+						var s crypto.String = "1234567890"
+						return &s
+					}(),
+					Region: func() *string {
+						s := "eu-north-south-1"
+						return &s
+					}(),
+					DevicePolicyName: func() *string {
+						s := "gibAccess"
+						return &s
+					}(),
+				},
+			},
+		},
+	}
+
 	type testCase struct {
 		Name     string
 		DeviceID string
 
-		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Store        func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Core         func(t *testing.T, self *testCase) *coreMocks.Client
+		Hub          func(t *testing.T, self *testCase) *hubMocks.Client
+		RoundTripper func(t *testing.T, req *http.Request) (*http.Response, error)
 
 		Error error
 	}
-	testCases := []testCase{
-		{
-			Name:     "error: device not found in db in GetDeviceIntegrations",
-			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+	testCases := []testCase{{
+		Name:     "ok/all the integrations",
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				mockedStore := new(storeMocks.DataStore)
-				mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(nil, store.ErrObjectNotFound)
-				return mockedStore
-			},
-			Error: ErrDeviceNotFound,
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+				Return(&model.Device{
+					ID: self.DeviceID,
+					IntegrationIDs: []uuid.UUID{
+						testIntegrations[model.ProviderWebhook].ID,
+						testIntegrations[model.ProviderIoTHub].ID,
+						testIntegrations[model.ProviderIoTCore].ID,
+					},
+				}, nil).
+				Once().
+				On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{
+						IDs: []uuid.UUID{
+							testIntegrations[model.ProviderWebhook].ID,
+							testIntegrations[model.ProviderIoTHub].ID,
+							testIntegrations[model.ProviderIoTCore].ID,
+						},
+					},
+				).
+				Return([]model.Integration{
+					testIntegrations[model.ProviderWebhook],
+					testIntegrations[model.ProviderIoTHub],
+					testIntegrations[model.ProviderIoTCore],
+					// Add an empty (ignored) provider
+					{Provider: model.ProviderEmpty},
+				}, nil).
+				Once().
+				On("DeleteDevice", contextMatcher, self.DeviceID).
+				Return(nil).
+				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
+				Run(func(args mock.Arguments) {
+					event := args.Get(1).(model.Event)
+					assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+					if assert.IsType(t, model.DeviceEvent{}, event.Data) {
+						assert.Equal(t,
+							self.DeviceID,
+							event.Data.(model.DeviceEvent).ID)
+					}
+					assert.Len(t, event.DeliveryStatus, 3)
+					for _, stat := range event.DeliveryStatus {
+						assert.True(t, stat.Success)
+					}
+				}).
+				Return(nil).
+				Once()
+			return mockedStore
 		},
-	}
+		Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+			hub := new(hubMocks.Client)
+			hub.On("DeleteDevice",
+				contextMatcher,
+				testIntegrations[model.ProviderIoTHub].
+					Credentials.ConnectionString,
+				self.DeviceID).
+				Return(nil).
+				Once()
+			return hub
+		},
+		Core: func(t *testing.T, self *testCase) *coreMocks.Client {
+			core := new(coreMocks.Client)
+			core.On("DeleteDevice",
+				contextMatcher,
+				*testIntegrations[model.ProviderIoTCore].
+					Credentials.AWSCredentials,
+				self.DeviceID).
+				Return(nil).
+				Once()
+			return core
+		},
+		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
+			b, _ := io.ReadAll(req.Body)
+			var event model.WebhookEvent
+			err := json.Unmarshal(b, &event)
+			assert.NoError(t, err)
+			assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+			w := httptest.NewRecorder()
+			w.WriteHeader(http.StatusOK)
+			return w.Result(), nil
+		},
+	}, {
+		Name:     "error/webhook returns error code",
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+				Return(&model.Device{
+					ID: self.DeviceID,
+					IntegrationIDs: []uuid.UUID{
+						testIntegrations[model.ProviderWebhook].ID,
+					},
+				}, nil).
+				Once().
+				On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{
+						IDs: []uuid.UUID{
+							testIntegrations[model.ProviderWebhook].ID,
+						},
+					},
+				).
+				Return([]model.Integration{
+					testIntegrations[model.ProviderWebhook],
+				}, nil).
+				Once().
+				On("DeleteDevice", contextMatcher, self.DeviceID).
+				Return(nil).
+				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
+				Run(func(args mock.Arguments) {
+					event := args.Get(1).(model.Event)
+					assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+					if assert.IsType(t, model.DeviceEvent{}, event.Data) {
+						assert.Equal(t,
+							self.DeviceID,
+							event.Data.(model.DeviceEvent).ID)
+					}
+					assert.Len(t, event.DeliveryStatus, 1)
+					for _, stat := range event.DeliveryStatus {
+						assert.False(t, stat.Success)
+					}
+				}).
+				Return(nil).
+				Once()
+			return mockedStore
+		},
+		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
+			b, _ := io.ReadAll(req.Body)
+			var event model.WebhookEvent
+			err := json.Unmarshal(b, &event)
+			assert.NoError(t, err)
+			assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+			assert.Contains(t, req.Header, client.ParamSignature)
+			assert.Contains(t, req.Header, client.ParamAlgorithmType)
+			w := httptest.NewRecorder()
+			w.WriteHeader(http.StatusInternalServerError)
+			return w.Result(), nil
+		},
+		Error: client.NewHTTPError(http.StatusInternalServerError),
+	}, {
+		Name:     "error/webhook fails to send request",
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+				Return(&model.Device{
+					ID: self.DeviceID,
+					IntegrationIDs: []uuid.UUID{
+						testIntegrations[model.ProviderWebhook].ID,
+					},
+				}, nil).
+				Once().
+				On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{
+						IDs: []uuid.UUID{
+							testIntegrations[model.ProviderWebhook].ID,
+						},
+					},
+				).
+				Return([]model.Integration{
+					testIntegrations[model.ProviderWebhook],
+				}, nil).
+				Once().
+				On("DeleteDevice", contextMatcher, self.DeviceID).
+				Return(nil).
+				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
+				Run(func(args mock.Arguments) {
+					event := args.Get(1).(model.Event)
+					assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+					if assert.IsType(t, model.DeviceEvent{}, event.Data) {
+						assert.Equal(t,
+							self.DeviceID,
+							event.Data.(model.DeviceEvent).ID)
+					}
+					assert.Len(t, event.DeliveryStatus, 1)
+					for _, stat := range event.DeliveryStatus {
+						assert.False(t, stat.Success)
+					}
+				}).
+				Return(nil).
+				Once()
+
+			return mockedStore
+		},
+		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
+			b, _ := io.ReadAll(req.Body)
+			var event model.WebhookEvent
+			err := json.Unmarshal(b, &event)
+			assert.NoError(t, err)
+			assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+			assert.Contains(t, req.Header, client.ParamSignature)
+			assert.Contains(t, req.Header, client.ParamAlgorithmType)
+			return nil, errors.New("internal error")
+		},
+		Error: errors.New("internal error"),
+	}, {
+		Name:     "error/webhook fails to create request",
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+				Return(&model.Device{
+					ID: self.DeviceID,
+					IntegrationIDs: []uuid.UUID{
+						testIntegrations[model.ProviderWebhook].ID,
+					},
+				}, nil).
+				Once().
+				On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{
+						IDs: []uuid.UUID{
+							testIntegrations[model.ProviderWebhook].ID,
+						},
+					},
+				).
+				Return([]model.Integration{{
+					// Fails to validate
+					Provider: model.ProviderWebhook,
+				}}, nil).
+				Once().
+				On("DeleteDevice", contextMatcher, self.DeviceID).
+				Return(nil).
+				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
+				Run(func(args mock.Arguments) {
+					event := args.Get(1).(model.Event)
+					assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+					if assert.IsType(t, model.DeviceEvent{}, event.Data) {
+						assert.Equal(t,
+							self.DeviceID,
+							event.Data.(model.DeviceEvent).ID)
+					}
+					assert.Len(t, event.DeliveryStatus, 1)
+					for _, stat := range event.DeliveryStatus {
+						assert.False(t, stat.Success)
+					}
+				}).
+				Return(nil).
+				Once()
+			return mockedStore
+		},
+		Error: validation.Errors{"type": validation.ErrRequired},
+	}, {
+		Name:     "error/device not found (DeleteDevice) with error stack",
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+				Return(&model.Device{
+					ID: self.DeviceID,
+					IntegrationIDs: []uuid.UUID{
+						testIntegrations[model.ProviderWebhook].ID,
+					},
+				}, nil).
+				Once().
+				On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{
+						IDs: []uuid.UUID{
+							testIntegrations[model.ProviderWebhook].ID,
+						},
+					},
+				).
+				Return([]model.Integration{
+					testIntegrations[model.ProviderWebhook],
+				}, nil).
+				Once().
+				On("DeleteDevice", contextMatcher, self.DeviceID).
+				Return(store.ErrObjectNotFound).
+				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
+				Run(func(args mock.Arguments) {
+					event := args.Get(1).(model.Event)
+					assert.Equal(t, model.EventTypeDeviceDecommissioned, event.Type)
+					if assert.IsType(t, model.DeviceEvent{}, event.Data) {
+						assert.Equal(t,
+							self.DeviceID,
+							event.Data.(model.DeviceEvent).ID)
+					}
+					assert.Len(t, event.DeliveryStatus, 1)
+					for _, stat := range event.DeliveryStatus {
+						assert.False(t, stat.Success)
+					}
+				}).
+				Return(nil).
+				Once()
+			return mockedStore
+		},
+		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
+			return nil, errors.New("internal error")
+		},
+		Error: ErrDeviceNotFound,
+	}, {
+		Name:     "error: device not found in db in GetDeviceIntegrations",
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+				Return(nil, store.ErrObjectNotFound)
+			return mockedStore
+		},
+		Error: ErrDeviceNotFound,
+	}}
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
@@ -563,9 +928,32 @@ func TestDecommissionDevice(t *testing.T) {
 			ctx := context.Background()
 			ds := tc.Store(t, &tc)
 			defer ds.AssertExpectations(t)
+			core := new(coreMocks.Client)
+			if tc.Core != nil {
+				core = tc.Core(t, &tc)
+			}
+			defer core.AssertExpectations(t)
+			hub := new(hubMocks.Client)
+			if tc.Hub != nil {
+				hub = tc.Hub(t, &tc)
+			}
+			defer hub.AssertExpectations(t)
+			client := &http.Client{
+				Transport: roundTripperFunc(
+					func(req *http.Request) (*http.Response, error) {
+						return tc.RoundTripper(t, req)
+					},
+				),
+			}
 
-			app := New(ds, nil, nil)
-			err := app.DecommissionDevice(ctx, tc.DeviceID)
+			a := &app{
+				store:         ds,
+				iothubClient:  hub,
+				iotcoreClient: core,
+				httpClient:    client,
+			}
+
+			err := a.DecommissionDevice(ctx, tc.DeviceID)
 
 			if tc.Error != nil {
 				if assert.Error(t, err) {
