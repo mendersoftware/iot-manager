@@ -231,10 +231,12 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 	err = a.store.SaveEvent(
 		ctx,
 		model.Event{
-			Type: model.EventTypeDeviceStatusChanged,
-			Data: model.EventDeviceStatusChangedData{
-				DeviceID:  deviceID,
-				NewStatus: status,
+			WebhookEvent: model.WebhookEvent{
+				Type: model.EventTypeDeviceStatusChanged,
+				Data: model.DeviceEvent{
+					ID:     deviceID,
+					Status: status,
+				},
 			},
 		})
 	return err
@@ -272,9 +274,11 @@ func (a *app) ProvisionDevice(
 	err = a.store.SaveEvent(
 		ctx,
 		model.Event{
-			Type: model.EventTypeDeviceProvisioned,
-			Data: model.EventDeviceProvisionedData{
-				DeviceID: deviceID,
+			WebhookEvent: model.WebhookEvent{
+				Type: model.EventTypeDeviceProvisioned,
+				Data: model.DeviceEvent{
+					ID: deviceID,
+				},
 			},
 		})
 	return err
@@ -471,9 +475,11 @@ func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 	err = a.store.SaveEvent(
 		ctx,
 		model.Event{
-			Type: model.EventTypeDeviceDecommissioned,
-			Data: model.EventDeviceDecommissionedData{
-				DeviceID: deviceID,
+			WebhookEvent: model.WebhookEvent{
+				Type: model.EventTypeDeviceDecommissioned,
+				Data: model.DeviceEvent{
+					ID: deviceID,
+				},
 			},
 		})
 	return err

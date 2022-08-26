@@ -79,6 +79,17 @@ func TestIntegrationValidate(t *testing.T) {
 				},
 			},
 		},
+		"ok, webhook": {
+			integration: &Integration{
+				Provider: ProviderWebhook,
+				Credentials: Credentials{
+					Type: CredentialTypeHTTP,
+					HTTP: &HTTPCredentials{
+						URL: "http://localhost",
+					},
+				},
+			},
+		},
 		"ko, AWS IoT Core": {
 			integration: &Integration{
 				Provider: ProviderIoTCore,
