@@ -1174,24 +1174,22 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						Return([]model.Integration{tc.Integration}, nil).
 						Once()
 
-					if dev.DeleteDeviceError == nil {
-						deviceID := dev.ID
-						// mock.MatchedBy function is executed twice for some reason
-						ds.On("SaveEvent",
-							contextMatcher,
-							mock.MatchedBy(func(actual model.Event) bool {
-								ret := model.EventTypeDeviceDecommissioned == actual.Type
-								if ret {
-									_, ret = actual.Data.(model.DeviceEvent)
-								}
-								if ret {
-									ret = deviceID == actual.Data.(model.DeviceEvent).ID
-								}
-								return ret
-							})).
-							Return(nil).
-							Once()
-					}
+					deviceID := dev.ID
+					// mock.MatchedBy function is executed twice for some reason
+					ds.On("SaveEvent",
+						contextMatcher,
+						mock.MatchedBy(func(actual model.Event) bool {
+							ret := model.EventTypeDeviceDecommissioned == actual.Type
+							if ret {
+								_, ret = actual.Data.(model.DeviceEvent)
+							}
+							if ret {
+								ret = deviceID == actual.Data.(model.DeviceEvent).ID
+							}
+							return ret
+						})).
+						Return(nil).
+						Once()
 
 					var mockErr error = dev.DeleteDeviceError
 					if dev.CoreStatus == nil {
