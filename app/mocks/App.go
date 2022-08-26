@@ -189,6 +189,29 @@ func (_m *App) GetDeviceStateIoTHub(_a0 context.Context, _a1 string, _a2 *model.
 	return r0, r1
 }
 
+// GetEvents provides a mock function with given fields: ctx, filter
+func (_m *App) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error) {
+	ret := _m.Called(ctx, filter)
+
+	var r0 []model.Event
+	if rf, ok := ret.Get(0).(func(context.Context, model.EventsFilter) []model.Event); ok {
+		r0 = rf(ctx, filter)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.Event)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, model.EventsFilter) error); ok {
+		r1 = rf(ctx, filter)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetIntegrationById provides a mock function with given fields: _a0, _a1
 func (_m *App) GetIntegrationById(_a0 context.Context, _a1 uuid.UUID) (*model.Integration, error) {
 	ret := _m.Called(_a0, _a1)

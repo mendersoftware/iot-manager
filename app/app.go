@@ -77,6 +77,8 @@ type App interface {
 	DecommissionDevice(context.Context, string) error
 
 	SyncDevices(context.Context, int, bool) error
+
+	GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error)
 }
 
 // app is an app object
@@ -225,7 +227,16 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 			continue
 		}
 	}
-	return nil
+	err = a.store.SaveEvent(
+		ctx,
+		model.Event{
+			Type: model.EventTypeDeviceStatusChanged,
+			Data: model.EventDeviceStatusChangedData{
+				DeviceID:  deviceID,
+				NewStatus: status,
+			},
+		})
+	return err
 }
 
 func (a *app) ProvisionDevice(
@@ -254,6 +265,17 @@ func (a *app) ProvisionDevice(
 		integrationIDs = append(integrationIDs, integration.ID)
 	}
 	_, err = a.store.UpsertDeviceIntegrations(ctx, deviceID, integrationIDs)
+	if err != nil {
+		return err
+	}
+	err = a.store.SaveEvent(
+		ctx,
+		model.Event{
+			Type: model.EventTypeDeviceProvisioned,
+			Data: model.EventDeviceProvisionedData{
+				DeviceID: deviceID,
+			},
+		})
 	return err
 }
 
@@ -442,6 +464,17 @@ func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 	if err == store.ErrObjectNotFound {
 		return ErrDeviceNotFound
 	}
+	if err != nil {
+		return err
+	}
+	err = a.store.SaveEvent(
+		ctx,
+		model.Event{
+			Type: model.EventTypeDeviceDecommissioned,
+			Data: model.EventDeviceDecommissionedData{
+				DeviceID: deviceID,
+			},
+		})
 	return err
 }
 
@@ -507,4 +540,8 @@ func (a *app) SetDeviceStateIntegration(
 	default:
 		return nil, ErrUnknownIntegration
 	}
+}
+
+func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error) {
+	return a.store.GetEvents(ctx, filter)
 }

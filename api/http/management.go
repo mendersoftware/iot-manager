@@ -218,3 +218,43 @@ func (h *ManagementHandler) RemoveIntegration(c *gin.Context) {
 	}
 	c.Status(http.StatusNoContent)
 }
+
+// GET /events
+func (h *ManagementHandler) GetEvents(c *gin.Context) {
+	ctx, _, err := getContextAndIdentity(c)
+	if err != nil {
+		return
+	}
+
+	filter, err := getEventsFilterFromQuery(c)
+	if err != nil {
+		rest.RenderError(c,
+			http.StatusBadRequest,
+			err,
+		)
+		return
+	}
+
+	events, err := h.app.GetEvents(ctx, *filter)
+	if err != nil {
+		rest.RenderError(c,
+			http.StatusInternalServerError,
+			err,
+		)
+		return
+	}
+
+	c.JSON(http.StatusOK, events)
+}
+
+// get events filter from query params
+func getEventsFilterFromQuery(c *gin.Context) (*model.EventsFilter, error) {
+	filter := model.EventsFilter{}
+	page, perPage, err := rest.ParsePagingParameters(c.Request)
+	if err != nil {
+		return nil, err
+	}
+	filter.Skip = (page - 1) * perPage
+	filter.Limit = perPage
+	return &filter, err
+}

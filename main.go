@@ -137,6 +137,10 @@ func doMain(args []string) {
 			config.Config.GetStringSlice(dconfig.SettingDomainWhitelist),
 		)
 
+		store.SetEventExpiration(
+			config.Config.GetInt64(dconfig.SettingEventExpirationTimeout),
+		)
+
 		return err
 	}
 
