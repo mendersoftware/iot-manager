@@ -59,6 +59,14 @@ func TestAddrIsGlobalUnicast(t *testing.T) {
 		Address:            "2001:4860:4860:0:0:0:0:8888",
 		ErrorAssertionFunc: assert.NoError,
 	}, {
+		Name:               "ok/port ipv4",
+		Address:            "8.8.8.8:51",
+		ErrorAssertionFunc: assert.NoError,
+	}, {
+		Name:               "ok/port ipv6",
+		Address:            "[2001:4860:4860:0:0:0:0:8888]:51",
+		ErrorAssertionFunc: assert.NoError,
+	}, {
 		Name:    "error/loopback address",
 		Address: "127.0.0.1",
 		ErrorAssertionFunc: func(t assert.TestingT, err error, _ ...interface{}) bool {

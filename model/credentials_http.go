@@ -78,7 +78,7 @@ func (cred HTTPCredentials) validateURL(interface{}) error {
 	if !cred.validateAddr {
 		return nil
 	}
-	ips, err := net.LookupIP(uu.Host)
+	ips, err := net.LookupIP(uu.Hostname())
 	if err != nil {
 		return err
 	}

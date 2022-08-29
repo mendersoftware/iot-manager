@@ -49,7 +49,11 @@ func New() *http.Client {
 }
 
 func addrIsGlobalUnicast(network, address string, _ syscall.RawConn) error {
-	ip := net.ParseIP(address)
+	ipAddr, _, err := net.SplitHostPort(address)
+	if err != nil {
+		ipAddr = address
+	}
+	ip := net.ParseIP(ipAddr)
 	if ip == nil {
 		return &net.ParseError{
 			Type: "IP address",
