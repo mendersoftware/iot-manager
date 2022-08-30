@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -104,6 +105,17 @@ func TestProvisionDevice(t *testing.T) {
 		StatusCode: http.StatusBadRequest,
 		Error:      errors.New("malformed request body"),
 	}, {
+		Name: "error/invalid schema",
+
+		TenantID: "123456789012345678901234",
+		Body:     []byte(`{"id":true}`),
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			return new(mapp.App)
+		},
+
+		StatusCode: http.StatusBadRequest,
+		Error:      errors.New("malformed request body"),
+	}, {
 		Name: "error/missing device id",
 
 		TenantID: "123456789012345678901234",
@@ -114,6 +126,25 @@ func TestProvisionDevice(t *testing.T) {
 
 		StatusCode: http.StatusBadRequest,
 		Error:      errors.New("missing device ID"),
+	}, {
+		Name: "error/internal failure",
+
+		TenantID: "123456789012345678901234",
+		Body: model.DeviceEvent{
+			ID: "b8ea97f2-1c2b-492c-84ce-7a90170291b9",
+		},
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			mock := new(mapp.App)
+			device := self.Body.(model.DeviceEvent)
+			mock.On("ProvisionDevice",
+				validateTenantIDCtx(self.TenantID),
+				device).
+				Return(app.ErrDeviceAlreadyExists)
+			return mock
+		},
+
+		StatusCode: http.StatusConflict,
+		Error:      app.ErrDeviceAlreadyExists,
 	}, {
 		Name: "error/internal failure",
 
@@ -413,6 +444,34 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 		},
 		StatusCode: http.StatusBadRequest,
 		Response:   regexp.MustCompile(`{"error":\s?"invalid request body.*",\s?"request_id":\s?"test"}`),
+	}, {
+		Name: "error: invalid status parameter",
+
+		TenantID: "123456789012345678901234",
+		ReqBody:  []struct{}{},
+		Status:   model.Status("foobar"),
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			mockApp := new(mapp.App)
+			return mockApp
+		},
+		StatusCode: http.StatusBadRequest,
+		Response:   regexp.MustCompile(`{"error":\s?"invalid status 'foobar'",\s?"request_id":\s?"test"}`),
+	}, {
+		Name: "error: too many items",
+
+		TenantID: "123456789012345678901234",
+		ReqBody:  make([]struct{}, maxBulkItems+1),
+		Status:   model.StatusAccepted,
+		App: func(t *testing.T, self *testCase) *mapp.App {
+			mockApp := new(mapp.App)
+			return mockApp
+		},
+		StatusCode: http.StatusBadRequest,
+		Response: regexp.MustCompile(fmt.Sprintf(
+			`{"error":\s?"too many bulk items: max %d items per request",`+
+				`\s?"request_id":\s?"test"}`,
+			maxBulkItems,
+		)),
 	}}
 	for i := range testCases {
 		tc := testCases[i]
