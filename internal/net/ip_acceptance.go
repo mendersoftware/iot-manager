@@ -12,21 +12,16 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 
-package model
+//go:build acceptance
+// +build acceptance
 
-import validation "github.com/go-ozzo/ozzo-validation/v4"
+package net
 
-type Provider string
+import "net"
 
-const (
-	ProviderEmpty   Provider = ""
-	ProviderIoTHub  Provider = "iot-hub"
-	ProviderIoTCore Provider = "iot-core"
-	ProviderWebhook Provider = "webhook"
-)
-
-var validateProvider = validation.In(ProviderIoTHub, ProviderIoTCore, ProviderWebhook)
-
-func (p Provider) Validate() error {
-	return validateProvider.Validate(p)
+// For acceptance tests the private IP constraint is relaxed
+func IsGlobalUnicast(ip net.IP) bool {
+	return !ip.IsLoopback() &&
+		ip.IsGlobalUnicast() &&
+		!ip.IsInterfaceLocalMulticast()
 }

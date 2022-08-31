@@ -68,20 +68,24 @@ func TestGetEvents(t *testing.T) {
 
 			InEvents: []model.Event{
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceStatusChanged,
-					Data: model.EventDeviceStatusChangedData{
-						DeviceID:  "foo",
-						NewStatus: "bar",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: model.DeviceEvent{
+							ID:     "foo",
+							Status: "bar",
+						},
 					},
 				},
 			},
 			OutEvents: []model.Event{
 				{
-					Type: model.EventTypeDeviceStatusChanged,
-					Data: bson.M{
-						"device_id":  "foo",
-						"new_status": "bar",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: bson.M{
+							"id":     "foo",
+							"status": "bar",
+						},
 					},
 				},
 			},
@@ -105,46 +109,58 @@ func TestGetEvents(t *testing.T) {
 
 			InEvents: []model.Event{
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceStatusChanged,
-					Data: model.EventDeviceStatusChangedData{
-						DeviceID:  "foo",
-						NewStatus: "bar",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: model.DeviceEvent{
+							ID:     "foo",
+							Status: "bar",
+						},
 					},
 				},
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceDecommissioned,
-					Data: model.EventDeviceDecommissionedData{
-						DeviceID: "bar",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceDecommissioned,
+						Data: model.DeviceEvent{
+							ID: "bar",
+						},
 					},
 				},
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceProvisioned,
-					Data: model.EventDeviceProvisionedData{
-						DeviceID: "baz",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceProvisioned,
+						Data: model.DeviceEvent{
+							ID: "baz",
+						},
 					},
 				},
 			},
 			OutEvents: []model.Event{
 				{
-					Type: model.EventTypeDeviceStatusChanged,
-					Data: bson.M{
-						"device_id":  "foo",
-						"new_status": "bar",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: bson.M{
+							"id":     "foo",
+							"status": "bar",
+						},
 					},
 				},
 				{
-					Type: model.EventTypeDeviceDecommissioned,
-					Data: bson.M{
-						"device_id": "bar",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceDecommissioned,
+						Data: bson.M{
+							"id": "bar",
+						},
 					},
 				},
 				{
-					Type: model.EventTypeDeviceProvisioned,
-					Data: bson.M{
-						"device_id": "baz",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceProvisioned,
+						Data: bson.M{
+							"id": "baz",
+						},
 					},
 				},
 			},
@@ -173,44 +189,54 @@ func TestGetEvents(t *testing.T) {
 
 			InEvents: []model.Event{
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceStatusChanged,
-					Data: model.EventDeviceStatusChangedData{
-						DeviceID:  "foo",
-						NewStatus: "bar",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: model.DeviceEvent{
+							ID:     "foo",
+							Status: "bar",
+						},
+						EventTS: now,
 					},
-					EventTS: now,
 				},
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceDecommissioned,
-					Data: model.EventDeviceDecommissionedData{
-						DeviceID: "bar",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceDecommissioned,
+						Data: model.DeviceEvent{
+							ID: "bar",
+						},
+						EventTS: now.Add(time.Second),
 					},
-					EventTS: now.Add(time.Second),
 				},
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceProvisioned,
-					Data: model.EventDeviceProvisionedData{
-						DeviceID: "baz",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceProvisioned,
+						Data: model.DeviceEvent{
+							ID: "baz",
+						},
+						EventTS: now.Add(time.Second * 2),
 					},
-					EventTS: now.Add(time.Second * 2),
 				},
 				{
-					ID:   uuid.New(),
-					Type: model.EventTypeDeviceProvisioned,
-					Data: model.EventDeviceProvisionedData{
-						DeviceID: "foo-bar-baz",
+					WebhookEvent: model.WebhookEvent{
+						ID:   uuid.New(),
+						Type: model.EventTypeDeviceProvisioned,
+						Data: model.DeviceEvent{
+							ID: "foo-bar-baz",
+						},
+						EventTS: now.Add(time.Second * 3),
 					},
-					EventTS: now.Add(time.Second * 3),
 				},
 			},
 			OutEvents: []model.Event{
 				{
-					Type: model.EventTypeDeviceProvisioned,
-					Data: bson.M{
-						"device_id": "baz",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceProvisioned,
+						Data: bson.M{
+							"id": "baz",
+						},
 					},
 				},
 			},
@@ -242,7 +268,7 @@ func TestGetEvents(t *testing.T) {
 				}
 			} else {
 				assert.NoError(t, err)
-				for i, _ := range events {
+				for i := range events {
 					events[i].ID = uuid.Nil
 					events[i].EventTS = time.Time{}
 				}
@@ -275,34 +301,40 @@ func TestSaveEvent(t *testing.T) {
 
 			InEvents: []model.Event{
 				{
-					Type: model.EventTypeDeviceStatusChanged,
-					Data: model.EventDeviceStatusChangedData{
-						DeviceID:  "foo",
-						NewStatus: "bar",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: model.DeviceEvent{
+							ID:     "foo",
+							Status: "bar",
+						},
 					},
 				},
 				{
-					Type: model.EventTypeDeviceProvisioned,
-					Data: model.EventDeviceProvisionedData{
-						DeviceID: "baz",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceProvisioned,
+						Data: model.DeviceEvent{
+							ID: "baz",
+						},
 					},
 				},
 			},
 			OutEvents: []model.Event{
 				{
-					Type: model.EventTypeDeviceStatusChanged,
-					Data: bson.M{
-						"device_id":  "foo",
-						"new_status": "bar",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceStatusChanged,
+						Data: model.DeviceEvent{
+							ID:     "foo",
+							Status: "bar",
+						},
 					},
-					DeliveryStatus: model.DeliveryStatusNotDelivered,
 				},
 				{
-					Type: model.EventTypeDeviceProvisioned,
-					Data: bson.M{
-						"device_id": "baz",
+					WebhookEvent: model.WebhookEvent{
+						Type: model.EventTypeDeviceProvisioned,
+						Data: model.DeviceEvent{
+							ID: "baz",
+						},
 					},
-					DeliveryStatus: model.DeliveryStatusNotDelivered,
 				},
 			},
 		},
@@ -341,7 +373,7 @@ func TestSaveEvent(t *testing.T) {
 				events := []model.Event{}
 				err = cur.All(tc.CTX, &events)
 				assert.NoError(t, err)
-				for i, _ := range events {
+				for i := range events {
 					events[i].ID = uuid.Nil
 					events[i].EventTS = time.Time{}
 					events[i].ExpireTS = time.Time{}

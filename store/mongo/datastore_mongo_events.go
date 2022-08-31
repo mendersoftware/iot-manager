@@ -83,10 +83,6 @@ func (db *DataStoreMongo) SaveEvent(
 	event.EventTS = now
 	event.ExpireTS = now.Add(time.Second * time.Duration(eventExpiration))
 
-	if event.DeliveryStatus == "" {
-		event.DeliveryStatus = model.DeliveryStatusNotDelivered
-	}
-
 	if event.ID == uuid.Nil {
 		event.ID = uuid.New()
 	}

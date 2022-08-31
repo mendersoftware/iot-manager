@@ -15,6 +15,8 @@
 package model
 
 import (
+	"fmt"
+
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 )
@@ -23,26 +25,58 @@ type Integration struct {
 	ID          uuid.UUID   `json:"id" bson:"_id"`
 	Provider    Provider    `json:"provider" bson:"provider"`
 	Credentials Credentials `json:"credentials" bson:"credentials"`
+	Description string      `json:"description,omitempty" bson:"description,omitempty"`
 }
+
+var (
+	lenLessThan1024 = validation.Length(0, 1024)
+)
 
 func (itg Integration) Validate() error {
 	return validation.ValidateStruct(&itg,
 		validation.Field(&itg.ID),
-		validation.Field(&itg.Provider, validation.Required),
+		validation.Field(&itg.Provider,
+			validation.Required,
+			validation.By(itg.compatibleCredentials)),
 		validation.Field(&itg.Credentials),
+		validation.Field(&itg.Description, lenLessThan1024),
+	)
+}
+
+func (itg Integration) compatibleCredentials(interface{}) error {
+	switch itg.Provider {
+	case ProviderIoTHub:
+		if itg.Credentials.Type == CredentialTypeSAS {
+			return nil
+		}
+	case ProviderIoTCore:
+		if itg.Credentials.Type == CredentialTypeAWS {
+			return nil
+		}
+	case ProviderWebhook:
+		if itg.Credentials.Type == CredentialTypeHTTP {
+			return nil
+		}
+	}
+	return fmt.Errorf(
+		"'%s' incompatible with credential type '%s'",
+		itg.Provider,
+		itg.Credentials.Type,
 	)
 }
 
 type CredentialType string
 
 const (
-	CredentialTypeAWS CredentialType = "aws"
-	CredentialTypeSAS CredentialType = "sas"
+	CredentialTypeAWS  CredentialType = "aws"
+	CredentialTypeSAS  CredentialType = "sas"
+	CredentialTypeHTTP CredentialType = "http"
 )
 
 var credentialTypeRule = validation.In(
 	CredentialTypeAWS,
 	CredentialTypeSAS,
+	CredentialTypeHTTP,
 )
 
 func (typ CredentialType) Validate() error {
@@ -59,6 +93,9 @@ type Credentials struct {
 	// Azure IoT Hub
 	//nolint:lll
 	ConnectionString *ConnectionString `json:"connection_string,omitempty" bson:"connection_string,omitempty"`
+
+	// Webhooks
+	HTTP *HTTPCredentials `json:"http,omitempty" bson:"http,omitempty"`
 }
 
 func (s Credentials) Validate() error {
@@ -68,6 +105,8 @@ func (s Credentials) Validate() error {
 			validation.When(s.Type == CredentialTypeSAS, validation.Required)),
 		validation.Field(&s.AWSCredentials,
 			validation.When(s.Type == CredentialTypeAWS, validation.Required)),
+		validation.Field(&s.HTTP,
+			validation.When(s.Type == CredentialTypeHTTP, validation.Required)),
 	)
 }
 
