@@ -909,11 +909,9 @@ func TestSyncIoTHubDevices(t *testing.T) {
 				Once()
 			ds.On("GetIntegrations",
 				contextMatcher,
-				model.IntegrationFilter{
-					IDs: []uuid.UUID{self.Integration.ID},
-				}).
+				model.IntegrationFilter{}).
 				Return([]model.Integration{self.Integration}, nil).
-				Once()
+				Twice()
 
 			ds.On("DeleteDevice",
 				contextMatcher,
@@ -1073,9 +1071,9 @@ func TestSyncIoTHubDevices(t *testing.T) {
 
 		DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			ds := new(storeMocks.DataStore)
-			ds.On("GetDevice",
+			ds.On("GetIntegrations",
 				contextMatcher,
-				"38e5ebfb-963d-4ac2-8f5e-d51b2df1fa6e").
+				model.IntegrationFilter{}).
 				Return(nil, errors.New("internal error"))
 			return ds
 		},
@@ -1203,7 +1201,7 @@ func TestSyncIoTHubDevices(t *testing.T) {
 
 		DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			ds := new(storeMocks.DataStore)
-			ds.On("GetDevice", contextMatcher, "38e5ebfb-963d-4ac2-8f5e-d51b2df1fa6e").
+			ds.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
 				Return(nil, errors.New("internal error"))
 			return ds
 		},

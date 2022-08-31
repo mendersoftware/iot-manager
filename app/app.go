@@ -216,12 +216,50 @@ func (a *app) GetDeviceIntegrations(
 	return []model.Integration{}, nil
 }
 
-func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
-	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve device integrations")
+type deviceGetter interface {
+	GetDevice(context.Context, string) (*model.Device, error)
+}
+
+// device provides an interface to lazily load the device from the database
+// only when required.
+type device struct {
+	m            map[uuid.UUID]struct{}
+	err          error
+	DeviceID     string
+	DeviceGetter deviceGetter
+}
+
+func newDevice(deviceID string, deviceGetter deviceGetter) *device {
+	return &device{
+		DeviceID:     deviceID,
+		DeviceGetter: deviceGetter,
 	}
-	var errStack model.ErrorStack
+}
+
+func (m *device) HasIntegration(ctx context.Context, id uuid.UUID) (bool, error) {
+	if m.err != nil {
+		return false, m.err
+	}
+	if m.m == nil {
+		dev, err := m.DeviceGetter.GetDevice(ctx, m.DeviceID)
+		if err != nil {
+			m.err = err
+			return false, m.err
+		}
+		m.m = make(map[uuid.UUID]struct{}, len(dev.IntegrationIDs))
+		for _, iid := range dev.IntegrationIDs {
+			m.m[iid] = struct{}{}
+		}
+	}
+	_, ret := m.m[id]
+	return ret, nil
+}
+
+func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
+	integrations, err := a.store.GetIntegrations(ctx, model.IntegrationFilter{})
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve integrations")
+	}
 	event := model.Event{
 		WebhookEvent: model.WebhookEvent{
 			ID:   uuid.New(),
@@ -235,6 +273,11 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 		DeliveryStatus: make([]model.DeliveryStatus, 0, len(integrations)),
 	}
 
+	var (
+		ok       bool
+		errStack model.ErrorStack
+		device   = newDevice(deviceID, a.store)
+	)
 	for _, integration := range integrations {
 		deliver := model.DeliveryStatus{
 			IntegrationID: integration.ID,
@@ -242,8 +285,21 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 		}
 		switch integration.Provider {
 		case model.ProviderIoTHub:
+			ok, err = device.HasIntegration(ctx, integration.ID)
+			if err != nil {
+				break // switch
+			} else if !ok {
+				continue // loop
+			}
 			err = a.setDeviceStatusIoTHub(ctx, deviceID, status, integration)
+
 		case model.ProviderIoTCore:
+			ok, err = device.HasIntegration(ctx, integration.ID)
+			if err != nil {
+				break // switch
+			} else if !ok {
+				continue // loop
+			}
 			err = a.setDeviceStatusIoTCore(ctx, deviceID, status, integration)
 
 		case model.ProviderWebhook:
@@ -320,10 +376,12 @@ func (a *app) ProvisionDevice(
 		switch integration.Provider {
 		case model.ProviderIoTHub:
 			err = a.provisionIoTHubDevice(ctx, device.ID, integration)
+			integrationIDs = append(integrationIDs, integration.ID)
 		case model.ProviderIoTCore:
 			err = a.provisionIoTCoreDevice(ctx, device.ID, integration, &iotcore.Device{
 				Status: iotcore.StatusEnabled,
 			})
+			integrationIDs = append(integrationIDs, integration.ID)
 		case model.ProviderWebhook:
 			var (
 				req *http.Request
@@ -359,7 +417,6 @@ func (a *app) ProvisionDevice(
 			_ = errStack.Push(err)
 		}
 		event.DeliveryStatus = append(event.DeliveryStatus, deliver)
-		integrationIDs = append(integrationIDs, integration.ID)
 	}
 	_, err = a.store.UpsertDeviceIntegrations(ctx, device.ID, integrationIDs)
 	errSave := a.store.SaveEvent(ctx, event)
@@ -444,8 +501,6 @@ func (a *app) syncBatch(
 				l.Error(err)
 			}
 		default:
-			// Invalid integration
-			// FIXME(alf) what to do?
 		}
 	}
 
@@ -536,11 +591,14 @@ func (a *app) SyncDevices(
 }
 
 func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
-	integrations, err := a.GetDeviceIntegrations(ctx, deviceID)
+	integrations, err := a.GetIntegrations(ctx)
 	if err != nil {
 		return err
 	}
-	var errStack model.ErrorStack
+	var (
+		errStack model.ErrorStack
+		device   = newDevice(deviceID, a.store)
+	)
 	event := model.Event{
 		WebhookEvent: model.WebhookEvent{
 			ID:   uuid.New(),
@@ -552,17 +610,31 @@ func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 		},
 		DeliveryStatus: make([]model.DeliveryStatus, 0, len(integrations)),
 	}
-
 	for _, integration := range integrations {
-		var err error
+		var (
+			err error
+			ok  bool
+		)
 		deliver := model.DeliveryStatus{
 			IntegrationID: integration.ID,
 			Success:       true,
 		}
 		switch integration.Provider {
 		case model.ProviderIoTHub:
+			ok, err = device.HasIntegration(ctx, integration.ID)
+			if err != nil {
+				break // switch
+			} else if !ok {
+				continue // loop
+			}
 			err = a.decommissionIoTHubDevice(ctx, deviceID, integration)
 		case model.ProviderIoTCore:
+			ok, err = device.HasIntegration(ctx, integration.ID)
+			if err != nil {
+				break // switch
+			} else if !ok {
+				continue // loop
+			}
 			err = a.decommissionIoTCoreDevice(ctx, deviceID, integration)
 		case model.ProviderWebhook:
 			var (

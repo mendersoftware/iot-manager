@@ -1168,9 +1168,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 
 					ds.On("GetIntegrations",
 						contextMatcher,
-						model.IntegrationFilter{
-							IDs: []uuid.UUID{tc.Integration.ID},
-						}).
+						model.IntegrationFilter{}).
 						Return([]model.Integration{tc.Integration}, nil).
 						Once()
 
