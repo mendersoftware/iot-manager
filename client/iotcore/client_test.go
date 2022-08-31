@@ -161,6 +161,7 @@ func TestUpsertDevice(t *testing.T) {
 	assert.NotEmpty(t, device.ID)
 	assert.NotEmpty(t, device.PrivateKey)
 	assert.NotEmpty(t, device.Certificate)
+	assert.NotEmpty(t, device.Endpoint)
 
 	device.Status = StatusEnabled
 	device, err = client.UpsertDevice(ctx, awsCredentials, deviceID, device, awsDevicePolicyName)

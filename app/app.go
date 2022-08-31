@@ -49,6 +49,7 @@ const (
 	confKeyPrimaryKey     = "azureConnectionString"
 	confKeyAWSCertificate = "awsCertificate"
 	confKeyAWSPrivateKey  = "awsPrivateKey"
+	confKeyAWSEndpoint    = "awsEndpoint"
 )
 
 // App interface describes app objects

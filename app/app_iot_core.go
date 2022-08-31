@@ -75,10 +75,11 @@ func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, statu
 }
 
 func (a *app) deployConfiguration(ctx context.Context, deviceID string, dev *iotcore.Device) error {
-	if dev.Certificate != "" && dev.PrivateKey != "" {
+	if dev.Certificate != "" && dev.PrivateKey != "" && *dev.Endpoint != "" {
 		err := a.wf.ProvisionExternalDevice(ctx, deviceID, map[string]string{
 			confKeyAWSCertificate: dev.Certificate,
 			confKeyAWSPrivateKey:  dev.PrivateKey,
+			confKeyAWSEndpoint:    *dev.Endpoint,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to submit iotcore credentials to deviceconfig")
