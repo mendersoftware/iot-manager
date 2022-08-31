@@ -67,6 +67,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 
 		Error error
 	}
+	awsEndpoint := "test_aws_endpoint"
 	testCases := []testCase{
 		{
 			Name:     "ok",
@@ -99,6 +100,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 						ID:          self.DeviceID,
 						PrivateKey:  "private_key",
 						Certificate: "certificate",
+						Endpoint:    &awsEndpoint,
 					}, nil)
 				return core
 			},
@@ -110,6 +112,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					map[string]string{
 						confKeyAWSPrivateKey:  "private_key",
 						confKeyAWSCertificate: "certificate",
+						confKeyAWSEndpoint:    awsEndpoint,
 					}).Return(nil)
 				return wf
 			},
@@ -203,6 +206,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 						ID:          self.DeviceID,
 						PrivateKey:  "private_key",
 						Certificate: "certificate",
+						Endpoint:    &awsEndpoint,
 					}, nil)
 				return core
 			},
@@ -214,6 +218,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					map[string]string{
 						confKeyAWSPrivateKey:  "private_key",
 						confKeyAWSCertificate: "certificate",
+						confKeyAWSEndpoint:    awsEndpoint,
 					}).Return(errors.New("internal error"))
 				return wf
 			},
@@ -380,6 +385,7 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 
 		Error error
 	}
+	awsEndpoint := "aws_endpoint"
 	testCases := []testCase{
 		{
 			Name: "ok",
@@ -403,8 +409,9 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				dev := &iotcore.Device{
-					ID:     "foobar",
-					Status: iotcore.StatusDisabled,
+					ID:       "foobar",
+					Status:   iotcore.StatusDisabled,
+					Endpoint: &awsEndpoint,
 				}
 				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
@@ -1049,11 +1056,12 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 		},
 		Error: errors.New("internal error"),
 	}}
-	matchConf := func(cert, pkey string) func(map[string]string) bool {
+	matchConf := func(cert, pkey, endpoint string) func(map[string]string) bool {
 		return func(m map[string]string) bool {
 			return assert.Equal(t, map[string]string{
 				confKeyAWSCertificate: cert,
 				confKeyAWSPrivateKey:  pkey,
+				confKeyAWSEndpoint:    endpoint,
 			}, m)
 		}
 	}
@@ -1090,6 +1098,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						ID:     dev.ID,
 						Status: model.Status(*dev.DevauthStatus),
 					})
+					awsEndpoint := "test_aws_endpoint"
 					// Generate a random "Thing" identity
 					cert, pkey := createSelfSignedCertificate(dev.ID)
 					iotDev := iotcore.Device{
@@ -1098,6 +1107,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						CertificateID: uuid.NewString(),
 						Certificate:   string(cert),
 						PrivateKey:    string(pkey),
+						Endpoint:      &awsEndpoint,
 					}
 					if dev.CoreStatus != nil {
 						iotDev.Status = *dev.CoreStatus
@@ -1113,6 +1123,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						desiredStatus := iotcore.NewStatusFromMenderStatus(*dev.DevauthStatus)
 						desiredDev := iotDev
 						desiredDev.Status = desiredStatus
+						desiredDev.Endpoint = &awsEndpoint
 						if *dev.CoreStatus != desiredStatus {
 							// Status mismatch
 							core.On("UpsertDevice",
@@ -1131,6 +1142,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						}
 					} else {
 						iotDev.Status = iotcore.NewStatusFromMenderStatus(*dev.DevauthStatus)
+						iotDev.Endpoint = &awsEndpoint
 						// Provision device
 						core.On("GetDevice",
 							contextMatcher,
@@ -1150,7 +1162,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 							wf.On("ProvisionExternalDevice",
 								contextMatcher,
 								dev.ID,
-								mock.MatchedBy(matchConf(iotDev.Certificate, iotDev.PrivateKey))).
+								mock.MatchedBy(matchConf(iotDev.Certificate, iotDev.PrivateKey, *iotDev.Endpoint))).
 								Return(nil).
 								Once()
 						}
