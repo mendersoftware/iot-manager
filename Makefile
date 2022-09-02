@@ -37,7 +37,7 @@ $(BINFILE): $(SRCFILES)
 	$(GO) build -o $@ .
 
 $(BINFILE).test: $(GOFILES)
-	go test -c -o $(BINFILE).test -tags main \
+	go test -c -o $(BINFILE).test -tags acceptance \
 		-cover -covermode atomic \
 		-coverpkg $(PACKAGES)
 

@@ -23,13 +23,14 @@ import (
 )
 
 type Device struct {
-	ID            string `json:"id"`
-	Name          string `json:"name"`
-	Version       int64  `json:"version,omitempty"`
-	Status        Status `json:"status,omitempty"`
-	CertificateID string `json:"certificate_id,omitempty"`
-	Certificate   string `json:"certificate,omitempty"`
-	PrivateKey    string `json:"private_key,omitempty"`
+	ID            string  `json:"id"`
+	Name          string  `json:"name"`
+	Version       int64   `json:"version,omitempty"`
+	Status        Status  `json:"status,omitempty"`
+	CertificateID string  `json:"certificate_id,omitempty"`
+	Certificate   string  `json:"certificate,omitempty"`
+	PrivateKey    string  `json:"private_key,omitempty"`
+	Endpoint      *string `json:"endpoint,omitempty"`
 }
 
 type Status string

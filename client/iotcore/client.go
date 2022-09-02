@@ -39,6 +39,10 @@ var (
 	ErrDeviceIncosistent = errors.New("device is not consistent")
 )
 
+const (
+	endpointType = "iot:Data-ATS"
+)
+
 //nolint:lll
 //go:generate ../../utils/mockgen.sh
 type Client interface {
@@ -206,6 +210,16 @@ func (c *client) UpsertDevice(ctx context.Context,
 				CertificateSigningRequest: aws.String(string(csr)),
 				SetAsActive:               *aws.Bool(device.Status == StatusEnabled),
 			})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	endpointOutput, err := svc.DescribeEndpoint(ctx, &iot.DescribeEndpointInput{
+		EndpointType: aws.String(endpointType),
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	if err == nil {
@@ -232,6 +246,7 @@ func (c *client) UpsertDevice(ctx context.Context,
 			Status:      device.Status,
 			PrivateKey:  string(crypto.PrivateKeyToPem(privKey)),
 			Certificate: *respCert.CertificatePem,
+			Endpoint:    endpointOutput.EndpointAddress,
 		}
 	}
 	return deviceResp, err

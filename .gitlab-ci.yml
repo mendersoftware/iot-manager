@@ -40,9 +40,9 @@ test:acceptance:
     - /^saas-[a-zA-Z0-9.-]+$/
   tags:
     - docker
-  image: docker:19.03.13
+  image: docker
   services:
-    - name: docker:19.03.13-dind
+    - name: docker:dind
       alias: docker
   before_script:
     - apk add docker-compose make

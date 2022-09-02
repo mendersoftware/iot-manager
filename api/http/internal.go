@@ -15,6 +15,7 @@
 package http
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/mendersoftware/iot-manager/app"
@@ -34,20 +35,40 @@ const (
 
 type InternalHandler APIHandler
 
+type internalDevice model.DeviceEvent
+
+func (dev *internalDevice) UnmarshalJSON(b []byte) error {
+	type deviceAlias struct {
+		// device_id kept for backward compatibility
+		ID string `json:"device_id"`
+		model.DeviceEvent
+	}
+	var aDev deviceAlias
+	err := json.Unmarshal(b, &aDev)
+	if err != nil {
+		return err
+	}
+	if aDev.ID != "" {
+		aDev.DeviceEvent.ID = aDev.ID
+	}
+	*dev = internalDevice(aDev.DeviceEvent)
+	return nil
+}
+
 // POST /tenants/:tenant_id/devices
 // code: 204 - device provisioned to iothub
-//       500 - internal server error
+//
+//	500 - internal server error
 func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
-	var device struct {
-		ID string `json:"device_id"`
-	}
 	tenantID := c.Param(ParamTenantID)
+	var device internalDevice
 	if err := c.ShouldBindJSON(&device); err != nil {
 		rest.RenderError(c,
 			http.StatusBadRequest,
 			errors.Wrap(err, "malformed request body"))
 		return
-	} else if device.ID == "" {
+	}
+	if device.ID == "" {
 		rest.RenderError(c, http.StatusBadRequest, errors.New("missing device ID"))
 		return
 	}
@@ -56,7 +77,7 @@ func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
 		Subject: device.ID,
 		Tenant:  tenantID,
 	})
-	err := h.app.ProvisionDevice(ctx, device.ID)
+	err := h.app.ProvisionDevice(ctx, model.DeviceEvent(device))
 	switch cause := errors.Cause(err); cause {
 	case nil, app.ErrNoCredentials:
 		c.Status(http.StatusNoContent)

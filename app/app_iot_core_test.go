@@ -39,7 +39,6 @@ import (
 	wfMocks "github.com/mendersoftware/iot-manager/client/workflows/mocks"
 	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
-	"github.com/mendersoftware/iot-manager/store"
 	storeMocks "github.com/mendersoftware/iot-manager/store/mocks"
 )
 
@@ -61,42 +60,32 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 		Name     string
 		DeviceID string
 
-		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
-		Core  func(t *testing.T, self *testCase) *coreMocks.Client
-		Wf    func(t *testing.T, self *testCase) *wfMocks.Client
+		Integration model.Integration
+
+		Core func(t *testing.T, self *testCase) *coreMocks.Client
+		Wf   func(t *testing.T, self *testCase) *wfMocks.Client
 
 		Error error
 	}
+	awsEndpoint := "test_aws_endpoint"
 	testCases := []testCase{
 		{
 			Name:     "ok",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				store.On("UpsertDeviceIntegrations", contextMatcher, self.DeviceID, []uuid.UUID{integrationID}).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
-					}, nil)
-				return store
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
+					},
+				},
 			},
+
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
@@ -111,6 +100,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 						ID:          self.DeviceID,
 						PrivateKey:  "private_key",
 						Certificate: "certificate",
+						Endpoint:    &awsEndpoint,
 					}, nil)
 				return core
 			},
@@ -122,6 +112,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					map[string]string{
 						confKeyAWSPrivateKey:  "private_key",
 						confKeyAWSCertificate: "certificate",
+						confKeyAWSEndpoint:    awsEndpoint,
 					}).Return(nil)
 				return wf
 			},
@@ -129,21 +120,14 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 		{
 			Name:     "error, no credentials",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-							},
-						},
-					}, nil)
-				return store
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+				},
 			},
+
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				return core
@@ -158,26 +142,20 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 			Name:     "error, failure",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				return store
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
+					},
+				},
 			},
+
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
@@ -198,87 +176,22 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 			Error: errors.New("failed to update iotcore devices: internal error"),
 		},
 		{
-			Name:     "ok",
-			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				store.On("UpsertDeviceIntegrations", contextMatcher, self.DeviceID, []uuid.UUID{integrationID}).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
-					}, nil)
-				return store
-			},
-			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
-				core := new(coreMocks.Client)
-				core.On("UpsertDevice",
-					contextMatcher,
-					mock.AnythingOfType("model.AWSCredentials"),
-					self.DeviceID,
-					&iotcore.Device{
-						Status: iotcore.StatusEnabled,
-					},
-					awsDevicePolicyName).
-					Return(&iotcore.Device{
-						ID:          self.DeviceID,
-						PrivateKey:  "private_key",
-						Certificate: "certificate",
-					}, nil)
-				return core
-			},
-			Wf: func(t *testing.T, self *testCase) *wfMocks.Client {
-				wf := new(wfMocks.Client)
-				wf.On("ProvisionExternalDevice",
-					contextMatcher,
-					self.DeviceID,
-					map[string]string{
-						confKeyAWSPrivateKey:  "private_key",
-						confKeyAWSCertificate: "certificate",
-					}).Return(nil)
-				return wf
-			},
-		},
-		{
 			Name:     "error, deviceconfig",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				return store
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
+					},
+				},
 			},
+
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				core.On("UpsertDevice",
@@ -293,6 +206,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 						ID:          self.DeviceID,
 						PrivateKey:  "private_key",
 						Certificate: "certificate",
+						Endpoint:    &awsEndpoint,
 					}, nil)
 				return core
 			},
@@ -304,6 +218,7 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 					map[string]string{
 						confKeyAWSPrivateKey:  "private_key",
 						confKeyAWSCertificate: "certificate",
+						confKeyAWSEndpoint:    awsEndpoint,
 					}).Return(errors.New("internal error"))
 				return wf
 			},
@@ -316,19 +231,25 @@ func TestProvisionDeviceIoTCore(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
 
-			ds := tc.Store(t, &tc)
+			ds := new(storeMocks.DataStore)
 			defer ds.AssertExpectations(t)
 
 			wf := tc.Wf(t, &tc)
 			defer wf.AssertExpectations(t)
 
-			app := New(ds, wf, nil)
+			a := New(ds, wf, nil)
 
 			core := tc.Core(t, &tc)
 			defer core.AssertExpectations(t)
-			app = app.WithIoTCore(core)
+			a = a.WithIoTCore(core)
 
-			err := app.ProvisionDevice(ctx, tc.DeviceID)
+			err := a.(*app).provisionIoTCoreDevice(ctx,
+				tc.DeviceID,
+				tc.Integration,
+				&iotcore.Device{
+					Status: iotcore.StatusEnabled,
+				},
+			)
 
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -345,8 +266,9 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 	t.Parallel()
 	integrationID := uuid.NewSHA1(uuid.NameSpaceOID, []byte("digest"))
 	type testCase struct {
-		Name     string
-		DeviceID string
+		Name        string
+		DeviceID    string
+		Integration model.Integration
 
 		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
 		Core  func(t *testing.T, self *testCase) *coreMocks.Client
@@ -357,115 +279,60 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 		{
 			Name:     "ok, iot core",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
+					},
+				},
+			},
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID).
 					Return(nil)
 				return core
-			},
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
-					},
-						nil)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				store.On("DeleteDevice", contextMatcher, self.DeviceID).
-					Return(nil)
-				return store
 			},
 		},
 		{
 			Name:     "error, no credentials",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+				},
+			},
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				return core
-			},
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
-					},
-						nil)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-							},
-						},
-					}, nil)
-				return store
 			},
 			Error: ErrNoCredentials,
 		},
 		{
-			Name:     "error, device not found",
-			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
-				core := new(coreMocks.Client)
-				core.On("DeleteDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID).
-					Return(nil)
-				return core
-			},
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				mockedStore := new(storeMocks.DataStore)
-				mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
-					},
-						nil)
-				mockedStore.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				mockedStore.On("DeleteDevice", contextMatcher, self.DeviceID).
-					Return(store.ErrObjectNotFound)
-				return mockedStore
-			},
-			Error: ErrDeviceNotFound,
-		},
-		{
 			Name:     "error, failure",
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
+					},
+				},
+			},
 
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
@@ -473,32 +340,7 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 					Return(errors.New("failed to delete IoT Core device: store: unexpected error"))
 				return core
 			},
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
-					},
-						nil)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				return store
-			},
+
 			Error: errors.New("failed to delete IoT Core device: store: unexpected error"),
 		},
 	}
@@ -507,16 +349,16 @@ func TestDecommissionDeviceIoTCore(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			ds := tc.Store(t, &tc)
+			ds := new(storeMocks.DataStore)
 			defer ds.AssertExpectations(t)
 
-			app := New(ds, nil, nil)
+			a := New(ds, nil, nil)
 
 			core := tc.Core(t, &tc)
 			defer core.AssertExpectations(t)
-			app = app.WithIoTCore(core)
+			a = a.WithIoTCore(core)
 
-			err := app.DecommissionDevice(ctx, tc.DeviceID)
+			err := a.(*app).decommissionIoTCoreDevice(ctx, tc.DeviceID, tc.Integration)
 
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -535,52 +377,41 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 	type testCase struct {
 		Name string
 
-		DeviceID string
-		Status   model.Status
+		DeviceID    string
+		Status      model.Status
+		Integration model.Integration
 
-		Store func(t *testing.T, self *testCase) *storeMocks.DataStore
-		Core  func(t *testing.T, self *testCase) *coreMocks.Client
+		Core func(t *testing.T, self *testCase) *coreMocks.Client
 
 		Error error
 	}
+	awsEndpoint := "aws_endpoint"
 	testCases := []testCase{
 		{
 			Name: "ok",
 
 			Status:   model.StatusAccepted,
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
-						nil)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				return store
+				},
 			},
+
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
 				dev := &iotcore.Device{
-					ID:     "foobar",
-					Status: iotcore.StatusDisabled,
+					ID:       "foobar",
+					Status:   iotcore.StatusDisabled,
+					Endpoint: &awsEndpoint,
 				}
 				core.On("UpsertDevice", contextMatcher, mock.AnythingOfType("model.AWSCredentials"), self.DeviceID,
 					mock.MatchedBy(func(dev *iotcore.Device) bool {
@@ -595,26 +426,12 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 
 			Status:   model.StatusAccepted,
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
-					},
-						nil)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-							},
-						},
-					}, nil)
-				return store
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+				},
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
@@ -627,32 +444,18 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 
 			Status:   model.StatusAccepted,
 			DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
-
-			Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
-				store := new(storeMocks.DataStore)
-				store.On("GetDevice", contextMatcher, self.DeviceID).
-					Return(&model.Device{
-						ID:             self.DeviceID,
-						IntegrationIDs: []uuid.UUID{integrationID},
+			Integration: model.Integration{
+				ID:       integrationID,
+				Provider: model.ProviderIoTCore,
+				Credentials: model.Credentials{
+					Type: model.CredentialTypeAWS,
+					AWSCredentials: &model.AWSCredentials{
+						AccessKeyID:      &awsAccessKeyID,
+						SecretAccessKey:  &awsSecretAccessKey,
+						Region:           &awsRegion,
+						DevicePolicyName: &awsDevicePolicyName,
 					},
-						nil)
-				store.On("GetIntegrations", contextMatcher, model.IntegrationFilter{IDs: []uuid.UUID{integrationID}}).
-					Return([]model.Integration{
-						{
-							ID:       integrationID,
-							Provider: model.ProviderIoTCore,
-							Credentials: model.Credentials{
-								Type: model.CredentialTypeAWS,
-								AWSCredentials: &model.AWSCredentials{
-									AccessKeyID:      &awsAccessKeyID,
-									SecretAccessKey:  &awsSecretAccessKey,
-									Region:           &awsRegion,
-									DevicePolicyName: &awsDevicePolicyName,
-								},
-							},
-						},
-					}, nil)
-				return store
+				},
 			},
 			Core: func(t *testing.T, self *testCase) *coreMocks.Client {
 				core := new(coreMocks.Client)
@@ -671,16 +474,16 @@ func TestSetDeviceStatusIoTCore(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			ds := tc.Store(t, &tc)
+			ds := new(storeMocks.DataStore)
 			defer ds.AssertExpectations(t)
 
-			app := New(ds, nil, nil)
+			a := New(ds, nil, nil)
 
 			core := tc.Core(t, &tc)
 			defer core.AssertExpectations(t)
-			app = app.WithIoTCore(core)
+			a = a.WithIoTCore(core)
 
-			err := app.SetDeviceStatus(ctx, tc.DeviceID, tc.Status)
+			err := a.(*app).setDeviceStatusIoTCore(ctx, tc.DeviceID, tc.Status, tc.Integration)
 
 			if tc.Error != nil {
 				if assert.Error(t, err) {
@@ -1253,11 +1056,12 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 		},
 		Error: errors.New("internal error"),
 	}}
-	matchConf := func(cert, pkey string) func(map[string]string) bool {
+	matchConf := func(cert, pkey, endpoint string) func(map[string]string) bool {
 		return func(m map[string]string) bool {
 			return assert.Equal(t, map[string]string{
 				confKeyAWSCertificate: cert,
 				confKeyAWSPrivateKey:  pkey,
+				confKeyAWSEndpoint:    endpoint,
 			}, m)
 		}
 	}
@@ -1294,6 +1098,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						ID:     dev.ID,
 						Status: model.Status(*dev.DevauthStatus),
 					})
+					awsEndpoint := "test_aws_endpoint"
 					// Generate a random "Thing" identity
 					cert, pkey := createSelfSignedCertificate(dev.ID)
 					iotDev := iotcore.Device{
@@ -1302,6 +1107,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						CertificateID: uuid.NewString(),
 						Certificate:   string(cert),
 						PrivateKey:    string(pkey),
+						Endpoint:      &awsEndpoint,
 					}
 					if dev.CoreStatus != nil {
 						iotDev.Status = *dev.CoreStatus
@@ -1317,6 +1123,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						desiredStatus := iotcore.NewStatusFromMenderStatus(*dev.DevauthStatus)
 						desiredDev := iotDev
 						desiredDev.Status = desiredStatus
+						desiredDev.Endpoint = &awsEndpoint
 						if *dev.CoreStatus != desiredStatus {
 							// Status mismatch
 							core.On("UpsertDevice",
@@ -1335,6 +1142,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						}
 					} else {
 						iotDev.Status = iotcore.NewStatusFromMenderStatus(*dev.DevauthStatus)
+						iotDev.Endpoint = &awsEndpoint
 						// Provision device
 						core.On("GetDevice",
 							contextMatcher,
@@ -1354,7 +1162,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 							wf.On("ProvisionExternalDevice",
 								contextMatcher,
 								dev.ID,
-								mock.MatchedBy(matchConf(iotDev.Certificate, iotDev.PrivateKey))).
+								mock.MatchedBy(matchConf(iotDev.Certificate, iotDev.PrivateKey, *iotDev.Endpoint))).
 								Return(nil).
 								Once()
 						}
@@ -1372,10 +1180,25 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 
 					ds.On("GetIntegrations",
 						contextMatcher,
-						model.IntegrationFilter{
-							IDs: []uuid.UUID{tc.Integration.ID},
-						}).
+						model.IntegrationFilter{}).
 						Return([]model.Integration{tc.Integration}, nil).
+						Once()
+
+					deviceID := dev.ID
+					// mock.MatchedBy function is executed twice for some reason
+					ds.On("SaveEvent",
+						contextMatcher,
+						mock.MatchedBy(func(actual model.Event) bool {
+							ret := model.EventTypeDeviceDecommissioned == actual.Type
+							if ret {
+								_, ret = actual.Data.(model.DeviceEvent)
+							}
+							if ret {
+								ret = deviceID == actual.Data.(model.DeviceEvent).ID
+							}
+							return ret
+						})).
+						Return(nil).
 						Once()
 
 					var mockErr error = dev.DeleteDeviceError
@@ -1389,13 +1212,11 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						Return(mockErr).
 						Once()
 
-					if dev.DeleteDeviceError == nil {
-						ds.On("DeleteDevice",
-							contextMatcher,
-							dev.ID).
-							Return(nil).
-							Once()
-					}
+					ds.On("DeleteDevice",
+						contextMatcher,
+						dev.ID).
+						Return(nil).
+						Once()
 
 				}
 

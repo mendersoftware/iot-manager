@@ -75,10 +75,11 @@ func (a *app) setDeviceStatusIoTCore(ctx context.Context, deviceID string, statu
 }
 
 func (a *app) deployConfiguration(ctx context.Context, deviceID string, dev *iotcore.Device) error {
-	if dev.Certificate != "" && dev.PrivateKey != "" {
+	if dev.Certificate != "" && dev.PrivateKey != "" && *dev.Endpoint != "" {
 		err := a.wf.ProvisionExternalDevice(ctx, deviceID, map[string]string{
 			confKeyAWSCertificate: dev.Certificate,
 			confKeyAWSPrivateKey:  dev.PrivateKey,
+			confKeyAWSEndpoint:    *dev.Endpoint,
 		})
 		if err != nil {
 			return errors.Wrap(err, "failed to submit iotcore credentials to deviceconfig")
@@ -131,7 +132,7 @@ func (a *app) syncIoTCoreDevices(
 		if _, ok := statuses[id]; !ok {
 			l.Warnf("Device '%s' does not have an auth set: deleting device", id)
 			err := a.DecommissionDevice(ctx, id)
-			if err != nil && err != ErrDeviceNotFound {
+			if err != nil && !errors.Is(err, ErrDeviceNotFound) {
 				err = errors.Wrap(err, "app: failed to decommission device")
 				if failEarly {
 					return err

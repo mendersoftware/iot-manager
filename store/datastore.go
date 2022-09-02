@@ -59,6 +59,11 @@ type DataStore interface {
 
 	// GetAllDevices returns an iterator over ALL devices sorted by tenant ID.
 	GetAllDevices(ctx context.Context) (Iterator, error)
+
+	// GetEvents returns list of event objects
+	GetEvents(ctx context.Context, fltr model.EventsFilter) ([]model.Event, error)
+	// SaveEvent saves the event in the database
+	SaveEvent(ctx context.Context, event model.Event) error
 }
 
 type Iterator interface {

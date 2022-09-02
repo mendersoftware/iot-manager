@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2022 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import (
 
 const (
 	// DbVersion is the current schema version
-	DbVersion = "1.0.0"
+	DbVersion = "1.1.0"
 
 	// DbName is the database name
 	DbName = "iot_manager"
@@ -55,6 +55,10 @@ func Migrate(ctx context.Context,
 
 	migrations := []migrate.Migration{
 		&migration_1_0_0{
+			client: client,
+			db:     db,
+		},
+		&migration_1_1_0{
 			client: client,
 			db:     db,
 		},

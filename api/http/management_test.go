@@ -1007,3 +1007,163 @@ type neverExpireContext struct {
 func (neverExpireContext) Deadline() (time.Time, bool) {
 	return time.Now().Add(time.Hour), true
 }
+
+func TestGetEvents(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		Name string
+
+		Headers http.Header
+
+		Url string
+
+		App func(t *testing.T) *mapp.App
+
+		StatusCode int
+		Response   interface{}
+	}{
+		{
+			Name: "ok",
+
+			Headers: http.Header{
+				"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+					IsUser:  true,
+					Subject: "829cbefb-70e7-438f-9ac5-35fd131c2111",
+					Tenant:  "123456789012345678901234",
+				})},
+			},
+
+			Url: "http://localhost" + APIURLManagement + APIURLEvents,
+
+			App: func(t *testing.T) *mapp.App {
+				app := new(mapp.App)
+				app.On("GetEvents", contextMatcher, model.EventsFilter{Limit: 20}).
+					Return([]model.Event{{
+						WebhookEvent: model.WebhookEvent{
+							ID:      uuid.Nil,
+							Type:    model.EventTypeDeviceProvisioned,
+							Data:    model.DeviceEvent{ID: uuid.Nil.String()},
+							EventTS: time.Time{},
+						},
+						DeliveryStatus: []model.DeliveryStatus{{
+							IntegrationID: uuid.Nil,
+							Success:       true,
+							StatusCode: func() *int {
+								i := 200
+								return &i
+							}(),
+						}},
+					}}, nil)
+				return app
+			},
+
+			StatusCode: http.StatusOK,
+			Response: []map[string]interface{}{{
+				"id":   uuid.Nil,
+				"data": map[string]interface{}{"id": "00000000-0000-0000-0000-000000000000"},
+				"delivery_statuses": []map[string]interface{}{{
+					"integration_id": uuid.Nil,
+					"success":        true,
+					"status_code":    200,
+				}},
+				"time": "0001-01-01T00:00:00Z",
+				"type": "device-provisioned",
+			}},
+		},
+		{
+			Name: "ok, with query params",
+
+			Headers: http.Header{
+				"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+					IsUser:  true,
+					Subject: "829cbefb-70e7-438f-9ac5-35fd131c2111",
+					Tenant:  "123456789012345678901234",
+				})},
+			},
+
+			Url: "http://localhost" + APIURLManagement + APIURLEvents + "?page=3&per_page=500",
+
+			App: func(t *testing.T) *mapp.App {
+				app := new(mapp.App)
+				app.On("GetEvents", contextMatcher, model.EventsFilter{Skip: 1000, Limit: 500}).
+					Return([]model.Event{{
+						WebhookEvent: model.WebhookEvent{
+							ID:      uuid.Nil,
+							Type:    model.EventTypeDeviceProvisioned,
+							Data:    model.DeviceEvent{ID: uuid.Nil.String()},
+							EventTS: time.Time{},
+						},
+						DeliveryStatus: []model.DeliveryStatus{{
+							IntegrationID: uuid.Nil,
+							Success:       true,
+							StatusCode: func() *int {
+								i := 200
+								return &i
+							}(),
+						}},
+					}}, nil)
+				return app
+			},
+
+			StatusCode: http.StatusOK,
+			Response: []map[string]interface{}{{
+				"id":   uuid.Nil,
+				"data": map[string]interface{}{"id": "00000000-0000-0000-0000-000000000000"},
+				"delivery_statuses": []map[string]interface{}{{
+					"integration_id": uuid.Nil,
+					"success":        true,
+					"status_code":    200,
+				}},
+				"time": "0001-01-01T00:00:00Z",
+				"type": "device-provisioned",
+			}},
+		},
+		{
+			Name: "bad request",
+
+			Headers: http.Header{
+				"Authorization": []string{"Bearer " + GenerateJWT(identity.Identity{
+					IsUser:  true,
+					Subject: "829cbefb-70e7-438f-9ac5-35fd131c2111",
+					Tenant:  "123456789012345678901234",
+				})},
+				textproto.CanonicalMIMEHeaderKey(requestid.RequestIdHeader): []string{"test"},
+			},
+
+			Url: "http://localhost" + APIURLManagement + APIURLEvents + "?page=foo",
+
+			StatusCode: http.StatusBadRequest,
+			Response: map[string]interface{}{
+				"error":      "invalid page query: \"foo\"",
+				"request_id": "test",
+			},
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			var testApp *mapp.App
+			if tc.App == nil {
+				testApp = new(mapp.App)
+			} else {
+				testApp = tc.App(t)
+			}
+			defer testApp.AssertExpectations(t)
+			handler := NewRouter(testApp)
+			w := httptest.NewRecorder()
+			req, _ := http.NewRequest("GET",
+				tc.Url,
+				nil,
+			)
+			for key := range tc.Headers {
+				req.Header.Set(key, tc.Headers.Get(key))
+			}
+
+			handler.ServeHTTP(w, req)
+			assert.Equal(t, tc.StatusCode, w.Code, "invalid HTTP status code")
+			b, _ := json.Marshal(tc.Response)
+			assert.JSONEq(t, string(b), w.Body.String())
+		})
+	}
+}
