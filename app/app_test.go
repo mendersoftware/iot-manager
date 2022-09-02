@@ -577,10 +577,7 @@ func TestProvisionDevice(t *testing.T) {
 				On("UpsertDeviceIntegrations",
 					contextMatcher,
 					self.Device.ID,
-					[]uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				).
+					[]uuid.UUID{}).
 				Return(new(model.Device), nil).
 				Once().
 				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
@@ -635,10 +632,7 @@ func TestProvisionDevice(t *testing.T) {
 				On("UpsertDeviceIntegrations",
 					contextMatcher,
 					self.Device.ID,
-					[]uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				).
+					[]uuid.UUID{}).
 				Return(new(model.Device), nil).
 				Once().
 				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
@@ -690,10 +684,7 @@ func TestProvisionDevice(t *testing.T) {
 				On("UpsertDeviceIntegrations",
 					contextMatcher,
 					self.Device.ID,
-					[]uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				).
+					[]uuid.UUID{}).
 				Return(new(model.Device), nil).
 				Once().
 				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
@@ -745,10 +736,7 @@ func TestProvisionDevice(t *testing.T) {
 				On("UpsertDeviceIntegrations",
 					contextMatcher,
 					self.Device.ID,
-					[]uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				).
+					[]uuid.UUID{}).
 				Return(new(model.Device), nil).
 				Once().
 				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
@@ -786,8 +774,7 @@ func TestProvisionDevice(t *testing.T) {
 				On("UpsertDeviceIntegrations",
 					contextMatcher,
 					self.Device.ID,
-					[]uuid.UUID{},
-				).
+					[]uuid.UUID{}).
 				Return(new(model.Device), errors.New("internal error")).
 				Once().
 				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
@@ -961,14 +948,7 @@ func TestDecommissionDevice(t *testing.T) {
 				Once().
 				On("GetIntegrations",
 					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-							testIntegrations[model.ProviderIoTHub].ID,
-							testIntegrations[model.ProviderIoTCore].ID,
-						},
-					},
-				).
+					model.IntegrationFilter{}).
 				Return([]model.Integration{
 					testIntegrations[model.ProviderWebhook],
 					testIntegrations[model.ProviderIoTHub],
@@ -979,6 +959,7 @@ func TestDecommissionDevice(t *testing.T) {
 				Once().
 				On("DeleteDevice", contextMatcher, self.DeviceID).
 				Return(nil).
+				Once().
 				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
 				Run(func(args mock.Arguments) {
 					event := args.Get(1).(model.Event)
@@ -1035,22 +1016,9 @@ func TestDecommissionDevice(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{
 					testIntegrations[model.ProviderWebhook],
 				}, nil).
@@ -1094,22 +1062,9 @@ func TestDecommissionDevice(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{
 					testIntegrations[model.ProviderWebhook],
 				}, nil).
@@ -1152,22 +1107,9 @@ func TestDecommissionDevice(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{{
 					// Fails to validate
 					Provider: model.ProviderWebhook,
@@ -1200,22 +1142,9 @@ func TestDecommissionDevice(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{
 					testIntegrations[model.ProviderWebhook],
 				}, nil).
@@ -1250,16 +1179,17 @@ func TestDecommissionDevice(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+			mockedStore.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
 				Return(nil, store.ErrObjectNotFound)
 			return mockedStore
 		},
-		Error: ErrDeviceNotFound,
+		Error: store.ErrObjectNotFound,
 	}}
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
+			defer recover()
 			ctx := context.Background()
 			ds := tc.Store(t, &tc)
 			defer ds.AssertExpectations(t)
@@ -1372,7 +1302,18 @@ func TestSetDeviceStatus(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
+				Return([]model.Integration{
+					testIntegrations[model.ProviderWebhook],
+					testIntegrations[model.ProviderIoTHub],
+					testIntegrations[model.ProviderIoTCore],
+					// Add an empty (ignored) provider
+					{Provider: model.ProviderEmpty},
+				}, nil).
+				Once().
+				On("GetDevice", contextMatcher, self.DeviceID).
 				Return(&model.Device{
 					ID: self.DeviceID,
 					IntegrationIDs: []uuid.UUID{
@@ -1380,24 +1321,6 @@ func TestSetDeviceStatus(t *testing.T) {
 						testIntegrations[model.ProviderIoTHub].ID,
 						testIntegrations[model.ProviderIoTCore].ID,
 					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-							testIntegrations[model.ProviderIoTHub].ID,
-							testIntegrations[model.ProviderIoTCore].ID,
-						},
-					},
-				).
-				Return([]model.Integration{
-					testIntegrations[model.ProviderWebhook],
-					testIntegrations[model.ProviderIoTHub],
-					testIntegrations[model.ProviderIoTCore],
-					// Add an empty (ignored) provider
-					{Provider: model.ProviderEmpty},
 				}, nil).
 				Once().
 				On("SaveEvent", contextMatcher, mock.AnythingOfType("model.Event")).
@@ -1478,22 +1401,9 @@ func TestSetDeviceStatus(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{
 					testIntegrations[model.ProviderWebhook],
 				}, nil).
@@ -1535,22 +1445,9 @@ func TestSetDeviceStatus(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{
 					testIntegrations[model.ProviderWebhook],
 				}, nil).
@@ -1591,22 +1488,9 @@ func TestSetDeviceStatus(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{{
 					// Fails to validate
 					Provider: model.ProviderWebhook,
@@ -1637,22 +1521,9 @@ func TestSetDeviceStatus(t *testing.T) {
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
-				Return(&model.Device{
-					ID: self.DeviceID,
-					IntegrationIDs: []uuid.UUID{
-						testIntegrations[model.ProviderWebhook].ID,
-					},
-				}, nil).
-				Once().
-				On("GetIntegrations",
-					contextMatcher,
-					model.IntegrationFilter{
-						IDs: []uuid.UUID{
-							testIntegrations[model.ProviderWebhook].ID,
-						},
-					},
-				).
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
 				Return([]model.Integration{
 					testIntegrations[model.ProviderWebhook],
 				}, nil).
@@ -1685,16 +1556,16 @@ func TestSetDeviceStatus(t *testing.T) {
 				errors.New("internal error"), errStack.Error())
 		}(),
 	}, {
-		Name:     "error: device not found in db in GetDeviceIntegrations",
+		Name:     "error: fail to retrieve integrations",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
 			mockedStore := new(storeMocks.DataStore)
-			mockedStore.On("GetDevice", contextMatcher, self.DeviceID).
+			mockedStore.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
 				Return(nil, store.ErrObjectNotFound)
 			return mockedStore
 		},
-		Error: ErrDeviceNotFound,
+		Error: store.ErrObjectNotFound,
 	}}
 	for i := range testCases {
 		tc := testCases[i]
