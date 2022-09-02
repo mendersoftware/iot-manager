@@ -217,45 +217,6 @@ func (a *app) GetDeviceIntegrations(
 	return []model.Integration{}, nil
 }
 
-type deviceGetter interface {
-	GetDevice(context.Context, string) (*model.Device, error)
-}
-
-// device provides an interface to lazily load the device from the database
-// only when required.
-type device struct {
-	m            map[uuid.UUID]struct{}
-	err          error
-	DeviceID     string
-	DeviceGetter deviceGetter
-}
-
-func newDevice(deviceID string, deviceGetter deviceGetter) *device {
-	return &device{
-		DeviceID:     deviceID,
-		DeviceGetter: deviceGetter,
-	}
-}
-
-func (m *device) HasIntegration(ctx context.Context, id uuid.UUID) (bool, error) {
-	if m.err != nil {
-		return false, m.err
-	}
-	if m.m == nil {
-		dev, err := m.DeviceGetter.GetDevice(ctx, m.DeviceID)
-		if err != nil {
-			m.err = err
-			return false, m.err
-		}
-		m.m = make(map[uuid.UUID]struct{}, len(dev.IntegrationIDs))
-		for _, iid := range dev.IntegrationIDs {
-			m.m[iid] = struct{}{}
-		}
-	}
-	_, ret := m.m[id]
-	return ret, nil
-}
-
 func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
 	integrations, err := a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 	if err != nil {
