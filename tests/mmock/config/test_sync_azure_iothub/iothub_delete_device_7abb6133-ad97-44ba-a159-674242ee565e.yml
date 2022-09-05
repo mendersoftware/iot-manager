@@ -5,3 +5,8 @@ request:
   path: /devices/7abb6133-ad97-44ba-a159-674242ee565e
 response:
   statusCode: 200
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAzureIoTHub

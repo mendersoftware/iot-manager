@@ -12,3 +12,8 @@ response:
     {
       "principals": ["inactivePrincipalId"]
     }
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAWSIoTCore

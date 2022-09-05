@@ -18,3 +18,8 @@ response:
       "thingTypeName": "653e15bc-3797-4eb0-b71e-46383096f512",
       "version": 1
     }
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAWSIoTCore

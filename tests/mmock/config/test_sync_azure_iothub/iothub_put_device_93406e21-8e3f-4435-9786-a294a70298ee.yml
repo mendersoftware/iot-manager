@@ -15,3 +15,8 @@ response:
       "status":"{{request.body.status}}",
       "authentication":{"type":"sas","symmetricKey":{"primaryKey":"secret64","secondaryKey":"secret64"}}
     }
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAzureIoTHub

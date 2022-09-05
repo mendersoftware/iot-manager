@@ -30,9 +30,12 @@ def mongo():
 
 
 @pytest.fixture(scope="function")
-def clean_mmock():
+def clean_mmock(request):
     mmock = MMockAPIClient(MMOCK_URL)
     mmock.reset()
+    mmock.set_scenario(scenario="test", state=request.function.__name__)
+    if request.cls:
+        mmock.set_scenario(scenario="class", state=request.cls.__name__)
     return mmock
 
 

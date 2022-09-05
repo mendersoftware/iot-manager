@@ -10,3 +10,8 @@ response:
       - application/json
   body: |
     {"error": "internal error"}
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAzureIoTHub
