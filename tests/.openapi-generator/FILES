@@ -18,6 +18,7 @@ management_api/model/error.py
 management_api/model/event.py
 management_api/model/event_delivery_statuses.py
 management_api/model/http.py
+management_api/model/http_http.py
 management_api/model/integration.py
 management_api/model_utils.py
 management_api/models/__init__.py

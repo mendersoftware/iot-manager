@@ -391,6 +391,7 @@ components:
         - oneOf:
           - $ref: '#/components/schemas/AWSCredentials'
           - $ref: '#/components/schemas/AzureSharedAccessSecret'
+          - $ref: '#/components/schemas/HTTP'
 
       discriminator:
         propertyName: type
@@ -446,17 +447,24 @@ components:
       description: |
         HTTP Webhook configuration.
       properties:
-        url:
-          type: string
-          description: >-
-            The destination URL for the webhook.
-            The webhook will send POST requests with event details to this target URL.
-        secret:
-          type: string
-          description: >-
-            An optional secret used to verify the integrity of the payload.
+        http:
+          type: object
+          properties:
+            url:
+              type: string
+              description: >-
+                The destination URL for the webhook.
+                The webhook will send POST requests with event details to this target URL.
+            secret:
+              type: string
+              description: >-
+                An optional secret used to verify the integrity of the payload.
+                The string must be in hexadecimal format.
+              pattern: '[0-9a-f]{1,64}'
+          required:
+            - url
       required:
-        - url
+        - http
 
     Error:
       type: object
