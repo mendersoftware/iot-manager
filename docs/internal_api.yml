@@ -199,12 +199,59 @@ components:
     NewDevice:
       type: object
       properties:
-        device_id:
+        id:
           type: string
           format: uuid
           description: ID of the new device.
+        status:
+          type: string
+          enum:
+            - accepted
+            - noauth
+            - pending
+            - preauthorized
+            - rejected
+          description: Authorization status for the device.
+        auth_sets:
+          type: list
+          items:
+            $ref: '#/components/schemas/AuthSet'
+        created_ts:
+          type: string
+          format: date-time
+          description: The creation timestamp of the device.
       required:
-        - device_id
+        - id
+
+    AuthSet:
+      type: object
+      description: >-
+        AuthSet describes the identity a device uses to authenticate with the
+        Mender servier.
+      properties:
+        id:
+          type: string
+          description: The unique ID of the authentication set.
+        device_id:
+          type: string
+          description: The unique ID of the device the authentication set belongs.
+        identity_data:
+          type: object
+          description: The device's identity data.
+          additionalProperties: true
+        pubkey:
+          type: string
+          description: >-
+            PEM-encoded public key of the device authentication set.
+        status:
+          type: string
+          description: >-
+            Authorization status of the set.
+        ts:
+          type: string
+          format: date-time
+          description: >-
+            The creation timestamp of the authentication set.
 
     BulkResult:
       type: object

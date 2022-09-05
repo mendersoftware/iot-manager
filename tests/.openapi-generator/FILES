@@ -16,10 +16,7 @@ management_api/model/device_auth_event.py
 management_api/model/device_state.py
 management_api/model/error.py
 management_api/model/event.py
-management_api/model/event_all_of.py
-management_api/model/event_device_decommissioned_data.py
-management_api/model/event_device_provisioned_data.py
-management_api/model/event_device_status_changed_data.py
+management_api/model/event_delivery_statuses.py
 management_api/model/http.py
 management_api/model/integration.py
 management_api/model_utils.py
