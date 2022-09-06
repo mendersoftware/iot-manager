@@ -14,3 +14,8 @@ response:
       "deviceId":"93406e21-8e3f-4435-9786-a294a70298ee",
       "tags":{"mender":true}
     }
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAzureIoTHub

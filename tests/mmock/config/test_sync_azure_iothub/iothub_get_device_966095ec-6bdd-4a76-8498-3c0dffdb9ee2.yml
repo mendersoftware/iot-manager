@@ -10,3 +10,8 @@ response:
       - application/json
   body: |
     {"deviceId": "966095ec-6bdd-4a76-8498-3c0dffdb9ee2", "status": "enabled"}
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAzureIoTHub

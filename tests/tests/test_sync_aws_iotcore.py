@@ -262,8 +262,7 @@ class TestSyncAWSIoTCore:
             },
             "result": {
                 "match": True,
-                "uri": "test_sync_aws_iotcore/iotcore_describe_thing_not_found_9b2083e4-83b6-41d3-b089-4d2ec137620b "
-                "copy.yml",
+                "uri": "test_sync_aws_iotcore/iotcore_describe_thing_not_found_9b2083e4-83b6-41d3-b089-4d2ec137620b.yml",
             },
         },
         {

@@ -15,3 +15,8 @@ response:
         "status": "ACTIVE"
       }
     }
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAWSIoTCore

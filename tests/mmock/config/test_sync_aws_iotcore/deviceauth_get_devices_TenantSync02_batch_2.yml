@@ -34,3 +34,8 @@ response:
       {"id": "eb8a74a6-dc6b-4930-95d2-5d1db5da1be0", "status": "accepted"},
       {"id": "fd06ea0c-0ff6-4751-b7a9-44c5ce40e2fe", "status": "rejected"}
     ]
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAWSIoTCore
