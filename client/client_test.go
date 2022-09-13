@@ -122,121 +122,130 @@ func TestNewWebhookRequest(t *testing.T) {
 		) bool
 		Error error
 	}
-	testCases := []testCase{{
-		Name: "ok",
+	testCases := []testCase{
+		{
+			Name: "ok",
 
-		CTX: context.Background(),
-		Creds: &model.Credentials{
-			Type: model.CredentialTypeHTTP,
-			HTTP: &model.HTTPCredentials{
-				URL: "http://localhost",
+			CTX: context.Background(),
+			Creds: &model.Credentials{
+				Type: model.CredentialTypeHTTP,
+				HTTP: &model.HTTPCredentials{
+					URL: "http://localhost",
+				},
+			},
+			Event: model.WebhookEvent{},
+			RequestValidationFunc: func(
+				t *testing.T,
+				req *http.Request,
+				self *testCase,
+			) bool {
+				ret := assert.NotContains(t, req.Header, ParamAlgorithmType)
+				ret = ret && assert.NotContains(t, req.Header, ParamSignature)
+				ret = assert.Contains(t, req.Header, HdrKeyContentType)
+				b, _ := json.Marshal(self.Event)
+				body, _ := io.ReadAll(req.Body)
+				ret = ret && assert.JSONEq(t, string(b), string(body))
+				return ret
 			},
 		},
-		Event: model.WebhookEvent{},
-		RequestValidationFunc: func(
-			t *testing.T,
-			req *http.Request,
-			self *testCase,
-		) bool {
-			ret := assert.NotContains(t, req.Header, ParamAlgorithmType)
-			ret = ret && assert.NotContains(t, req.Header, ParamSignature)
-			b, _ := json.Marshal(self.Event)
-			body, _ := io.ReadAll(req.Body)
-			ret = ret && assert.JSONEq(t, string(b), string(body))
-			return ret
-		},
-	}, {
-		Name: "ok/with secret",
+		{
+			Name: "ok/with secret",
 
-		CTX: context.Background(),
-		Creds: &model.Credentials{
-			Type: model.CredentialTypeHTTP,
-			HTTP: &model.HTTPCredentials{
-				URL: "http://localhost",
-				Secret: func() *model.HexSecret {
-					s := model.HexSecret([]byte{0, 1, 2, 3})
-					return &s
-				}(),
+			CTX: context.Background(),
+			Creds: &model.Credentials{
+				Type: model.CredentialTypeHTTP,
+				HTTP: &model.HTTPCredentials{
+					URL: "http://localhost",
+					Secret: func() *model.HexSecret {
+						s := model.HexSecret([]byte{0, 1, 2, 3})
+						return &s
+					}(),
+				},
+			},
+			Event: model.WebhookEvent{},
+			RequestValidationFunc: func(
+				t *testing.T,
+				req *http.Request,
+				self *testCase,
+			) bool {
+				ret := true
+				if ret = ret && assert.Contains(t,
+					req.Header,
+					ParamAlgorithmType,
+				); ret {
+					ret = ret && assert.Equal(t,
+						AlgorithmTypeHMAC256,
+						req.Header.Get(ParamAlgorithmType),
+					)
+				}
+				ret = assert.Contains(t, req.Header, HdrKeyContentType)
+				b, _ := json.Marshal(self.Event)
+				body, _ := io.ReadAll(req.Body)
+				ret = ret && assert.JSONEq(t, string(b), string(body))
+
+				if r := assert.Contains(t, req.Header, ParamSignature); ret && r {
+					signer := hmac.New(
+						sha256.New,
+						[]byte(*self.Creds.HTTP.Secret),
+					)
+					signer.Write(body)
+					ret = ret && assert.Equal(t,
+						req.Header.Get(ParamSignature),
+						hex.EncodeToString(signer.Sum(nil)),
+					)
+				}
+				ret = ret && assert.Contains(t, req.Header, ParamSignature)
+				return ret
 			},
 		},
-		Event: model.WebhookEvent{},
-		RequestValidationFunc: func(
-			t *testing.T,
-			req *http.Request,
-			self *testCase,
-		) bool {
-			ret := true
-			if ret = ret && assert.Contains(t,
-				req.Header,
-				ParamAlgorithmType,
-			); ret {
-				ret = ret && assert.Equal(t,
-					AlgorithmTypeHMAC256,
-					req.Header.Get(ParamAlgorithmType),
-				)
-			}
-			b, _ := json.Marshal(self.Event)
-			body, _ := io.ReadAll(req.Body)
-			ret = ret && assert.JSONEq(t, string(b), string(body))
+		{
+			Name: "error/nil context",
 
-			if r := assert.Contains(t, req.Header, ParamSignature); ret && r {
-				signer := hmac.New(
-					sha256.New,
-					[]byte(*self.Creds.HTTP.Secret),
-				)
-				signer.Write(body)
-				ret = ret && assert.Equal(t,
-					req.Header.Get(ParamSignature),
-					hex.EncodeToString(signer.Sum(nil)),
-				)
-			}
-			ret = ret && assert.Contains(t, req.Header, ParamSignature)
-			return ret
-		},
-	}, {
-		Name: "error/nil context",
-
-		Creds: &model.Credentials{
-			Type: model.CredentialTypeHTTP,
-			HTTP: &model.HTTPCredentials{
-				URL: "http://localhost",
-				Secret: func() *model.HexSecret {
-					s := model.HexSecret([]byte{0, 1, 2, 3})
-					return &s
-				}(),
+			Creds: &model.Credentials{
+				Type: model.CredentialTypeHTTP,
+				HTTP: &model.HTTPCredentials{
+					URL: "http://localhost",
+					Secret: func() *model.HexSecret {
+						s := model.HexSecret([]byte{0, 1, 2, 3})
+						return &s
+					}(),
+				},
 			},
+			Event: model.WebhookEvent{},
+			Error: errors.New("nil Context"),
 		},
-		Event: model.WebhookEvent{},
-		Error: errors.New("nil Context"),
-	}, {
-		Name: "error/invalid event",
+		{
+			Name: "error/invalid event",
 
-		Creds: &model.Credentials{
-			Type: model.CredentialTypeHTTP,
-			HTTP: &model.HTTPCredentials{
-				URL: "http://localhost",
+			Creds: &model.Credentials{
+				Type: model.CredentialTypeHTTP,
+				HTTP: &model.HTTPCredentials{
+					URL: "http://localhost",
+				},
 			},
+			Event: model.WebhookEvent{Data: func() {}},
+			Error: &json.UnsupportedTypeError{Type: reflect.TypeOf(func() {})},
 		},
-		Event: model.WebhookEvent{Data: func() {}},
-		Error: &json.UnsupportedTypeError{Type: reflect.TypeOf(func() {})},
-	}, {
-		Name: "error/invalid credential type",
+		{
+			Name: "error/invalid credential type",
 
-		Creds: &model.Credentials{
-			Type: model.CredentialTypeSAS,
-			ConnectionString: &model.ConnectionString{
-				HostName: "localhost",
-				Name:     "foobar",
-				Key:      crypto.String("1234"),
+			Creds: &model.Credentials{
+				Type: model.CredentialTypeSAS,
+				ConnectionString: &model.ConnectionString{
+					HostName: "localhost",
+					Name:     "foobar",
+					Key:      crypto.String("1234"),
+				},
 			},
+			Error: errors.New("invalid credentials"),
 		},
-		Error: errors.New("invalid credentials"),
-	}, {
-		Name: "error/invalid credentials",
+		{
+			Name: "error/invalid credentials",
 
-		Creds: &model.Credentials{},
-		Error: validation.Errors{"type": validation.ErrRequired},
-	}}
+			Creds: &model.Credentials{},
+			Error: validation.Errors{"type": validation.ErrRequired},
+		},
+	}
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.Name, func(t *testing.T) {
