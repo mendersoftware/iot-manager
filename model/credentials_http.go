@@ -17,6 +17,7 @@ package model
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/url"
 
@@ -32,7 +33,7 @@ func (sec *HexSecret) UnmarshalText(b []byte) error {
 	dst := make([]byte, hex.DecodedLen(len(b)))
 	n, err := hex.Decode(dst, b)
 	if err != nil {
-		return err
+		return fmt.Errorf("value error: '%s' is not a hexadecimal string", string(b))
 	}
 	*sec = HexSecret(dst[:n])
 	return nil

@@ -34,3 +34,8 @@ response:
       {"id": "aba6808c-ca58-40d5-97b7-fba13b68a42d", "status": "rejected"},
       {"id": "b216b66d-c09c-4cb5-9f50-68ea45cdd6f4", "status": "rejected"}
     ]
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAzureIoTHub

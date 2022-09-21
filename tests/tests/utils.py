@@ -22,17 +22,25 @@ from datetime import datetime, timedelta
 
 
 def compare_expectations(expected, actual):
-    for key, expected_value in expected.items():
-        assert key in actual
-        actual_value = actual[key]
-        if isinstance(expected_value, dict):
-            compare_expectations(expected_value, actual_value)
-        elif isinstance(expected_value, re.Pattern):
-            assert bool(
-                expected_value.match(actual_value)
-            ), "expected value did not match the actual value"
+    if isinstance(expected, re.Pattern):
+        assert isinstance(actual, str)
+        assert bool(
+            expected.match(actual)
+        ), f"regular expression did not match value: {expected.pattern} != '{actual}'"
+    else:
+        if isinstance(expected, list):
+            assert isinstance(actual, list)
+            assert len(expected) == len(actual)
+            for i in range(len(expected)):
+                compare_expectations(expected[i], actual[i])
+        elif isinstance(expected, dict):
+            assert isinstance(actual, dict)
+            for key, expected_value in expected.items():
+                assert key in actual
+                compare_expectations(expected_value, actual[key])
         else:
-            assert expected_value == actual_value, f"{expected} != {actual}"
+            assert expected == actual, f"{expected} != {actual}"
+    return True
 
 
 def generate_jwt(tenant_id: str = "", subject: str = "", is_user: bool = True) -> str:

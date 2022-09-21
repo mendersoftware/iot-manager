@@ -36,6 +36,7 @@ const (
 	ParamAlgorithmType = "X-Men-Algorithm"
 	ParamSignature     = "X-Men-Signature"
 
+	HdrKeyContentType    = "Content-Type"
 	AlgorithmTypeHMAC256 = "MEN-HMAC-SHA256-Payload"
 )
 
@@ -137,6 +138,9 @@ func NewWebhookRequest(
 			ctx, http.MethodPost,
 			creds.HTTP.URL, bytes.NewReader(b),
 		)
+	}
+	if err == nil {
+		req.Header.Set(HdrKeyContentType, "application/json")
 	}
 	return req, err
 }

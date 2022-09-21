@@ -41,8 +41,7 @@ const (
 	uriDevices   = "/devices"
 	uriQueryTwin = uriDevices + "/query"
 
-	hdrKeyContentType = "Content-Type"
-	hdrKeyCount       = "X-Ms-Max-Item-Count"
+	hdrKeyCount = "X-Ms-Max-Item-Count"
 
 	// https://docs.microsoft.com/en-us/rest/api/iothub/service/devices
 	APIVersion = "2021-04-12"
@@ -151,7 +150,7 @@ func (c *client) NewRequestWithContext(
 		return req, err
 	}
 	if body != nil {
-		req.Header.Set(hdrKeyContentType, "application/json")
+		req.Header.Set(common.HdrKeyContentType, "application/json")
 	}
 	// Ensure that we set the correct Host header (in case GatewayHostName is set)
 	req.Host = cs.HostName

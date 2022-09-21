@@ -20,3 +20,8 @@ response:
       {"deviceId":"a74ea639-8fae-4b17-ac3e-f9759dbdbfd9","status":"disabled"},
       {"deviceId":"cea63fbb-0b0b-4a92-bd47-8d310a220a16","status":"disabled"}
     ]
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAzureIoTHub

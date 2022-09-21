@@ -7,3 +7,8 @@ request:
     newStatus: ["ACTIVE"]
 response:
   statusCode: 200
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAWSIoTCore

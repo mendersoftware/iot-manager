@@ -18,18 +18,35 @@ import docker
 import requests
 
 from management_api.apis import ManagementAPIClient as GenManagementAPIClient
-from management_api import Configuration, ApiClient
+from management_api import (
+    Configuration as mgmt_Configuration,
+    ApiClient as mgmt_ApiClient,
+)
+from internal_api import (
+    Configuration as intrnl_Configuration,
+    ApiClient as intrnl_ApiClient,
+)
+from internal_api.apis import InternalAPIClient as GenInternalAPIClient
 from utils import generate_jwt
 
 
 class ManagementAPIClient(GenManagementAPIClient):
     def __init__(self, tenant_id, subject="tester"):
         jwt = generate_jwt(tenant_id, subject, is_user=True)
-        config = Configuration(
+        config = mgmt_Configuration(
             host="http://mender-iot-manager:8080/api/management/v1/iot-manager",
             access_token=jwt,
         )
-        client = ApiClient(configuration=config)
+        client = mgmt_ApiClient(configuration=config)
+        super().__init__(api_client=client)
+
+
+class InternalAPIClient(GenInternalAPIClient):
+    def __init__(self):
+        config = intrnl_Configuration(
+            host="http://mender-iot-manager:8080/api/internal/v1/iot-manager",
+        )
+        client = intrnl_ApiClient(configuration=config)
         super().__init__(api_client=client)
 
 
@@ -67,6 +84,12 @@ class MMockAPIClient:
 
     def reset(self):
         requests.get(self.mmock_url + "/api/request/reset")
+        requests.get(self.mmock_url + "/api/scenarios/reset_all")
+
+    @property
+    def requests(self) -> list[dict]:
+        rsp = requests.get(self.mmock_url + "/api/request/all")
+        return rsp.json()
 
     @property
     def unmatched(self) -> list[dict]:
@@ -77,3 +100,7 @@ class MMockAPIClient:
     def matched(self) -> list[dict]:
         rsp = requests.get(self.mmock_url + "/api/request/matched")
         return rsp.json()
+
+    def set_scenario(self, scenario: str, state: str):
+        requests.put(self.mmock_url + f"/api/scenarios/set/{scenario}/{state}")
+        requests.put(self.mmock_url + "/api/scenarios/unpause")

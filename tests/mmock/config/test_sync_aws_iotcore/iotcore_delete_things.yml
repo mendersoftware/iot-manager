@@ -5,3 +5,8 @@ request:
   path: /things/:thingId
 response:
   statusCode: 200
+control:
+  scenario:
+    name: class
+    requiredState:
+      - TestSyncAWSIoTCore
