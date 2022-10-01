@@ -3,7 +3,7 @@ module github.com/mendersoftware/iot-manager
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.16.9
+	github.com/aws/aws-sdk-go-v2 v1.16.16
 	github.com/aws/aws-sdk-go-v2/config v1.15.15
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.10
 	github.com/aws/aws-sdk-go-v2/service/iot v1.28.0
@@ -29,7 +29,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.11.13 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.16.10 // indirect
-	github.com/aws/smithy-go v1.12.0 // indirect
+	github.com/aws/smithy-go v1.13.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
