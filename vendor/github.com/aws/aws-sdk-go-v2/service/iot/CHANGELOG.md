@@ -1,3 +1,40 @@
+# v1.29.2 (2022-10-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.1 (2022-09-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.29.0 (2022-09-14)
+
+* **Feature**: Fixed a bug in the API client generation which caused some operation parameters to be incorrectly generated as value types instead of pointer types. The service API always required these affected parameters to be nilable. This fixes the SDK client to match the expectations of the the service API.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.6 (2022-09-02)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.5 (2022-08-31)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.4 (2022-08-29)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.3 (2022-08-11)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.2 (2022-08-09)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.1 (2022-08-08)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.28.0 (2022-08-04)
 
 * **Feature**: The release is to support attach a provisioning template to CACert for JITP function,  Customer now doesn't have to hardcode a roleArn and templateBody during register a CACert to enable JITP.
