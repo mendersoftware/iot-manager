@@ -100,6 +100,10 @@ type Action struct {
 	// Invoke a Lambda function.
 	Lambda *LambdaAction
 
+	// The Amazon Location Service rule action sends device location updates from an
+	// MQTT message to an Amazon Location tracker resource.
+	Location *LocationAction
+
 	// Write data to an Amazon OpenSearch Service domain.
 	OpenSearch *OpenSearchAction
 
@@ -1868,6 +1872,21 @@ type IotSiteWiseAction struct {
 	noSmithyDocumentSerde
 }
 
+// The certificate issuer indentifier.
+type IssuerCertificateIdentifier struct {
+
+	// The issuer certificate serial number.
+	IssuerCertificateSerialNumber *string
+
+	// The subject of the issuer certificate.
+	IssuerCertificateSubject *string
+
+	// The issuer ID.
+	IssuerId *string
+
+	noSmithyDocumentSerde
+}
+
 // The Job object contains details about a job.
 type Job struct {
 
@@ -1935,6 +1954,10 @@ type Job struct {
 
 	// If the job was updated, provides the reason code for the update.
 	ReasonCode *string
+
+	// The configuration that allows you to schedule a job for a future date and time
+	// in addition to specifying the end behavior for each job execution.
+	SchedulingConfig *SchedulingConfig
 
 	// The status of the job, one of IN_PROGRESS, CANCELED, DELETION_IN_PROGRESS or
 	// COMPLETED.
@@ -2265,6 +2288,62 @@ type LambdaAction struct {
 	noSmithyDocumentSerde
 }
 
+// The Amazon Location rule action sends device location updates from an MQTT
+// message to an Amazon Location tracker resource.
+type LocationAction struct {
+
+	// The unique ID of the device providing the location data.
+	//
+	// This member is required.
+	DeviceId *string
+
+	// A string that evaluates to a double value that represents the latitude of the
+	// device's location.
+	//
+	// This member is required.
+	Latitude *string
+
+	// A string that evaluates to a double value that represents the longitude of the
+	// device's location.
+	//
+	// This member is required.
+	Longitude *string
+
+	// The IAM role that grants permission to write to the Amazon Location resource.
+	//
+	// This member is required.
+	RoleArn *string
+
+	// The name of the tracker resource in Amazon Location in which the location is
+	// updated.
+	//
+	// This member is required.
+	TrackerName *string
+
+	// The time that the location data was sampled. The default value is the time the
+	// MQTT message was processed.
+	Timestamp *LocationTimestamp
+
+	noSmithyDocumentSerde
+}
+
+// Describes how to interpret an application-defined timestamp value from an MQTT
+// message payload and the precision of that value.
+type LocationTimestamp struct {
+
+	// An expression that returns a long epoch time value.
+	//
+	// This member is required.
+	Value *string
+
+	// The precision of the timestamp value that results from the expression described
+	// in value. Valid values: SECONDS | MILLISECONDS | MICROSECONDS | NANOSECONDS. The
+	// default is MILLISECONDS.
+	Unit *string
+
+	noSmithyDocumentSerde
+}
+
 // Describes the logging options payload.
 type LoggingOptionsPayload struct {
 
@@ -2487,6 +2566,61 @@ type MqttContext struct {
 
 	// The value of the username key in an MQTT authorization request.
 	Username *string
+
+	noSmithyDocumentSerde
+}
+
+// Specifies MQTT Version 5.0 headers information. For more information, see  MQTT
+// (https://docs.aws.amazon.com/iot/latest/developerguide/mqtt.html) from Amazon
+// Web Services IoT Core Developer Guide.
+type MqttHeaders struct {
+
+	// A UTF-8 encoded string that describes the content of the publishing message. For
+	// more information, see  Content Type
+	// (https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901118)
+	// from the MQTT Version 5.0 specification. Supports substitution templates
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/iot-substitution-templates.html).
+	ContentType *string
+
+	// The base64-encoded binary data used by the sender of the request message to
+	// identify which request the response message is for when it's received. For more
+	// information, see  Correlation Data
+	// (https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901115)
+	// from the MQTT Version 5.0 specification. This binary data must be
+	// based64-encoded. Supports substitution templates
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/iot-substitution-templates.html).
+	CorrelationData *string
+
+	// A user-defined integer value that will persist a message at the message broker
+	// for a specified amount of time to ensure that the message will expire if it's no
+	// longer relevant to the subscriber. The value of messageExpiry represents the
+	// number of seconds before it expires. For more information about the limits of
+	// messageExpiry, see Amazon Web Services IoT Core message broker and protocol
+	// limits and quotas
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/mqtt.html) from the
+	// Amazon Web Services Reference Guide. Supports substitution templates
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/iot-substitution-templates.html).
+	MessageExpiry *string
+
+	// An Enum string value that indicates whether the payload is formatted as UTF-8.
+	// Valid values are UNSPECIFIED_BYTES and UTF8_DATA. For more information, see
+	// Payload Format Indicator
+	// (https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901111)
+	// from the MQTT Version 5.0 specification. Supports substitution templates
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/iot-substitution-templates.html).
+	PayloadFormatIndicator *string
+
+	// A UTF-8 encoded string that's used as the topic name for a response message. The
+	// response topic is used to describe the topic which the receiver should publish
+	// to as part of the request-response flow. The topic must not contain wildcard
+	// characters. For more information, see  Response Topic
+	// (https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html#_Toc3901114)
+	// from the MQTT Version 5.0 specification. Supports substitution templates
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/iot-substitution-templates.html).
+	ResponseTopic *string
+
+	// An array of key-value pairs that you define in the MQTT5 header.
+	UserProperties []UserProperty
 
 	noSmithyDocumentSerde
 }
@@ -2790,7 +2924,7 @@ type ProvisioningTemplateVersionSummary struct {
 	// false.
 	IsDefaultVersion bool
 
-	// The ID of the fleet privisioning template version.
+	// The ID of the fleet provisioning template version.
 	VersionId *int32
 
 	noSmithyDocumentSerde
@@ -2922,6 +3056,11 @@ type RepublishAction struct {
 	// This member is required.
 	Topic *string
 
+	// MQTT Version 5.0 headers information. For more information, see  MQTT
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/mqtt.html) from the
+	// Amazon Web Services IoT Core Developer Guide.
+	Headers *MqttHeaders
+
 	// The Quality of Service (QoS) level to use when republishing messages. The
 	// default value is 0.
 	Qos *int32
@@ -2944,11 +3083,17 @@ type ResourceIdentifier struct {
 	// The ID of the Amazon Cognito identity pool.
 	CognitoIdentityPoolId *string
 
+	// The ARN of the identified device certificate.
+	DeviceCertificateArn *string
+
 	// The ID of the certificate attached to the resource.
 	DeviceCertificateId *string
 
 	// The ARN of the IAM role that has overly permissive actions.
 	IamRoleArn *string
+
+	// The issuer certificate identifier.
+	IssuerCertificateIdentifier *IssuerCertificateIdentifier
 
 	// The version of the policy associated with the resource.
 	PolicyVersionIdentifier *PolicyVersionIdentifier
@@ -3097,6 +3242,31 @@ type ScheduledAuditMetadata struct {
 
 	// The name of the scheduled audit.
 	ScheduledAuditName *string
+
+	noSmithyDocumentSerde
+}
+
+// Specifies the date and time that a job will begin the rollout of the job
+// document to all devices in the target group. Additionally, you can specify the
+// end behavior for each job execution when it reaches the scheduled end time.
+type SchedulingConfig struct {
+
+	// Specifies the end behavior for all job executions after a job reaches the
+	// selected endTime. If endTime is not selected when creating the job, then
+	// endBehavior does not apply.
+	EndBehavior JobEndBehavior
+
+	// The time a job will stop rollout of the job document to all devices in the
+	// target group for a job. The endTime must take place no later than two years from
+	// the current time and be scheduled a minimum of thirty minutes from the current
+	// time. The minimum duration between startTime and endTime is thirty minutes. The
+	// maximum duration between startTime and endTime is two years.
+	EndTime *string
+
+	// The time a job will begin rollout of the job document to all devices in the
+	// target group for a job. The startTime can be scheduled up to a year in advance
+	// and must be scheduled a minimum of thirty minutes from the current time.
+	StartTime *string
 
 	noSmithyDocumentSerde
 }
@@ -3584,7 +3754,10 @@ type ThingGroupIndexingConfiguration struct {
 	CustomFields []Field
 
 	// Contains fields that are indexed and whose types are already known by the Fleet
-	// Indexing service.
+	// Indexing service. This is an optional field. For more information, see Managed
+	// fields
+	// (https://docs.aws.amazon.com/iot/latest/developerguide/managing-fleet-index.html#managed-field)
+	// in the Amazon Web Services IoT Core Developer Guide.
 	ManagedFields []Field
 
 	noSmithyDocumentSerde
@@ -4058,6 +4231,24 @@ type UpdateDeviceCertificateParams struct {
 	//
 	// This member is required.
 	Action DeviceCertificateUpdateAction
+
+	noSmithyDocumentSerde
+}
+
+// A key-value pair that you define in the header. Both the key and the value are
+// either literal strings or valid substitution templates
+// (https://docs.aws.amazon.com/iot/latest/developerguide/iot-substitution-templates.html).
+type UserProperty struct {
+
+	// A key to be specified in UserProperty.
+	//
+	// This member is required.
+	Key *string
+
+	// A value to be specified in UserProperty.
+	//
+	// This member is required.
+	Value *string
 
 	noSmithyDocumentSerde
 }

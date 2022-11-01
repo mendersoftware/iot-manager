@@ -1,3 +1,19 @@
+# v1.32.0 (2022-11-28)
+
+* **Feature**: Job scheduling enables the scheduled rollout of a Job with start and end times and a customizable end behavior when end time is reached. This is available for continuous and snapshot jobs. Added support for MQTT5 properties to AWS IoT TopicRule Republish Action.
+
+# v1.31.0 (2022-11-11)
+
+* **Feature**: This release add new api listRelatedResourcesForAuditFinding and new member type IssuerCertificates for Iot device device defender Audit.
+
+# v1.30.0 (2022-10-31)
+
+* **Feature**: This release adds the Amazon Location action to IoT Rules Engine.
+
+# v1.29.4 (2022-10-25)
+
+* No change notes available for this release.
+
 # v1.29.3 (2022-10-24)
 
 * **Dependency Update**: Updated to the latest SDK module versions
