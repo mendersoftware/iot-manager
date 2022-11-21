@@ -83,7 +83,7 @@ func init() {
 }
 
 func validAWSSettings(t *testing.T) bool {
-	if accessKeyID == "" || secretAccessKey == "" || awsRegion == "" {
+	if accessKeyID == "" || secretAccessKey == "" || awsRegion == "" || awsDevicePolicyName == "" {
 		t.Skip("AWS settings not provided or invalid")
 		return false
 	}
