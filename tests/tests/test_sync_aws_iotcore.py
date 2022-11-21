@@ -246,12 +246,56 @@ class TestSyncAWSIoTCore:
         {
             "request": {
                 "host": "iot.region.amazonaws.com",
-                "method": "DELETE",
-                "path": "/things/7abb6133-ad97-44ba-a159-674242ee565e",
+                "method": "GET",
+                "path": "/things/7abb6133-ad97-44ba-a159-674242ee565e/principals",
             },
             "result": {
                 "match": True,
-                "uri": "test_sync_aws_iotcore/iotcore_delete_things.yml",
+                "uri": "test_sync_aws_iotcore/iotcore_list_things_principals_inactive_7abb6133-ad97-44ba-a159-674242ee565e.yml",
+            },
+        },
+        {
+            "request": {
+                "host": "iot.region.amazonaws.com",
+                "method": "GET",
+                "path": "/things/7abb6133-ad97-44ba-a159-674242ee565e/principals",
+            },
+            "result": {
+                "match": True,
+                "uri": "test_sync_aws_iotcore/iotcore_list_things_principals_inactive_7abb6133-ad97-44ba-a159-674242ee565e.yml",
+            },
+        },
+        {
+            "request": {
+                "host": "iot.region.amazonaws.com",
+                "method": "GET",
+                "path": "/things/7abb6133-ad97-44ba-a159-674242ee565e/principals",
+            },
+            "result": {
+                "match": True,
+                "uri": "test_sync_aws_iotcore/iotcore_list_things_principals_inactive_7abb6133-ad97-44ba-a159-674242ee565e.yml",
+            },
+        },
+        {
+            "request": {
+                "host": "iot.region.amazonaws.com",
+                "method": "GET",
+                "path": "/things/7abb6133-ad97-44ba-a159-674242ee565e/principals",
+            },
+            "result": {
+                "match": True,
+                "uri": "test_sync_aws_iotcore/iotcore_list_things_principals_inactive_7abb6133-ad97-44ba-a159-674242ee565e.yml",
+            },
+        },
+        {
+            "request": {
+                "host": "iot.region.amazonaws.com",
+                "method": "GET",
+                "path": "/things/7abb6133-ad97-44ba-a159-674242ee565e/principals",
+            },
+            "result": {
+                "match": True,
+                "uri": "test_sync_aws_iotcore/iotcore_list_things_principals_inactive_7abb6133-ad97-44ba-a159-674242ee565e.yml",
             },
         },
         {
