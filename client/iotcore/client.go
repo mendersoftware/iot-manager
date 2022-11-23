@@ -21,6 +21,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -35,12 +36,18 @@ import (
 )
 
 var (
-	ErrDeviceNotFound    = errors.New("device not found")
-	ErrDeviceIncosistent = errors.New("device is not consistent")
+	ErrDeviceNotFound            = errors.New("device not found")
+	ErrDeviceIncosistent         = errors.New("device is not consistent")
+	ErrThingPrincipalNotDetached = errors.New(
+		"giving up on waiting for Thing principal being detached")
 )
 
 const (
 	endpointType = "iot:Data-ATS"
+	// wait for Detach Thing Principal Operation
+	// check 5 times every 2 seconds, which will give us 10s wait
+	detachThingPrincipalWaitSleep      = 2 * time.Second
+	detachThingPrincipalWaitMaxRetries = 4 // looks like 4, but it is 5, we're counting from 0
 )
 
 //nolint:lll
@@ -304,6 +311,27 @@ func (c *client) DeleteDevice(
 			if err != nil {
 				break
 			}
+		}
+	}
+
+	if err == nil && len(respListThingPrincipals.Principals) > 0 {
+		// wait for DetachThingPrincipal operation to complete
+		// this operation is asynchronous, so wait couple of seconds
+		for retries := 0; retries <= detachThingPrincipalWaitMaxRetries; retries++ {
+			respListThingPrincipals, err = svc.ListThingPrincipals(ctx,
+				&iot.ListThingPrincipalsInput{
+					ThingName: aws.String(deviceID),
+				})
+			if err != nil {
+				break
+			}
+			if len(respListThingPrincipals.Principals) > 0 {
+				time.Sleep(detachThingPrincipalWaitSleep)
+			}
+		}
+		// Thing Principle still not detached; return error
+		if len(respListThingPrincipals.Principals) > 0 {
+			return ErrThingPrincipalNotDetached
 		}
 	}
 
