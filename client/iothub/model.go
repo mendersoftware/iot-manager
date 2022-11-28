@@ -51,9 +51,8 @@ const (
 )
 
 type Auth struct {
-	Type            AuthType
-	*SymmetricKey   `json:"symmetricKey,omitempty"`
-	*X509ThumbPrint `json:"x509Thumbprint,omitempty"`
+	Type          AuthType `json:"type"`
+	*SymmetricKey `json:"symmetricKey,omitempty"`
 }
 
 func NewSymmetricAuth() (*Auth, error) {
