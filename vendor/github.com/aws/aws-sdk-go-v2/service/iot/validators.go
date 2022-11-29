@@ -2590,6 +2590,26 @@ func (m *validateOpListProvisioningTemplateVersions) HandleInitialize(ctx contex
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpListRelatedResourcesForAuditFinding struct {
+}
+
+func (*validateOpListRelatedResourcesForAuditFinding) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpListRelatedResourcesForAuditFinding) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*ListRelatedResourcesForAuditFindingInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpListRelatedResourcesForAuditFindingInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpListSecurityProfilesForTarget struct {
 }
 
@@ -4186,6 +4206,10 @@ func addOpListProvisioningTemplateVersionsValidationMiddleware(stack *middleware
 	return stack.Initialize.Add(&validateOpListProvisioningTemplateVersions{}, middleware.After)
 }
 
+func addOpListRelatedResourcesForAuditFindingValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpListRelatedResourcesForAuditFinding{}, middleware.After)
+}
+
 func addOpListSecurityProfilesForTargetValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpListSecurityProfilesForTarget{}, middleware.After)
 }
@@ -4570,6 +4594,11 @@ func validateAction(v *types.Action) error {
 	if v.OpenSearch != nil {
 		if err := validateOpenSearchAction(v.OpenSearch); err != nil {
 			invalidParams.AddNested("OpenSearch", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.Location != nil {
+		if err := validateLocationAction(v.Location); err != nil {
+			invalidParams.AddNested("Location", err.(smithy.InvalidParamsError))
 		}
 	}
 	if invalidParams.Len() > 0 {
@@ -5337,6 +5366,53 @@ func validateLambdaAction(v *types.LambdaAction) error {
 	}
 }
 
+func validateLocationAction(v *types.LocationAction) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "LocationAction"}
+	if v.RoleArn == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("RoleArn"))
+	}
+	if v.TrackerName == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("TrackerName"))
+	}
+	if v.DeviceId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("DeviceId"))
+	}
+	if v.Timestamp != nil {
+		if err := validateLocationTimestamp(v.Timestamp); err != nil {
+			invalidParams.AddNested("Timestamp", err.(smithy.InvalidParamsError))
+		}
+	}
+	if v.Latitude == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Latitude"))
+	}
+	if v.Longitude == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Longitude"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateLocationTimestamp(v *types.LocationTimestamp) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "LocationTimestamp"}
+	if v.Value == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Value"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
 func validateLoggingOptionsPayload(v *types.LoggingOptionsPayload) error {
 	if v == nil {
 		return nil
@@ -5450,6 +5526,23 @@ func validateMitigationActionParams(v *types.MitigationActionParams) error {
 	if v.PublishFindingToSnsParams != nil {
 		if err := validatePublishFindingToSnsParams(v.PublishFindingToSnsParams); err != nil {
 			invalidParams.AddNested("PublishFindingToSnsParams", err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateMqttHeaders(v *types.MqttHeaders) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "MqttHeaders"}
+	if v.UserProperties != nil {
+		if err := validateUserProperties(v.UserProperties); err != nil {
+			invalidParams.AddNested("UserProperties", err.(smithy.InvalidParamsError))
 		}
 	}
 	if invalidParams.Len() > 0 {
@@ -5592,6 +5685,11 @@ func validateRepublishAction(v *types.RepublishAction) error {
 	}
 	if v.Topic == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Topic"))
+	}
+	if v.Headers != nil {
+		if err := validateMqttHeaders(v.Headers); err != nil {
+			invalidParams.AddNested("Headers", err.(smithy.InvalidParamsError))
+		}
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -5968,6 +6066,41 @@ func validateUpdateDeviceCertificateParams(v *types.UpdateDeviceCertificateParam
 	invalidParams := smithy.InvalidParamsError{Context: "UpdateDeviceCertificateParams"}
 	if len(v.Action) == 0 {
 		invalidParams.Add(smithy.NewErrParamRequired("Action"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateUserProperties(v []types.UserProperty) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "UserProperties"}
+	for i := range v {
+		if err := validateUserProperty(&v[i]); err != nil {
+			invalidParams.AddNested(fmt.Sprintf("[%d]", i), err.(smithy.InvalidParamsError))
+		}
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateUserProperty(v *types.UserProperty) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "UserProperty"}
+	if v.Key == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Key"))
+	}
+	if v.Value == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Value"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams
@@ -8293,6 +8426,21 @@ func validateOpListProvisioningTemplateVersionsInput(v *ListProvisioningTemplate
 	invalidParams := smithy.InvalidParamsError{Context: "ListProvisioningTemplateVersionsInput"}
 	if v.TemplateName == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("TemplateName"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpListRelatedResourcesForAuditFindingInput(v *ListRelatedResourcesForAuditFindingInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "ListRelatedResourcesForAuditFindingInput"}
+	if v.FindingId == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("FindingId"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

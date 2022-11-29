@@ -6,8 +6,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.17.1
 	github.com/aws/aws-sdk-go-v2/config v1.17.10
 	github.com/aws/aws-sdk-go-v2/credentials v1.12.23
-	github.com/aws/aws-sdk-go-v2/service/iot v1.29.3
-	github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.12.17
+	github.com/aws/aws-sdk-go-v2/service/iot v1.32.0
+	github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.13.0
 	github.com/gin-gonic/gin v1.8.1
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
 	github.com/google/uuid v1.3.0
