@@ -915,6 +915,26 @@ func (IndexStatus) Values() []IndexStatus {
 	}
 }
 
+type JobEndBehavior string
+
+// Enum values for JobEndBehavior
+const (
+	JobEndBehaviorStopRollout JobEndBehavior = "STOP_ROLLOUT"
+	JobEndBehaviorCancel      JobEndBehavior = "CANCEL"
+	JobEndBehaviorForceCancel JobEndBehavior = "FORCE_CANCEL"
+)
+
+// Values returns all known values for JobEndBehavior. Note that this can be
+// expanded in the future, and so it is only as up to date as the client. The
+// ordering of this slice is not guaranteed to be stable across updates.
+func (JobEndBehavior) Values() []JobEndBehavior {
+	return []JobEndBehavior{
+		"STOP_ROLLOUT",
+		"CANCEL",
+		"FORCE_CANCEL",
+	}
+}
+
 type JobExecutionFailureType string
 
 // Enum values for JobExecutionFailureType
@@ -975,6 +995,7 @@ const (
 	JobStatusCanceled           JobStatus = "CANCELED"
 	JobStatusCompleted          JobStatus = "COMPLETED"
 	JobStatusDeletionInProgress JobStatus = "DELETION_IN_PROGRESS"
+	JobStatusScheduled          JobStatus = "SCHEDULED"
 )
 
 // Values returns all known values for JobStatus. Note that this can be expanded in
@@ -986,6 +1007,7 @@ func (JobStatus) Values() []JobStatus {
 		"CANCELED",
 		"COMPLETED",
 		"DELETION_IN_PROGRESS",
+		"SCHEDULED",
 	}
 }
 
@@ -1205,6 +1227,7 @@ const (
 	ResourceTypeAccountSettings     ResourceType = "ACCOUNT_SETTINGS"
 	ResourceTypeRoleAlias           ResourceType = "ROLE_ALIAS"
 	ResourceTypeIamRole             ResourceType = "IAM_ROLE"
+	ResourceTypeIssuerCertificate   ResourceType = "ISSUER_CERTIFICATE"
 )
 
 // Values returns all known values for ResourceType. Note that this can be expanded
@@ -1220,6 +1243,7 @@ func (ResourceType) Values() []ResourceType {
 		"ACCOUNT_SETTINGS",
 		"ROLE_ALIAS",
 		"IAM_ROLE",
+		"ISSUER_CERTIFICATE",
 	}
 }
 
