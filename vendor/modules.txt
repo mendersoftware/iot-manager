@@ -56,7 +56,7 @@ github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
 github.com/aws/aws-sdk-go-v2/service/iot
 github.com/aws/aws-sdk-go-v2/service/iot/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/iot/types
-# github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.13.0
+# github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.13.2
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/iotdataplane
 github.com/aws/aws-sdk-go-v2/service/iotdataplane/internal/endpoints
