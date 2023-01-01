@@ -51,7 +51,7 @@ github.com/aws/aws-sdk-go-v2/internal/ini
 # github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.21
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
-# github.com/aws/aws-sdk-go-v2/service/iot v1.32.0
+# github.com/aws/aws-sdk-go-v2/service/iot v1.32.2
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/iot
 github.com/aws/aws-sdk-go-v2/service/iot/internal/endpoints
