@@ -2,7 +2,7 @@
 ## explicit
 github.com/ant0ine/go-json-rest/rest
 github.com/ant0ine/go-json-rest/rest/trie
-# github.com/aws/aws-sdk-go-v2 v1.17.6
+# github.com/aws/aws-sdk-go-v2 v1.17.8
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2
 github.com/aws/aws-sdk-go-v2/aws
@@ -23,10 +23,10 @@ github.com/aws/aws-sdk-go-v2/internal/shareddefaults
 github.com/aws/aws-sdk-go-v2/internal/strings
 github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
 github.com/aws/aws-sdk-go-v2/internal/timeconv
-# github.com/aws/aws-sdk-go-v2/config v1.18.18
+# github.com/aws/aws-sdk-go-v2/config v1.18.21
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/config
-# github.com/aws/aws-sdk-go-v2/credentials v1.13.17
+# github.com/aws/aws-sdk-go-v2/credentials v1.13.20
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/credentials
 github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds
@@ -35,43 +35,43 @@ github.com/aws/aws-sdk-go-v2/credentials/endpointcreds/internal/client
 github.com/aws/aws-sdk-go-v2/credentials/processcreds
 github.com/aws/aws-sdk-go-v2/credentials/ssocreds
 github.com/aws/aws-sdk-go-v2/credentials/stscreds
-# github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.0
+# github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.2
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
-# github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.30
+# github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.32
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/configsources
-# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.24
+# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.26
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
-# github.com/aws/aws-sdk-go-v2/internal/ini v1.3.31
+# github.com/aws/aws-sdk-go-v2/internal/ini v1.3.33
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/ini
-# github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.24
+# github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.26
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
-# github.com/aws/aws-sdk-go-v2/service/iot v1.35.1
+# github.com/aws/aws-sdk-go-v2/service/iot v1.35.4
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/iot
 github.com/aws/aws-sdk-go-v2/service/iot/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/iot/types
-# github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.14.5
+# github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.15.0
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/iotdataplane
 github.com/aws/aws-sdk-go-v2/service/iotdataplane/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/iotdataplane/types
-# github.com/aws/aws-sdk-go-v2/service/sso v1.12.5
+# github.com/aws/aws-sdk-go-v2/service/sso v1.12.8
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/sso
 github.com/aws/aws-sdk-go-v2/service/sso/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/sso/types
-# github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.5
+# github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.8
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/ssooidc
 github.com/aws/aws-sdk-go-v2/service/ssooidc/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/ssooidc/types
-# github.com/aws/aws-sdk-go-v2/service/sts v1.18.6
+# github.com/aws/aws-sdk-go-v2/service/sts v1.18.9
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/sts
 github.com/aws/aws-sdk-go-v2/service/sts/internal/endpoints
@@ -125,7 +125,7 @@ github.com/cpuguy83/go-md2man/v2/md2man
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/fsnotify/fsnotify v1.5.4
+# github.com/fsnotify/fsnotify v1.6.0
 ## explicit; go 1.16
 github.com/fsnotify/fsnotify
 # github.com/gin-contrib/sse v0.1.0
@@ -197,13 +197,13 @@ github.com/klauspost/cpuid/v2
 # github.com/leodido/go-urn v1.2.1
 ## explicit; go 1.13
 github.com/leodido/go-urn
-# github.com/magiconair/properties v1.8.6
-## explicit; go 1.13
+# github.com/magiconair/properties v1.8.7
+## explicit; go 1.19
 github.com/magiconair/properties
 # github.com/mattn/go-isatty v0.0.17
 ## explicit; go 1.15
 github.com/mattn/go-isatty
-# github.com/mendersoftware/go-lib-micro v0.0.0-20221025103319-e1f941fb3145
+# github.com/mendersoftware/go-lib-micro v0.0.0-20230403092959-9c67932ad3b7
 ## explicit; go 1.18
 github.com/mendersoftware/go-lib-micro/accesslog
 github.com/mendersoftware/go-lib-micro/addons
@@ -231,9 +231,6 @@ github.com/modern-go/reflect2
 # github.com/montanaflynn/stats v0.0.0-20171201202039-1bf9dbcd8cbe
 ## explicit
 github.com/montanaflynn/stats
-# github.com/pelletier/go-toml v1.9.5
-## explicit; go 1.12
-github.com/pelletier/go-toml
 # github.com/pelletier/go-toml/v2 v2.0.6
 ## explicit; go 1.16
 github.com/pelletier/go-toml/v2
@@ -253,9 +250,10 @@ github.com/russross/blackfriday/v2
 # github.com/sirupsen/logrus v1.9.0
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# github.com/spf13/afero v1.8.2
-## explicit; go 1.13
+# github.com/spf13/afero v1.9.3
+## explicit; go 1.16
 github.com/spf13/afero
+github.com/spf13/afero/internal/common
 github.com/spf13/afero/mem
 # github.com/spf13/cast v1.5.0
 ## explicit; go 1.18
@@ -266,7 +264,7 @@ github.com/spf13/jwalterweatherman
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/spf13/viper v1.13.0
+# github.com/spf13/viper v1.15.0
 ## explicit; go 1.17
 github.com/spf13/viper
 github.com/spf13/viper/internal/encoding
@@ -285,7 +283,7 @@ github.com/stretchr/objx
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
-# github.com/subosito/gotenv v1.4.1
+# github.com/subosito/gotenv v1.4.2
 ## explicit; go 1.18
 github.com/subosito/gotenv
 # github.com/twitchyliquid64/golang-asm v0.15.1
@@ -325,7 +323,7 @@ github.com/xdg-go/stringprep
 # github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d
 ## explicit
 github.com/youmark/pkcs8
-# go.mongodb.org/mongo-driver v1.11.2
+# go.mongodb.org/mongo-driver v1.11.4
 ## explicit; go 1.13
 go.mongodb.org/mongo-driver/bson
 go.mongodb.org/mongo-driver/bson/bsoncodec
@@ -378,10 +376,10 @@ golang.org/x/net/http2
 golang.org/x/net/http2/h2c
 golang.org/x/net/http2/hpack
 golang.org/x/net/idna
-# golang.org/x/sync v0.0.0-20220513210516-0976fa681c29
+# golang.org/x/sync v0.1.0
 ## explicit
 golang.org/x/sync/errgroup
-# golang.org/x/sys v0.6.0
+# golang.org/x/sys v0.7.0
 ## explicit; go 1.17
 golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
@@ -393,6 +391,7 @@ golang.org/x/text/internal/language
 golang.org/x/text/internal/language/compact
 golang.org/x/text/internal/tag
 golang.org/x/text/language
+golang.org/x/text/runes
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
@@ -418,9 +417,6 @@ gopkg.in/ini.v1
 # gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637
 ## explicit
 gopkg.in/tomb.v2
-# gopkg.in/yaml.v2 v2.4.0
-## explicit; go 1.15
-gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
