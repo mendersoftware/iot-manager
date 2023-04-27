@@ -1,3 +1,19 @@
+# v1.15.0 (2023-04-11)
+
+* **Feature**: This release adds support for MQTT5 user properties when calling the AWS IoT GetRetainedMessage API
+
+# v1.14.8 (2023-04-10)
+
+* No change notes available for this release.
+
+# v1.14.7 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.14.6 (2023-03-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.14.5 (2023-03-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions
