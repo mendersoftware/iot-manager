@@ -96,6 +96,9 @@ func (c *Client) addOperationStopThingRegistrationTaskMiddlewares(stack *middlew
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opStopThingRegistrationTask(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -112,7 +115,7 @@ func newServiceMetadataMiddleware_opStopThingRegistrationTask(region string) *aw
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "StopThingRegistrationTask",
 	}
 }
