@@ -1,3 +1,23 @@
+# v1.37.2 (2023-05-23)
+
+* No change notes available for this release.
+
+# v1.37.1 (2023-05-04)
+
+* No change notes available for this release.
+
+# v1.37.0 (2023-04-28)
+
+* **Feature**: This release allows AWS IoT Core users to specify a TLS security policy when creating and updating AWS IoT Domain Configurations.
+
+# v1.36.1 (2023-04-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.36.0 (2023-04-20)
+
+* **Feature**: Support additional OTA states in GetOTAUpdate API
+
 # v1.35.4 (2023-04-10)
 
 * No change notes available for this release.

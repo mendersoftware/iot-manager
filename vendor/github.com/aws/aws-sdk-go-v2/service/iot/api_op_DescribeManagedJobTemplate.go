@@ -124,6 +124,9 @@ func (c *Client) addOperationDescribeManagedJobTemplateMiddlewares(stack *middle
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeManagedJobTemplate(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -140,7 +143,7 @@ func newServiceMetadataMiddleware_opDescribeManagedJobTemplate(region string) *a
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "DescribeManagedJobTemplate",
 	}
 }
