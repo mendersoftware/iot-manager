@@ -213,7 +213,7 @@ components:
             - rejected
           description: Authorization status for the device.
         auth_sets:
-          type: list
+          type: array
           items:
             $ref: '#/components/schemas/AuthSet'
         created_ts:
