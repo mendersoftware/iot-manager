@@ -48,6 +48,11 @@ type CreateJobInput struct {
 	// A short text description of the job.
 	Description *string
 
+	// The package version Amazon Resource Names (ARNs) that are installed on the
+	// device when the job successfully completes. Note:The following Length
+	// Constraints relates to a single string. Up to five strings are allowed.
+	DestinationPackageVersions []string
+
 	// The job document. Required if you don't specify a value for documentSource .
 	Document *string
 
@@ -57,12 +62,12 @@ type CreateJobInput struct {
 	// custom job templates or to create jobs from them.
 	DocumentParameters map[string]string
 
-	// An S3 link to the job document. Required if you don't specify a value for
-	// document . If the job document resides in an S3 bucket, you must use a
-	// placeholder link when specifying the document. The placeholder link is of the
-	// following form: ${aws:iot:s3-presigned-url:https://s3.amazonaws.com/bucket/key}
-	// where bucket is your bucket name and key is the object in the bucket to which
-	// you are linking.
+	// An S3 link, or S3 object URL, to the job document. The link is an Amazon S3
+	// object URL and is required if you don't specify a value for document . For
+	// example, --document-source
+	// https://s3.region-code.amazonaws.com/example-firmware/device-firmware.1.0 For
+	// more information, see Methods for accessing a bucket (https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html)
+	// .
 	DocumentSource *string
 
 	// Allows you to create the criteria to retry a job.
@@ -179,6 +184,9 @@ func (c *Client) addOperationCreateJobMiddlewares(stack *middleware.Stack, optio
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateJob(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -195,7 +203,7 @@ func newServiceMetadataMiddleware_opCreateJob(region string) *awsmiddleware.Regi
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "CreateJob",
 	}
 }

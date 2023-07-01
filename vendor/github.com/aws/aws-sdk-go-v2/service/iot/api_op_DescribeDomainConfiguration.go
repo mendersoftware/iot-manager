@@ -70,6 +70,9 @@ type DescribeDomainConfigurationOutput struct {
 	// The type of service delivered by the endpoint.
 	ServiceType types.ServiceType
 
+	// An object that specifies the TLS configuration for a domain.
+	TlsConfig *types.TlsConfig
+
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
 
@@ -127,6 +130,9 @@ func (c *Client) addOperationDescribeDomainConfigurationMiddlewares(stack *middl
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeDomainConfiguration(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -143,7 +149,7 @@ func newServiceMetadataMiddleware_opDescribeDomainConfiguration(region string) *
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "DescribeDomainConfiguration",
 	}
 }

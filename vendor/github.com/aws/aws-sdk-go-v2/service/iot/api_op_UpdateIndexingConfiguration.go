@@ -98,6 +98,9 @@ func (c *Client) addOperationUpdateIndexingConfigurationMiddlewares(stack *middl
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opUpdateIndexingConfiguration(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -114,7 +117,7 @@ func newServiceMetadataMiddleware_opUpdateIndexingConfiguration(region string) *
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "UpdateIndexingConfiguration",
 	}
 }
