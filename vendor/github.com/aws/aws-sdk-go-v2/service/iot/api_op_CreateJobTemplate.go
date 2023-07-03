@@ -44,6 +44,11 @@ type CreateJobTemplateInput struct {
 	// The criteria that determine when and how a job abort takes place.
 	AbortConfig *types.AbortConfig
 
+	// The package version Amazon Resource Names (ARNs) that are installed on the
+	// device when the job successfully completes. Note:The following Length
+	// Constraints relates to a single string. Up to five strings are allowed.
+	DestinationPackageVersions []string
+
 	// The job document. Required if you don't specify a value for documentSource .
 	Document *string
 
@@ -148,6 +153,9 @@ func (c *Client) addOperationCreateJobTemplateMiddlewares(stack *middleware.Stac
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateJobTemplate(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -164,7 +172,7 @@ func newServiceMetadataMiddleware_opCreateJobTemplate(region string) *awsmiddlew
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "CreateJobTemplate",
 	}
 }

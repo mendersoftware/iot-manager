@@ -57,6 +57,9 @@ type CreateDomainConfigurationInput struct {
 	// file use format: "tags": "key1=value1&key2=value2..."
 	Tags []types.Tag
 
+	// An object that specifies the TLS configuration for a domain.
+	TlsConfig *types.TlsConfig
+
 	// The certificate used to validate the server certificate and prove domain name
 	// ownership. This certificate must be signed by a public certificate authority.
 	// This value is not required for Amazon Web Services-managed domains.
@@ -130,6 +133,9 @@ func (c *Client) addOperationCreateDomainConfigurationMiddlewares(stack *middlew
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateDomainConfiguration(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -146,7 +152,7 @@ func newServiceMetadataMiddleware_opCreateDomainConfiguration(region string) *aw
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "CreateDomainConfiguration",
 	}
 }

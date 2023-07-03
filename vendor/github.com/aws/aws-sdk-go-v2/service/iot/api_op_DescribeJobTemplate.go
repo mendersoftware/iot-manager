@@ -49,6 +49,11 @@ type DescribeJobTemplateOutput struct {
 	// A description of the job template.
 	Description *string
 
+	// The package version Amazon Resource Names (ARNs) that are installed on the
+	// device when the job successfully completes. Note:The following Length
+	// Constraints relates to a single string. Up to five strings are allowed.
+	DestinationPackageVersions []string
+
 	// The job document.
 	Document *string
 
@@ -138,6 +143,9 @@ func (c *Client) addOperationDescribeJobTemplateMiddlewares(stack *middleware.St
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeJobTemplate(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -154,7 +162,7 @@ func newServiceMetadataMiddleware_opDescribeJobTemplate(region string) *awsmiddl
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "DescribeJobTemplate",
 	}
 }

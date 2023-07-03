@@ -1149,6 +1149,8 @@ const (
 	OTAUpdateStatusCreateInProgress OTAUpdateStatus = "CREATE_IN_PROGRESS"
 	OTAUpdateStatusCreateComplete   OTAUpdateStatus = "CREATE_COMPLETE"
 	OTAUpdateStatusCreateFailed     OTAUpdateStatus = "CREATE_FAILED"
+	OTAUpdateStatusDeleteInProgress OTAUpdateStatus = "DELETE_IN_PROGRESS"
+	OTAUpdateStatusDeleteFailed     OTAUpdateStatus = "DELETE_FAILED"
 )
 
 // Values returns all known values for OTAUpdateStatus. Note that this can be
@@ -1160,6 +1162,46 @@ func (OTAUpdateStatus) Values() []OTAUpdateStatus {
 		"CREATE_IN_PROGRESS",
 		"CREATE_COMPLETE",
 		"CREATE_FAILED",
+		"DELETE_IN_PROGRESS",
+		"DELETE_FAILED",
+	}
+}
+
+type PackageVersionAction string
+
+// Enum values for PackageVersionAction
+const (
+	PackageVersionActionPublish   PackageVersionAction = "PUBLISH"
+	PackageVersionActionDeprecate PackageVersionAction = "DEPRECATE"
+)
+
+// Values returns all known values for PackageVersionAction. Note that this can be
+// expanded in the future, and so it is only as up to date as the client. The
+// ordering of this slice is not guaranteed to be stable across updates.
+func (PackageVersionAction) Values() []PackageVersionAction {
+	return []PackageVersionAction{
+		"PUBLISH",
+		"DEPRECATE",
+	}
+}
+
+type PackageVersionStatus string
+
+// Enum values for PackageVersionStatus
+const (
+	PackageVersionStatusDraft      PackageVersionStatus = "DRAFT"
+	PackageVersionStatusPublished  PackageVersionStatus = "PUBLISHED"
+	PackageVersionStatusDeprecated PackageVersionStatus = "DEPRECATED"
+)
+
+// Values returns all known values for PackageVersionStatus. Note that this can be
+// expanded in the future, and so it is only as up to date as the client. The
+// ordering of this slice is not guaranteed to be stable across updates.
+func (PackageVersionStatus) Values() []PackageVersionStatus {
+	return []PackageVersionStatus{
+		"DRAFT",
+		"PUBLISHED",
+		"DEPRECATED",
 	}
 }
 

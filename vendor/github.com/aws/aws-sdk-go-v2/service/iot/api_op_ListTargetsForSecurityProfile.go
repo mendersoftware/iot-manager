@@ -113,6 +113,9 @@ func (c *Client) addOperationListTargetsForSecurityProfileMiddlewares(stack *mid
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListTargetsForSecurityProfile(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -222,7 +225,7 @@ func newServiceMetadataMiddleware_opListTargetsForSecurityProfile(region string)
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "ListTargetsForSecurityProfile",
 	}
 }
