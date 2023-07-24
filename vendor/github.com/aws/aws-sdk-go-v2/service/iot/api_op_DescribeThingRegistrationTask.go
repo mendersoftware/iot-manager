@@ -120,7 +120,7 @@ func (c *Client) addOperationDescribeThingRegistrationTaskMiddlewares(stack *mid
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -133,6 +133,9 @@ func (c *Client) addOperationDescribeThingRegistrationTaskMiddlewares(stack *mid
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeThingRegistrationTask(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -151,7 +154,7 @@ func newServiceMetadataMiddleware_opDescribeThingRegistrationTask(region string)
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "DescribeThingRegistrationTask",
 	}
 }
