@@ -59,9 +59,9 @@ bin/iot-manager.docker: Dockerfile $(SRCFILES)
 	docker build . -f Dockerfile -t $(DOCKERIMAGE):$(DOCKERTAG)
 	touch $@
 
-bin/iot-manager.acceptance.docker: Dockerfile.acceptance $(GOFILES)
+bin/iot-manager.acceptance.docker: Dockerfile.acceptance-testing $(GOFILES)
 	docker rmi $(DOCKERIMAGE):$(DOCKERTESTTAG) 2>/dev/null; \
-	docker build . -f Dockerfile.acceptance -t $(DOCKERIMAGE):$(DOCKERTESTTAG)
+	docker build . -f Dockerfile.acceptance-testing -t $(DOCKERIMAGE):$(DOCKERTESTTAG)
 	touch $@
 
 .PHONY: docker

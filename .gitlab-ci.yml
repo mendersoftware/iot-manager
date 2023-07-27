@@ -16,10 +16,10 @@ include:
     file: '.gitlab-ci-check-commits.yml'
   - project: 'Northern.tech/Mender/mendertesting'
     file: '.gitlab-ci-check-license.yml'
-#   - project: 'Northern.tech/Mender/mendertesting'
-#     file: '.gitlab-ci-check-docker-acceptance.yml'
-#   - project: 'Northern.tech/Mender/mendertesting'
-#     file: '.gitlab-ci-check-apidocs.yml'
+  - project: 'Northern.tech/Mender/mendertesting'
+    file: '.gitlab-ci-check-docker-acceptance.yml'
+  - project: 'Northern.tech/Mender/mendertesting'
+    file: '.gitlab-ci-check-apidocs.yml'
   - project: 'Northern.tech/Mender/mendertesting'
     file: '.gitlab-ci-check-docker-build.yml'
   - project: 'Northern.tech/Mender/mendertesting'
@@ -31,13 +31,15 @@ test:unit:
 
 test:govendor-check:
   variables:
-    GOLANG_VERSION: "1.18"
+    GOLANG_VERSION: '1.18'
 
-test:acceptance:
+test:acceptance_tests:
   stage: test
   needs: []
-  except:
-    - /^saas-[a-zA-Z0-9.-]+$/
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^saas-[a-zA-Z0-9.]+$/'
+      when: never
+    - when: on_success
   tags:
     - docker
   image: docker:23.0.4-alpine3.17
@@ -55,32 +57,3 @@ test:acceptance:
       - tests/acceptance.*
       - tests/coverage-acceptance.txt
     when: always
-
-publish:acceptance:
-  stage: publish
-  except:
-    - /^saas-[a-zA-Z0-9.-]+$/
-  image: golang:1.16
-  needs:
-    - job: test:acceptance
-      artifacts: true
-  before_script:
-    - GO111MODULE=off go get github.com/mattn/goveralls
-    # Coveralls env variables:
-    #  According to https://docs.coveralls.io/supported-ci-services
-    #  we should set CI_NAME, CI_BUILD_NUMBER, etc. But according
-    #  to goveralls source code (https://github.com/mattn/goveralls)
-    #  many of these are not supported. Set CI_BRANCH, CI_PR_NUMBER,
-    #  and pass few others as command line arguments.
-    #  See also https://docs.coveralls.io/api-reference
-    - export CI_BRANCH=${CI_COMMIT_BRANCH}
-    - export CI_PR_NUMBER=${CI_COMMIT_BRANCH#pr_}
-  script:
-    - goveralls
-      -repotoken ${COVERALLS_TOKEN}
-      -service gitlab-ci
-      -jobid $CI_PIPELINE_ID
-      -covermode atomic
-      -flagname acceptance
-      -parallel
-      -coverprofile ./tests/coverage-acceptance.txt

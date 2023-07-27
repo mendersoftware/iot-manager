@@ -96,7 +96,7 @@ func (c *Client) addOperationListProvisioningTemplateVersionsMiddlewares(stack *
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -109,6 +109,9 @@ func (c *Client) addOperationListProvisioningTemplateVersionsMiddlewares(stack *
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListProvisioningTemplateVersions(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -220,7 +223,7 @@ func newServiceMetadataMiddleware_opListProvisioningTemplateVersions(region stri
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "ListProvisioningTemplateVersions",
 	}
 }

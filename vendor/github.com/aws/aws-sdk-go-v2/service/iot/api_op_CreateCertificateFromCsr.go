@@ -13,7 +13,7 @@ import (
 // Creates an X.509 certificate using the specified certificate signing request.
 // Requires permission to access the CreateCertificateFromCsr (https://docs.aws.amazon.com/service-authorization/latest/reference/list_awsiot.html#awsiot-actions-as-permissions)
 // action. The CSR must include a public key that is either an RSA key with a
-// length of at least 2048 bits or an ECC key from NIST P-25 or NIST P-384 curves.
+// length of at least 2048 bits or an ECC key from NIST P-256 or NIST P-384 curves.
 // For supported certificates, consult Certificate signing algorithms supported by
 // IoT (https://docs.aws.amazon.com/iot/latest/developerguide/x509-client-certs.html#x509-cert-algorithms)
 // . Reusing the same certificate signing request (CSR) results in a distinct
@@ -123,7 +123,7 @@ func (c *Client) addOperationCreateCertificateFromCsrMiddlewares(stack *middlewa
 	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -136,6 +136,9 @@ func (c *Client) addOperationCreateCertificateFromCsrMiddlewares(stack *middlewa
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opCreateCertificateFromCsr(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -154,7 +157,7 @@ func newServiceMetadataMiddleware_opCreateCertificateFromCsr(region string) *aws
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "execute-api",
+		SigningName:   "iot",
 		OperationName: "CreateCertificateFromCsr",
 	}
 }
