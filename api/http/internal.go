@@ -17,6 +17,7 @@ package http
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/mendersoftware/iot-manager/app"
 	"github.com/mendersoftware/iot-manager/client"
@@ -177,4 +178,45 @@ func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, res)
+}
+
+// POST /tenants/:tenant_id/auth/{provider:[iot-hub]}
+func (h *InternalHandler) PreauthorizeHandler(c *gin.Context) {
+	tenantID, okTenant := c.Params.Get("tenant_id")
+	if !(okTenant) {
+		(*APIHandler)(h).NoRoute(c)
+		return
+	}
+	var req model.PreauthRequest
+	if err := c.BindJSON(&req); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+	sepIdx := strings.Index(req.DeviceID, " ")
+	if sepIdx < 0 {
+		_ = c.AbortWithError(http.StatusBadRequest, errors.New("invalid parameter `external_id`"))
+		return
+	}
+	provider := req.DeviceID[:sepIdx]
+	req.DeviceID = req.DeviceID[sepIdx+1:]
+
+	ctx := identity.WithContext(c.Request.Context(), &identity.Identity{
+		IsDevice: true,
+		Subject:  req.DeviceID,
+		Tenant:   tenantID,
+	})
+	var err error
+	switch provider {
+	case string(model.ProviderIoTHub):
+		err = h.app.VerifyDeviceTwin(ctx, req)
+	default:
+		_ = c.AbortWithError(http.StatusBadRequest, errors.New("external provider not supported"))
+		return
+	}
+	if err != nil {
+		_ = c.Error(err)
+		c.Status(http.StatusUnauthorized)
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

@@ -665,7 +665,6 @@ func TestProvisionDevice(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
-		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name: "error/webhook fails to send request",
 		Device: model.DeviceEvent{
@@ -1055,7 +1054,6 @@ func TestDecommissionDevice(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
-		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name:     "error/webhook fails to send request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1438,7 +1436,6 @@ func TestSetDeviceStatus(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
-		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name:     "error/webhook fails to send request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",

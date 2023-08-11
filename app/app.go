@@ -83,6 +83,7 @@ type App interface {
 	SyncDevices(context.Context, int, bool) error
 
 	GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error)
+	VerifyDeviceTwin(ctx context.Context, req model.PreauthRequest) error
 }
 
 // app is an app object

@@ -1,0 +1,109 @@
+package http
+
+import (
+	"errors"
+	"net/http"
+	"net/url"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/mendersoftware/go-lib-micro/identity"
+	"github.com/mendersoftware/go-lib-micro/log"
+	"github.com/mendersoftware/go-lib-micro/rest.utils"
+	"github.com/mendersoftware/iot-manager/client/tenantadm"
+	"github.com/mendersoftware/iot-manager/model"
+)
+
+type DevicesHandler struct {
+	APIHandler
+	TenantAdm tenantadm.Client
+}
+
+type AuthzRequest struct {
+	IDData      map[string]string `json:"identity_data"`
+	PubKey      string            `json:"pubkey"`
+	TenantToken string            `json:"tenant_token"`
+}
+
+func (h *DevicesHandler) CanIHazAuthzPls(c *gin.Context) {
+	// TODO: Parse SharedAccessToken
+	// Gib Authz?
+	var authzReq AuthzRequest
+	authz := c.GetHeader("Authorization")
+	schemeIdx := strings.IndexRune(authz, ' ')
+	if schemeIdx < 0 {
+		schemeIdx = 0
+	}
+	var (
+		hostName string
+		deviceID string
+	)
+	switch strings.ToLower(authz[:schemeIdx]) {
+	case "sharedaccesssignature":
+		// TODO: Get Device ID from token
+		values, err := url.ParseQuery(authz[schemeIdx+1:])
+		if err == nil {
+			resource := values.Get("rs")
+			i := strings.IndexRune(resource, '/')
+			if i > 0 {
+				hostName = resource[:i]
+				rest := strings.TrimPrefix(resource, hostName+"/devices/")
+				if rest != resource {
+					i = strings.IndexRune(rest, '/')
+					if i < 0 {
+						i = len(rest)
+					}
+					deviceID = rest[:i]
+					break
+				}
+			}
+		}
+		fallthrough
+	default:
+		rest.RenderError(c, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+
+	ctx := c.Request.Context()
+	if err := c.BindJSON(&authzReq); err != nil {
+		rest.RenderError(c, http.StatusBadRequest, err)
+		return
+	}
+	tenant, err := h.TenantAdm.GetTenantByToken(ctx, authzReq.TenantToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,
+			map[string]string{
+				"error": "internal error",
+			})
+		log.FromContext(ctx).Error(err)
+		return
+	}
+	ctx = identity.WithContext(ctx, &identity.Identity{
+		Tenant:   tenant.ID,
+		IsDevice: true,
+	})
+	integrations, err := h.APIHandler.app.GetIntegrations(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError,
+			map[string]string{
+				"error": "internal error",
+			})
+		log.FromContext(ctx).Error(err)
+		return
+	}
+	var integration *model.Integration
+	for _, itg := range integrations {
+		if itg.Provider == model.ProviderIoTHub {
+			integration = &itg
+			break
+		}
+	}
+	if integration == nil {
+		rest.RenderError(c, http.StatusUnauthorized, errors.New("unauthorized"))
+		return
+	}
+	if strings.EqualFold(integration.Credentials.ConnectionString.HostName, hostName) {
+
+	}
+}

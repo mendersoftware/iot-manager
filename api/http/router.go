@@ -40,6 +40,7 @@ const (
 	APIURLHealth            = "/health"
 	APIURLTenants           = "/tenants"
 	APIURLTenant            = APIURLTenants + "/:tenant_id"
+	APIURLTenantAuth        = APIURLTenant + "/auth"
 	APIURLTenantDevices     = APIURLTenant + "/devices"
 	APIURLTenantDevice      = APIURLTenantDevices + "/:device_id"
 	APIURLTenantBulkDevices = APIURLTenant + "/bulk/devices"
@@ -111,6 +112,8 @@ func NewRouter(
 	internalAPI.POST(APIURLTenantDevices, internal.ProvisionDevice)
 	internalAPI.DELETE(APIURLTenantDevice, internal.DecommissionDevice)
 	internalAPI.PUT(APIURLTenantBulkStatus, internal.BulkSetDeviceStatus)
+
+	internalAPI.POST(APIURLTenantAuth, internal.PreauthorizeHandler)
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())
 	managementAPI.GET(APIURLIntegrations, management.GetIntegrations)
