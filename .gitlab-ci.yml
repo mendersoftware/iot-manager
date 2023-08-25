@@ -1,5 +1,7 @@
 variables:
   DOCKER_REPOSITORY: mendersoftware/iot-manager
+  MULTIPLATFORM_BUILD: "true"
+  MULTIPLATFORM_PLATFORMS: "linux/amd64,linux/arm64"
 
 stages:
   - test_prep
@@ -59,6 +61,21 @@ test:acceptance_tests:
       - tests/coverage-acceptance.txt
     when: always
 
+# excludes non multiplatform build job
+build:docker:
+  rules:
+    - when: never
+
+# excludes non multiplatform build job
+publish:image:
+  rules:
+    - when: never
+
+# excludes non multiplatform build job
+publish:image:mender:
+  rules:
+    - when: never
+
 #
 # Alvaldi Helm Rolling release
 #
@@ -81,7 +98,7 @@ trigger:alvaldi-helm-version-bump:staging:
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^(master|staging)$/'
   needs:
-    - job: publish:image
+    - job: publish:image-multiplatform
   variables:
     SYNC_ENVIRONMENT: staging
     HELM_PATCH_VERSION: ${CI_PIPELINE_ID}-staging # pre-release version for trigger staging only deploy
