@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2023 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -1274,6 +1274,486 @@ func TestSyncIoTHubDevices(t *testing.T) {
 
 			app := New(ds, wf, da).WithIoTHub(hub).(*app)
 			err := app.syncIoTHubDevices(ctx, tc.DeviceIDs, tc.Integration, tc.FailEarly)
+			if tc.Error != nil {
+				if assert.Error(t, err) {
+					assert.Regexp(t, tc.Error.Error(), err.Error())
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestVerifyDeviceTwinIotHub(t *testing.T) {
+	t.Parallel()
+	noLogger := log.NewEmpty()
+	noLogger.Logger.Out = io.Discard
+
+	// parse public key
+	pubkeyStr := `
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzogVU7RGDilbsoUt/DdH
+VJvcepl0A5+xzGQ50cq1VE/Dyyy8Zp0jzRXCnnu9nu395mAFSZGotZVr+sWEpO3c
+yC3VmXdBZmXmQdZqbdD/GuixJOYfqta2ytbIUPRXFN7/I7sgzxnXWBYXYmObYvdP
+okP0mQanY+WKxp7Q16pt1RoqoAd0kmV39g13rFl35muSHbSBoAW3GBF3gO+mF5Ty
+1ddp/XcgLOsmvNNjY+2HOD5F/RX0fs07mWnbD7x+xz7KEKjF+H7ZpkqCwmwCXaf0
+iyYyh1852rti3Afw4mDxuVSD7sd9ggvYMc0QHIpQNkD4YWOhNiE1AB0zH57VbUYG
+UwIDAQAB
+-----END PUBLIC KEY-----`
+	var pubkey model.PublicKey
+	err := pubkey.UnmarshalText([]byte(pubkeyStr))
+	if err != nil {
+		panic(err)
+	}
+
+	type testCase struct {
+		Name string
+
+		Integration model.Integration
+		Req         model.PreauthRequest
+
+		DataStore func(t *testing.T, self *testCase) *storeMocks.DataStore
+		Hub       func(t *testing.T, self *testCase) *hubMocks.Client
+
+		Error error
+	}
+	testCases := []testCase{
+		{
+			Name: "ok",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return([]model.Integration{self.Integration}, nil).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					self.Integration.Credentials.ConnectionString,
+					self.Req.DeviceID).
+					Return(&iothub.DeviceTwin{
+						ETag: "etag",
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
+						Properties: iothub.TwinProperties{
+							Desired: map[string]interface{}{
+								"another-key": "another-value",
+							},
+							Reported: map[string]interface{}{
+								"id_data": map[string]interface{}{"foo": "bar"},
+								"pubkey":  pubkeyStr,
+							},
+						},
+					}, nil).Once()
+
+				return hub
+			},
+		},
+		{
+			Name: "error getting integrations",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return(nil, errors.New("some error")).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+
+				return hub
+			},
+			Error: errors.New("failed to retrieve integration: some error"),
+		},
+		{
+			Name: "error getting device twin",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return([]model.Integration{self.Integration}, nil).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					self.Integration.Credentials.ConnectionString,
+					self.Req.DeviceID).
+					Return(nil, errors.New("some error")).Once()
+
+				return hub
+			},
+			Error: errors.New("failed to get module twin from integration: some error"),
+		},
+		{
+			Name: "error - identity data missing in the module twin",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return([]model.Integration{self.Integration}, nil).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					self.Integration.Credentials.ConnectionString,
+					self.Req.DeviceID).
+					Return(&iothub.DeviceTwin{
+						ETag: "etag",
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
+						Properties: iothub.TwinProperties{
+							Desired: map[string]interface{}{
+								"another-key": "another-value",
+							},
+							Reported: map[string]interface{}{
+								"pubkey": pubkeyStr,
+							},
+						},
+					}, nil).Once()
+
+				return hub
+			},
+			Error: errors.New("missing identity data"),
+		},
+		{
+			Name: "error - reported identity data does not match",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return([]model.Integration{self.Integration}, nil).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					self.Integration.Credentials.ConnectionString,
+					self.Req.DeviceID).
+					Return(&iothub.DeviceTwin{
+						ETag: "etag",
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
+						Properties: iothub.TwinProperties{
+							Desired: map[string]interface{}{
+								"another-key": "another-value",
+							},
+							Reported: map[string]interface{}{
+								"id_data": map[string]interface{}{"foo": "baz"},
+								"pubkey":  pubkeyStr,
+							},
+						},
+					}, nil).Once()
+
+				return hub
+			},
+			Error: errors.New(`reported "id_data" does not match request`),
+		},
+		{
+			Name: "error - missing pubkey",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return([]model.Integration{self.Integration}, nil).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					self.Integration.Credentials.ConnectionString,
+					self.Req.DeviceID).
+					Return(&iothub.DeviceTwin{
+						ETag: "etag",
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
+						Properties: iothub.TwinProperties{
+							Desired: map[string]interface{}{
+								"another-key": "another-value",
+							},
+							Reported: map[string]interface{}{
+								"id_data": map[string]interface{}{"foo": "bar"},
+							},
+						},
+					}, nil).Once()
+
+				return hub
+			},
+			Error: errors.New("missing pubkey"),
+		},
+		{
+			Name: "error - invalid public key from twin",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return([]model.Integration{self.Integration}, nil).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					self.Integration.Credentials.ConnectionString,
+					self.Req.DeviceID).
+					Return(&iothub.DeviceTwin{
+						ETag: "etag",
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
+						Properties: iothub.TwinProperties{
+							Desired: map[string]interface{}{
+								"another-key": "another-value",
+							},
+							Reported: map[string]interface{}{
+								"id_data": map[string]interface{}{"foo": "bar"},
+								"pubkey":  "foo",
+							},
+						},
+					}, nil).Once()
+
+				return hub
+			},
+			Error: errors.New("invalid public key from twin: invalid public key format"),
+		},
+		{
+			Name: "key does not match",
+
+			Integration: model.Integration{
+				ID:       uuid.New(),
+				Provider: model.ProviderIoTHub,
+				Credentials: model.Credentials{
+					Type:             model.CredentialTypeSAS,
+					ConnectionString: validConnString,
+				},
+			},
+
+			Req: model.PreauthRequest{
+				DeviceID: "foo",
+				IdentityData: map[string]interface{}{
+					"foo": "bar",
+				},
+				PublicKey: pubkey,
+			},
+			DataStore: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+				ds := new(storeMocks.DataStore)
+
+				ds.On("GetIntegrations",
+					contextMatcher,
+					model.IntegrationFilter{}).
+					Return([]model.Integration{self.Integration}, nil).
+					Once()
+
+				return ds
+			},
+			Hub: func(t *testing.T, self *testCase) *hubMocks.Client {
+				hub := new(hubMocks.Client)
+				hub.On("GetDeviceTwin",
+					contextMatcher,
+					self.Integration.Credentials.ConnectionString,
+					self.Req.DeviceID).
+					Return(&iothub.DeviceTwin{
+						ETag: "etag",
+						Tags: map[string]interface{}{
+							"tag": "value",
+						},
+						Properties: iothub.TwinProperties{
+							Desired: map[string]interface{}{
+								"another-key": "another-value",
+							},
+							Reported: map[string]interface{}{
+								"id_data": map[string]interface{}{"foo": "bar"},
+								"pubkey": `
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzogVU7RGDilbsoUt/DdH
+VJvcepl0A5+xzGQ50cq1VE/Dyyy8Zp0jzRXCnnu9nu395mAFSZGotZVr+sWEpO3c
+yC3VmXdBZmXmQdZqbdD/GuixJOYfqta2ytbIUPRXFN7/I7sgzxnXWBYXYmObYvdP
+okP0mQanY+WKxp7Q16pt1RoqoAd0kmV39g13rFl35muSHbSBoAW3GBF3gO+mF5Ty
+1ddp/XcgLOsmvNNjY+2HOD5F/RX0fs07mWnbD7x+xz7KEKjF+H7ZpkqCwmwCXaf0
+iyYyh1852rti3Afw4mDxuVSD7sd9ggvYMc0QHIpQNkD4YWOhNiE1AB0zH57VbUYG
+UwIDAQAC
+-----END PUBLIC KEY-----`,
+							},
+						},
+					}, nil).Once()
+
+				return hub
+			},
+			Error: errors.New("key does not match"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			ctx := log.WithContext(context.Background(), noLogger)
+
+			ds := tc.DataStore(t, &tc)
+			hub := tc.Hub(t, &tc)
+			defer ds.AssertExpectations(t)
+			defer hub.AssertExpectations(t)
+
+			app := New(ds, nil, nil).WithIoTHub(hub).(*app)
+			err := app.VerifyDeviceTwin(ctx, tc.Req)
 			if tc.Error != nil {
 				if assert.Error(t, err) {
 					assert.Regexp(t, tc.Error.Error(), err.Error())

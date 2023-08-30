@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2023 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -665,6 +665,7 @@ func TestProvisionDevice(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
+		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name: "error/webhook fails to send request",
 		Device: model.DeviceEvent{
@@ -1054,6 +1055,7 @@ func TestDecommissionDevice(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
+		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name:     "error/webhook fails to send request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1436,6 +1438,7 @@ func TestSetDeviceStatus(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
+		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name:     "error/webhook fails to send request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",

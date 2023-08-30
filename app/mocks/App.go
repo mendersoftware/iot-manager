@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2023 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -404,6 +404,20 @@ func (_m *App) SyncDevices(_a0 context.Context, _a1 int, _a2 bool) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(context.Context, int, bool) error); ok {
 		r0 = rf(_a0, _a1, _a2)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// VerifyDeviceTwin provides a mock function with given fields: ctx, req
+func (_m *App) VerifyDeviceTwin(ctx context.Context, req model.PreauthRequest) error {
+	ret := _m.Called(ctx, req)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, model.PreauthRequest) error); ok {
+		r0 = rf(ctx, req)
 	} else {
 		r0 = ret.Error(0)
 	}
