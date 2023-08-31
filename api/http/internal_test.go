@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2023 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -515,6 +515,141 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 			default:
 				b, _ := json.Marshal(res)
 				assert.JSONEq(t, string(b), w.Body.String())
+			}
+		})
+	}
+}
+
+func TestPreauthorize(t *testing.T) {
+	t.Parallel()
+	type AuthRequest struct {
+		ExternalID string                 `json:"external_id"`
+		IDData     map[string]interface{} `json:"id_data"`
+		PublicKey  string                 `json:"pubkey"`
+	}
+
+	pubkeyStr := `
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzogVU7RGDilbsoUt/DdH
+VJvcepl0A5+xzGQ50cq1VE/Dyyy8Zp0jzRXCnnu9nu395mAFSZGotZVr+sWEpO3c
+yC3VmXdBZmXmQdZqbdD/GuixJOYfqta2ytbIUPRXFN7/I7sgzxnXWBYXYmObYvdP
+okP0mQanY+WKxp7Q16pt1RoqoAd0kmV39g13rFl35muSHbSBoAW3GBF3gO+mF5Ty
+1ddp/XcgLOsmvNNjY+2HOD5F/RX0fs07mWnbD7x+xz7KEKjF+H7ZpkqCwmwCXaf0
+iyYyh1852rti3Afw4mDxuVSD7sd9ggvYMc0QHIpQNkD4YWOhNiE1AB0zH57VbUYG
+UwIDAQAB
+-----END PUBLIC KEY-----`
+
+	type testCase struct {
+		Name string
+
+		TenantID string
+		Body     interface{}
+		App      func(*testing.T, *testCase) *mapp.App
+
+		StatusCode int
+		Error      error
+	}
+	testCases := []testCase{
+		{
+			Name: "ok",
+
+			TenantID: "123456789012345678901234",
+
+			Body: AuthRequest{
+				ExternalID: "iot-hub b8ea97f2-1c2b-492c-84ce-7a90170291b9",
+				PublicKey:  pubkeyStr,
+			},
+
+			App: func(t *testing.T, self *testCase) *mapp.App {
+				appMock := new(mapp.App)
+				appMock.On("VerifyDeviceTwin",
+					validateTenantIDCtx(self.TenantID),
+					mock.AnythingOfType("model.PreauthRequest")).
+					Return(nil)
+				return appMock
+			},
+
+			StatusCode: http.StatusNoContent,
+		},
+		{
+			Name: "error: bad request",
+
+			TenantID: "123456789012345678901234",
+
+			Body: AuthRequest{
+				ExternalID: "foo b8ea97f2-1c2b-492c-84ce-7a90170291b9",
+				PublicKey:  pubkeyStr,
+			},
+
+			App: func(t *testing.T, self *testCase) *mapp.App {
+				appMock := new(mapp.App)
+				appMock.On("VerifyDeviceTwin",
+					validateTenantIDCtx(self.TenantID),
+					mock.AnythingOfType("model.PreauthRequest")).
+					Return(nil)
+				return appMock
+			},
+
+			StatusCode: http.StatusBadRequest,
+		},
+		{
+			Name: "error: unauthorized",
+
+			TenantID: "123456789012345678901234",
+
+			Body: AuthRequest{
+				ExternalID: "iot-hub b8ea97f2-1c2b-492c-84ce-7a90170291b9",
+				PublicKey:  pubkeyStr,
+			},
+
+			App: func(t *testing.T, self *testCase) *mapp.App {
+				appMock := new(mapp.App)
+				appMock.On("VerifyDeviceTwin",
+					validateTenantIDCtx(self.TenantID),
+					mock.AnythingOfType("model.PreauthRequest")).
+					Return(errors.New("some error"))
+				return appMock
+			},
+
+			StatusCode: http.StatusUnauthorized,
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			app := tc.App(t, &tc)
+			w := httptest.NewRecorder()
+			handler := NewRouter(app)
+
+			repl := strings.NewReplacer(
+				":tenant_id", tc.TenantID,
+			)
+
+			var body []byte
+			switch t := tc.Body.(type) {
+			case []byte:
+				body = t
+			default:
+				body, _ = json.Marshal(tc.Body)
+			}
+
+			req, _ := http.NewRequest(http.MethodPost,
+				"http://localhost"+
+					APIURLInternal+
+					repl.Replace(APIURLTenantAuth),
+				bytes.NewReader(body),
+			)
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.StatusCode, w.Code)
+
+			if tc.Error != nil {
+				var err rest.Error
+				json.Unmarshal(w.Body.Bytes(), &err)
+				assert.Regexp(t, tc.Error.Error(), err.Error())
 			}
 		})
 	}
