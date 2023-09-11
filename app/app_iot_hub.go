@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2023 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -16,7 +16,11 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"net/url"
+	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 
@@ -283,4 +287,52 @@ func (a *app) SetDeviceStateIoTHub(
 		return nil, errors.Wrap(err, "failed to update the device twin")
 	}
 	return a.GetDeviceStateIoTHub(ctx, deviceID, integration)
+}
+
+func (app *app) VerifyDeviceTwin(ctx context.Context, req model.PreauthRequest) error {
+	integrations, err := app.GetIntegrations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve integration: %w", err)
+	}
+	var integration model.Integration
+	for _, integration = range integrations {
+		if integration.Provider == model.ProviderIoTHub {
+			break
+		}
+	}
+	deviceModule := strings.SplitN(req.DeviceID, "/", 2)
+	for i := range deviceModule {
+		deviceModule[i] = url.PathEscape(deviceModule[i])
+	}
+	id := strings.Join(deviceModule, "/modules/")
+	log.FromContext(ctx).Debugf("getting twin: %s", id)
+	twin, err := app.iothubClient.GetDeviceTwin(
+		ctx, integration.Credentials.ConnectionString, id,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get module twin from integration: %w", err)
+	}
+	idData, ok := twin.Properties.Reported["id_data"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("missing identity data")
+	}
+	if !reflect.DeepEqual(idData, req.IdentityData) {
+		return fmt.Errorf(`reported "id_data" does not match request`)
+	}
+	pubkeyPEM, ok := twin.Properties.Reported["pubkey"].(string)
+	if !ok {
+		return fmt.Errorf("missing pubkey")
+	}
+	var pubkey model.PublicKey
+	err = pubkey.UnmarshalText([]byte(pubkeyPEM))
+	if err != nil {
+		return fmt.Errorf(
+			"invalid public key from twin: %w",
+			err,
+		)
+	}
+	if !pubkey.PublicKey.Equal(req.PublicKey.PublicKey) {
+		return fmt.Errorf("key does not match")
+	}
+	return nil
 }
