@@ -45,6 +45,7 @@ var (
 const DefaultTimeout = time.Second * 10
 
 // Client interface exposing a portion of the internal deviceauth API.
+//
 //go:generate ../../utils/mockgen.sh
 type Client interface {
 	Ping(ctx context.Context) error
