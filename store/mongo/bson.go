@@ -22,7 +22,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsoncodec"
 	"go.mongodb.org/mongo-driver/bson/bsonrw"
-	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
 
 var (
@@ -35,8 +34,7 @@ func init() {
 	bson.DefaultRegistry = bson.NewRegistry()
 	bson.DefaultRegistry.RegisterTypeEncoder(tUUID, bsoncodec.ValueEncoderFunc(uuidEncodeValue))
 	bson.DefaultRegistry.RegisterTypeDecoder(tUUID, bsoncodec.ValueDecoderFunc(uuidDecodeValue))
-	bson.DefaultRegistry.RegisterTypeMapEntry(bsontype.EmbeddedDocument, tM)
-
+	bson.DefaultRegistry.RegisterTypeMapEntry(bson.TypeEmbeddedDocument, tM)
 }
 
 func uuidEncodeValue(ec bsoncodec.EncodeContext, w bsonrw.ValueWriter, val reflect.Value) error {
