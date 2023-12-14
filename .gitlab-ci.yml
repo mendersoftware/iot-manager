@@ -92,7 +92,7 @@ publish:image:mender:
   variables:
     SYNC_CONTAINER_NAME: $CONTAINER_NAME
     SYNC_IMAGE_TAG: $DOCKER_PUBLISH_COMMIT_TAG
-    CONTAINER: iot_manager
+    CONTAINER: iotManager
     DOCKER_PUBLISH_COMMIT_TAG: ${CI_COMMIT_REF_NAME}_${CI_COMMIT_SHA}
     GITHUB_HELM_REPO: "github.com/NorthernTechHQ/alvaldi-helm.git"
     CHART_DIR: "alvaldi"
