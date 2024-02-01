@@ -10,7 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.20.5
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/mendersoftware/go-lib-micro v0.0.0-20231212090330-dbd92a22bbee
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
