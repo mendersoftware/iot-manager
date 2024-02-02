@@ -3,10 +3,10 @@ module github.com/mendersoftware/iot-manager
 go 1.18
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.24.0
+	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.2
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.13
-	github.com/aws/aws-sdk-go-v2/service/iot v1.47.0
+	github.com/aws/aws-sdk-go-v2/service/iot v1.49.0
 	github.com/aws/aws-sdk-go-v2/service/iotdataplane v1.20.5
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-ozzo/ozzo-validation/v4 v4.3.0
@@ -23,8 +23,8 @@ require (
 require (
 	github.com/ant0ine/go-json-rest v3.3.3-0.20170913041208-ebb33769ae01+incompatible // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.10 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.2.9 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.5.9 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.2.10 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.5.10 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.7.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.10.9 // indirect
