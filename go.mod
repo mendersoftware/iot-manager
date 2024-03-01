@@ -17,7 +17,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli v1.22.14
 	go.mongodb.org/mongo-driver v1.13.1
-	golang.org/x/sys v0.16.0
+	golang.org/x/sys v0.17.0
 )
 
 require (
