@@ -221,6 +221,9 @@ func (a *app) GetDeviceIntegrations(
 func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
 	integrations, err := a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 	if err != nil {
+		if errors.Is(err, store.ErrObjectNotFound) {
+			return nil
+		}
 		return errors.Wrap(err, "failed to retrieve integrations")
 	}
 	event := model.Event{
@@ -237,9 +240,8 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 	}
 
 	var (
-		ok       bool
-		errStack model.ErrorStack
-		device   = newDevice(deviceID, a.store)
+		ok     bool
+		device = newDevice(deviceID, a.store)
 	)
 	for _, integration := range integrations {
 		deliver := model.DeliveryStatus{
@@ -297,18 +299,10 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 			}
 			deliver.Success = false
 			deliver.Error = err.Error()
-			_ = errStack.Push(err)
 		}
 		event.DeliveryStatus = append(event.DeliveryStatus, deliver)
 	}
 	err = a.store.SaveEvent(ctx, event)
-	if errStack != nil {
-		if err != nil {
-			err = errors.WithMessage(err, errStack.Error())
-		} else {
-			err = errStack
-		}
-	}
 	return err
 }
 
@@ -318,9 +312,11 @@ func (a *app) ProvisionDevice(
 ) error {
 	integrations, err := a.GetIntegrations(ctx)
 	if err != nil {
+		if errors.Is(err, store.ErrObjectNotFound) {
+			return nil
+		}
 		return errors.Wrap(err, "failed to retrieve integrations")
 	}
-	var errStack model.ErrorStack
 	event := model.Event{
 		WebhookEvent: model.WebhookEvent{
 			ID:      uuid.New(),
@@ -377,22 +373,26 @@ func (a *app) ProvisionDevice(
 			}
 			deliver.Success = false
 			deliver.Error = err.Error()
-			_ = errStack.Push(err)
 		}
 		event.DeliveryStatus = append(event.DeliveryStatus, deliver)
 	}
 	_, err = a.store.UpsertDeviceIntegrations(ctx, device.ID, integrationIDs)
-	errSave := a.store.SaveEvent(ctx, event)
-	if errSave != nil {
-		_ = errStack.Push(errSave)
-	}
-	if errStack != nil {
-		if err != nil {
-			err = errors.Wrap(err, errStack.Error())
-		} else {
-			err = errStack
+	if err != nil {
+		var statusCodeInternal = 1500
+		for i := range event.DeliveryStatus {
+			stat := &event.DeliveryStatus[i]
+			if stat.Error == "" {
+				stat.Error = "failed to connect device to integration"
+				stat.StatusCode = &statusCodeInternal
+			}
+			stat.Success = false
 		}
+		// Use 'panic' field to log potential data inconsistency
+		log.FromContext(ctx).
+			WithField("panic", err.Error()).
+			Error("failed to connect device integration")
 	}
+	err = a.store.SaveEvent(ctx, event)
 	return err
 }
 
@@ -559,8 +559,7 @@ func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 		return err
 	}
 	var (
-		errStack model.ErrorStack
-		device   = newDevice(deviceID, a.store)
+		device = newDevice(deviceID, a.store)
 	)
 	event := model.Event{
 		WebhookEvent: model.WebhookEvent{
@@ -631,25 +630,20 @@ func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
 			}
 			deliver.Success = false
 			deliver.Error = err.Error()
-			_ = errStack.Push(err)
 		}
 		event.DeliveryStatus = append(event.DeliveryStatus, deliver)
 	}
 	err = a.store.DeleteDevice(ctx, deviceID)
-	if err == store.ErrObjectNotFound {
-		err = ErrDeviceNotFound
+	if errors.Is(err, store.ErrObjectNotFound) {
+		err = nil
 	}
-	errSave := a.store.SaveEvent(ctx, event)
-	if errSave != nil {
-		_ = errStack.Push(errSave)
+	if err != nil {
+		// Add the `panic` keyword field so we can trace database inconsistencies
+		log.FromContext(ctx).
+			WithField("panic", err.Error()).
+			Errorf("failed to remove device from database: %s", err.Error())
 	}
-	if errStack != nil {
-		if err != nil {
-			err = errors.Wrap(err, errStack.Error())
-		} else {
-			err = errStack
-		}
-	}
+	err = a.store.SaveEvent(ctx, event)
 	return err
 }
 
