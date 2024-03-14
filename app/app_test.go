@@ -18,11 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
@@ -647,6 +647,9 @@ func TestProvisionDevice(t *testing.T) {
 					assert.Len(t, event.DeliveryStatus, 1)
 					for _, stat := range event.DeliveryStatus {
 						assert.False(t, stat.Success)
+						if assert.NotNil(t, stat.StatusCode) {
+							assert.Equal(t, http.StatusInternalServerError, *stat.StatusCode)
+						}
 					}
 				}).
 				Return(nil).
@@ -665,7 +668,6 @@ func TestProvisionDevice(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
-		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name: "error/webhook fails to send request",
 		Device: model.DeviceEvent{
@@ -716,7 +718,6 @@ func TestProvisionDevice(t *testing.T) {
 			assert.Contains(t, req.Header, client.ParamAlgorithmType)
 			return nil, errors.New("internal error")
 		},
-		Error: errors.New("internal error"),
 	}, {
 		Name: "error/webhook fails to create request",
 		Device: model.DeviceEvent{
@@ -757,7 +758,6 @@ func TestProvisionDevice(t *testing.T) {
 				Once()
 			return mockedStore
 		},
-		Error: validation.Errors{"type": validation.ErrRequired},
 	}, {
 		Name: "error/UpsertDeviceIntegrations with error stack",
 		Device: model.DeviceEvent{
@@ -788,20 +788,30 @@ func TestProvisionDevice(t *testing.T) {
 					}
 					assert.Len(t, event.DeliveryStatus, 0)
 				}).
-				Return(errors.New("internal error")).
+				Return(nil).
 				Once()
 			return mockedStore
 		},
 		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
 			return nil, errors.New("internal error")
 		},
-		Error: func() error {
-			return errors.WithMessage(
-				errors.New("internal error"), "internal error",
-			)
-		}(),
 	}, {
-		Name: "error/GetIntegrations",
+		Name: "error/GetIntegrations/internal error",
+		Device: model.DeviceEvent{
+			ID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+		},
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetIntegrations",
+				contextMatcher,
+				model.IntegrationFilter{}).
+				Return(nil, errors.New("internal error"))
+			return mockedStore
+		},
+		Error: errors.New("internal error"),
+	}, {
+		Name: "ok/GetIntegrations/not found",
 		Device: model.DeviceEvent{
 			ID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 		},
@@ -814,7 +824,6 @@ func TestProvisionDevice(t *testing.T) {
 				Return(nil, store.ErrObjectNotFound)
 			return mockedStore
 		},
-		Error: store.ErrObjectNotFound,
 	}}
 	for i := range testCases {
 		tc := testCases[i]
@@ -1037,6 +1046,9 @@ func TestDecommissionDevice(t *testing.T) {
 					assert.Len(t, event.DeliveryStatus, 1)
 					for _, stat := range event.DeliveryStatus {
 						assert.False(t, stat.Success)
+						if assert.NotNil(t, stat.StatusCode) {
+							assert.Equal(t, *stat.StatusCode, http.StatusInternalServerError)
+						}
 					}
 				}).
 				Return(nil).
@@ -1055,7 +1067,6 @@ func TestDecommissionDevice(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
-		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name:     "error/webhook fails to send request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1100,7 +1111,6 @@ func TestDecommissionDevice(t *testing.T) {
 			assert.Contains(t, req.Header, client.ParamAlgorithmType)
 			return nil, errors.New("internal error")
 		},
-		Error: errors.New("internal error"),
 	}, {
 		Name:     "error/webhook fails to create request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1135,7 +1145,6 @@ func TestDecommissionDevice(t *testing.T) {
 				Once()
 			return mockedStore
 		},
-		Error: validation.Errors{"type": validation.ErrRequired},
 	}, {
 		Name:     "error/device not found (DeleteDevice) with error stack",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1172,7 +1181,6 @@ func TestDecommissionDevice(t *testing.T) {
 		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
 			return nil, errors.New("internal error")
 		},
-		Error: ErrDeviceNotFound,
 	}, {
 		Name:     "error: device not found in db in GetDeviceIntegrations",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1420,6 +1428,9 @@ func TestSetDeviceStatus(t *testing.T) {
 					assert.Len(t, event.DeliveryStatus, 1)
 					for _, stat := range event.DeliveryStatus {
 						assert.False(t, stat.Success)
+						if assert.NotNil(t, stat.StatusCode) {
+							assert.Equal(t, *stat.StatusCode, http.StatusInternalServerError)
+						}
 					}
 				}).
 				Return(nil).
@@ -1438,7 +1449,6 @@ func TestSetDeviceStatus(t *testing.T) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return w.Result(), nil
 		},
-		Error: client.NewHTTPError(http.StatusInternalServerError),
 	}, {
 		Name:     "error/webhook fails to send request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1479,9 +1489,8 @@ func TestSetDeviceStatus(t *testing.T) {
 			assert.Equal(t, model.EventTypeDeviceStatusChanged, event.Type)
 			assert.Contains(t, req.Header, client.ParamSignature)
 			assert.Contains(t, req.Header, client.ParamAlgorithmType)
-			return nil, errors.New("internal error")
+			return nil, &net.DNSError{Err: "unknown", Name: "localhost"}
 		},
-		Error: errors.New("internal error"),
 	}, {
 		Name:     "error/webhook fails to create request",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1514,9 +1523,8 @@ func TestSetDeviceStatus(t *testing.T) {
 				Once()
 			return mockedStore
 		},
-		Error: validation.Errors{"type": validation.ErrRequired},
 	}, {
-		Name:     "error/SaveEvent with error stack",
+		Name:     "error/SaveEvent internal error",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
@@ -1549,14 +1557,9 @@ func TestSetDeviceStatus(t *testing.T) {
 		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
 			return nil, errors.New("internal error")
 		},
-		Error: func() error {
-			var errStack model.ErrorStack
-			errStack.Push(errors.New("internal error"))
-			return errors.WithMessage(
-				errors.New("internal error"), errStack.Error())
-		}(),
+		Error: errors.New("internal error"),
 	}, {
-		Name:     "error: fail to retrieve integrations",
+		Name:     "ok: integration does not exist",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
 
 		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
@@ -1565,7 +1568,18 @@ func TestSetDeviceStatus(t *testing.T) {
 				Return(nil, store.ErrObjectNotFound)
 			return mockedStore
 		},
-		Error: store.ErrObjectNotFound,
+		Error: nil,
+	}, {
+		Name:     "error: error getting integrations",
+		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
+
+		Store: func(t *testing.T, self *testCase) *storeMocks.DataStore {
+			mockedStore := new(storeMocks.DataStore)
+			mockedStore.On("GetIntegrations", contextMatcher, model.IntegrationFilter{}).
+				Return(nil, io.ErrClosedPipe)
+			return mockedStore
+		},
+		Error: io.ErrClosedPipe,
 	}}
 	for i := range testCases {
 		tc := testCases[i]

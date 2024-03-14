@@ -852,6 +852,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 		Wf        func(t *testing.T, self *testCase) *wfMocks.Client
 
 		GetDevicesError error
+		SaveEventError  error
 
 		Error error
 	}
@@ -976,7 +977,34 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 				},
 			},
 		},
-		Error: errors.New("internal error"),
+	}, {
+		Name: "error/SaveEvent/deleting device from IoT Core",
+
+		FailEarly: true,
+
+		Devices: []testDevice{{
+			ID:            "a4a32db1-047d-4b4b-9f4a-b86a6c16ab90",
+			DevauthStatus: nil,
+			CoreStatus:    iotStatusPtr(iotcore.StatusEnabled),
+
+			DeleteDeviceError: errors.New("internal error"),
+		}},
+		Integration: model.Integration{
+			ID:       uuid.New(),
+			Provider: model.ProviderIoTCore,
+			Credentials: model.Credentials{
+				Type: model.CredentialTypeAWS,
+				AWSCredentials: &model.AWSCredentials{
+					AccessKeyID:      &awsAccessKeyID,
+					SecretAccessKey:  &awsSecretAccessKey,
+					Region:           &awsRegion,
+					DevicePolicyName: &awsDevicePolicyName,
+				},
+			},
+		},
+
+		SaveEventError: errors.New("internal error"),
+		Error:          errors.New("internal error"),
 	}, {
 		Name: "error/provisioning device to IoT Core",
 
@@ -1198,7 +1226,7 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 							}
 							return ret
 						})).
-						Return(nil).
+						Return(tc.SaveEventError).
 						Once()
 
 					var mockErr error = dev.DeleteDeviceError
@@ -1219,7 +1247,9 @@ func TestSyncIoTCoreDevices(t *testing.T) {
 						Once()
 
 				}
-
+				if tc.SaveEventError != nil {
+					break
+				}
 			}
 
 			deviceIDs := make([]string, len(tc.Devices))
