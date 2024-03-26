@@ -31,7 +31,8 @@ import (
 const (
 	CollNameLog = "log"
 
-	KeyEventTs = "event_ts"
+	KeyEventTs       = "event_ts"
+	KeyEventExpireTs = "expire_ts"
 )
 
 var (

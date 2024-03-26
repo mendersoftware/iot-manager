@@ -26,7 +26,7 @@ import (
 
 const (
 	// DbVersion is the current schema version
-	DbVersion = "1.1.0"
+	DbVersion = "1.1.1"
 
 	// DbName is the database name
 	DbName = "iot_manager"
@@ -59,6 +59,10 @@ func Migrate(ctx context.Context,
 			db:     db,
 		},
 		&migration_1_1_0{
+			client: client,
+			db:     db,
+		},
+		&migration_1_1_1{
 			client: client,
 			db:     db,
 		},
