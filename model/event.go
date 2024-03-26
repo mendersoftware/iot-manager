@@ -45,7 +45,7 @@ type Event struct {
 	WebhookEvent `bson:"inline"`
 	// ExpireTS contains the timestamp when this event entry expires from the
 	// database.
-	ExpireTS time.Time `json:"-" bson:"expire_ts,omitempty"`
+	ExpireTS time.Time `json:"-" bson:"expire_ts"`
 
 	DeliveryStatus []DeliveryStatus `json:"delivery_statuses,omitempty" bson:"status,omitempty"`
 }
