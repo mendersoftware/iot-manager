@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
 
 	"github.com/mendersoftware/go-lib-micro/mongo/migrate"
 )
@@ -51,6 +52,13 @@ func TestMigration_1_1_1(t *testing.T) {
 			foundIndex = true
 			assert.True(t, spec.ExpireAfterSeconds != nil &&
 				*spec.ExpireAfterSeconds == 0, "TTL property not set")
+			var keys bson.M
+			_ = bson.Unmarshal(spec.KeysDocument, &keys)
+			assert.Equal(t,
+				keys,
+				bson.M{KeyEventExpireTs: int32(1)},
+				"unexpected index keys")
+			break
 		}
 	}
 	assert.True(t, foundIndex, "Failed to find index created by migration 1.1.1")
