@@ -1,4 +1,4 @@
-# Copyright 2023 Northern.tech AS
+# Copyright 2022 Northern.tech AS
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 #    limitations under the License.
 
 import logging
-import pytest
 import re
 import uuid
 
@@ -1346,7 +1345,6 @@ class TestSyncAWSIoTCore:
         },
     ]
 
-    @pytest.mark.skip("QA-582")
     def test_sync(self, clean_mongo, clean_mmock, cli_iot_manager):
         mgo = clean_mongo
         mmock = clean_mmock
