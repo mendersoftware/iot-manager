@@ -2,10 +2,11 @@ request:
   description: Delete a thing from AWS IoT Core
   host: iot.region.amazonaws.com
   method: DELETE
-  path: /things/:thingId
+  path: /things/*
 response:
   statusCode: 200
 control:
+  priority: 10
   scenario:
     name: class
     requiredState:
