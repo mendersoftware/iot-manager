@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -83,9 +83,16 @@ const (
 	// SettingEventExpirationTimeout sets the expiration timeout for stored
 	// events. After this time events will be removed from the storage.
 	SettingEventExpirationTimeout = "event_exp_timeout"
-	// SettingEventExpirationTimeoutDefault definse the defautl expiration
+	// SettingEventExpirationTimeoutDefault define the default expiration
 	// timeout for events.
-	SettingEventExpirationTimeoutDefault = "604800" //one week
+	SettingEventExpirationTimeoutDefault = "604800" // one week
+
+	// SettingWebhooksTimeoutSeconds sets the timeout for webook
+	// requests. After this number of seconds requests will be cancelled.
+	SettingWebhooksTimeoutSeconds = "webhooks_timeout_seconds"
+	// SettingWebhooksTimeoutSecondsDefault define the default timeout
+	// in seconds for webhook requests.
+	SettingWebhooksTimeoutSecondsDefault = "10" // 10 seconds
 )
 
 var (
@@ -101,5 +108,6 @@ var (
 		{Key: SettingDeviceauthURL, Value: SettingDeviceauthURLDefault},
 		{Key: SettingDomainWhitelist, Value: SettingDomainWhitelistDefault},
 		{Key: SettingEventExpirationTimeout, Value: SettingEventExpirationTimeoutDefault},
+		{Key: SettingWebhooksTimeoutSeconds, Value: SettingWebhooksTimeoutSecondsDefault},
 	}
 )

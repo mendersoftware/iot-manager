@@ -79,3 +79,9 @@ mongo_dbname: iot_manager
 # Overwrite with environment variable: IOT_MANAGER_DEVICEAUTH_URL
 #
 # deviceauth_url: http://mender-device-auth:8080
+
+# Webooks request timeout in seconds
+# Defaults to: 10
+# Overwrite with environment variable: IOT_MANAGER_WEBHOOKS_TIMEOUT_SECONDS
+#
+# webhooks_timeout_seconds: 10

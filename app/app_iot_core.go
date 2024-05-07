@@ -131,7 +131,7 @@ func (a *app) syncIoTCoreDevices(
 		id := deviceIDs[i]
 		if _, ok := statuses[id]; !ok {
 			l.Warnf("Device '%s' does not have an auth set: deleting device", id)
-			err := a.DecommissionDevice(ctx, id)
+			err := a.decommissionDevice(ctx, id)
 			if err != nil && !errors.Is(err, ErrDeviceNotFound) {
 				err = errors.Wrap(err, "app: failed to decommission device")
 				if failEarly {

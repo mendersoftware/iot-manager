@@ -1,4 +1,4 @@
-// Copyright 2023 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -62,6 +63,23 @@ func (iter *JSONIterator) Decode(v interface{}) error {
 
 func (iter *JSONIterator) Close(ctx context.Context) error {
 	return nil
+}
+
+func TestNew(t *testing.T) {
+	app := New(nil, nil, nil)
+	app = app.WithWebhooksTimeout(10)
+
+	assert.NotNil(t, app)
+}
+
+func TestRunAndLogError(t *testing.T) {
+	ctx := context.Background()
+	run := false
+	runAndLogError(ctx, func() error {
+		run = true
+		return errors.New("error")
+	})
+	assert.True(t, run)
 }
 
 func TestHealthCheck(t *testing.T) {
@@ -496,8 +514,8 @@ func TestProvisionDevice(t *testing.T) {
 	t.Parallel()
 	testIntegrations := map[model.Provider]model.Integration{
 		model.ProviderWebhook: {
-			ID:       uuid.MustParse("00000000-0000-0000-0000-000000000000"),
 			Provider: model.ProviderWebhook,
+			ID:       uuid.MustParse("00000000-0000-0000-0000-000000000000"),
 			Credentials: model.Credentials{
 				Type: model.CredentialTypeHTTP,
 				HTTP: &model.HTTPCredentials{
@@ -553,8 +571,6 @@ func TestProvisionDevice(t *testing.T) {
 		Core         func(t *testing.T, self *testCase) *coreMocks.Client
 		Hub          func(t *testing.T, self *testCase) *hubMocks.Client
 		RoundTripper func(t *testing.T, req *http.Request) (*http.Response, error)
-
-		Error error
 	}
 	testCases := []testCase{{
 		Name: "ok, webhook integration",
@@ -809,7 +825,6 @@ func TestProvisionDevice(t *testing.T) {
 				Return(nil, errors.New("internal error"))
 			return mockedStore
 		},
-		Error: errors.New("internal error"),
 	}, {
 		Name: "ok/GetIntegrations/not found",
 		Device: model.DeviceEvent{
@@ -858,14 +873,10 @@ func TestProvisionDevice(t *testing.T) {
 			}
 
 			err := a.ProvisionDevice(ctx, tc.Device)
+			assert.NoError(t, err)
 
-			if tc.Error != nil {
-				if assert.Error(t, err) {
-					assert.Regexp(t, tc.Error.Error(), err.Error())
-				}
-			} else {
-				assert.NoError(t, err)
-			}
+			// wait for the completion of the async go routine
+			time.Sleep(500 * time.Millisecond)
 		})
 	}
 }
@@ -936,8 +947,6 @@ func TestDecommissionDevice(t *testing.T) {
 		Core         func(t *testing.T, self *testCase) *coreMocks.Client
 		Hub          func(t *testing.T, self *testCase) *hubMocks.Client
 		RoundTripper func(t *testing.T, req *http.Request) (*http.Response, error)
-
-		Error error
 	}
 	testCases := []testCase{{
 		Name:     "ok/all the integrations",
@@ -1191,7 +1200,6 @@ func TestDecommissionDevice(t *testing.T) {
 				Return(nil, store.ErrObjectNotFound)
 			return mockedStore
 		},
-		Error: store.ErrObjectNotFound,
 	}}
 	for i := range testCases {
 		tc := testCases[i]
@@ -1227,14 +1235,10 @@ func TestDecommissionDevice(t *testing.T) {
 			}
 
 			err := a.DecommissionDevice(ctx, tc.DeviceID)
+			assert.NoError(t, err)
 
-			if tc.Error != nil {
-				if assert.Error(t, err) {
-					assert.Regexp(t, tc.Error.Error(), err.Error())
-				}
-			} else {
-				assert.NoError(t, err)
-			}
+			// wait for the completion of the async go routine
+			time.Sleep(500 * time.Millisecond)
 		})
 	}
 }
@@ -1300,8 +1304,6 @@ func TestSetDeviceStatus(t *testing.T) {
 		Core         func(t *testing.T, self *testCase) *coreMocks.Client
 		Hub          func(t *testing.T, self *testCase) *hubMocks.Client
 		RoundTripper func(t *testing.T, req *http.Request) (*http.Response, error)
-
-		Error error
 	}
 	testCases := []testCase{{
 		Name:     "ok, all the integrations",
@@ -1557,7 +1559,6 @@ func TestSetDeviceStatus(t *testing.T) {
 		RoundTripper: func(t *testing.T, req *http.Request) (*http.Response, error) {
 			return nil, errors.New("internal error")
 		},
-		Error: errors.New("internal error"),
 	}, {
 		Name:     "ok: integration does not exist",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1568,7 +1569,6 @@ func TestSetDeviceStatus(t *testing.T) {
 				Return(nil, store.ErrObjectNotFound)
 			return mockedStore
 		},
-		Error: nil,
 	}, {
 		Name:     "error: error getting integrations",
 		DeviceID: "68ac6f41-c2e7-429f-a4bd-852fac9a5045",
@@ -1579,7 +1579,6 @@ func TestSetDeviceStatus(t *testing.T) {
 				Return(nil, io.ErrClosedPipe)
 			return mockedStore
 		},
-		Error: io.ErrClosedPipe,
 	}}
 	for i := range testCases {
 		tc := testCases[i]
@@ -1614,14 +1613,10 @@ func TestSetDeviceStatus(t *testing.T) {
 			}
 
 			err := a.SetDeviceStatus(ctx, tc.DeviceID, tc.Status)
+			assert.NoError(t, err)
 
-			if tc.Error != nil {
-				if assert.Error(t, err) {
-					assert.Regexp(t, tc.Error.Error(), err.Error())
-				}
-			} else {
-				assert.NoError(t, err)
-			}
+			// wait for the completion of the async go routine
+			time.Sleep(500 * time.Millisecond)
 		})
 	}
 }
