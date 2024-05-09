@@ -15,6 +15,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -29,6 +30,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/mendersoftware/go-lib-micro/log"
 	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/client/iotcore"
 	coreMocks "github.com/mendersoftware/iot-manager/client/iotcore/mocks"
@@ -73,13 +75,19 @@ func TestNew(t *testing.T) {
 }
 
 func TestRunAndLogError(t *testing.T) {
+	var b bytes.Buffer
+	logger := log.NewEmpty()
+	logger.Logger.Out = &b
 	ctx := context.Background()
+	ctx = log.WithContext(ctx, logger)
 	run := false
+	const errString = "unique string caught by logger"
 	runAndLogError(ctx, func() error {
 		run = true
-		return errors.New("error")
+		return errors.New(errString)
 	})
 	assert.True(t, run)
+	assert.Contains(t, b.String(), errString)
 }
 
 func TestHealthCheck(t *testing.T) {

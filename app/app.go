@@ -763,10 +763,16 @@ func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model
 }
 
 func runAndLogError(ctx context.Context, f func() error) {
-	err := f()
-	if err != nil {
-		log.FromContext(ctx).
-			WithField("panic", err.Error()).
-			Error("failed to process an asynchronous webhook")
-	}
+	var err error
+	logger := log.FromContext(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			logger.WithField("panic", r).
+				Error(errors.Wrap(err, "panic processing asynchronous webhook"))
+		} else if err != nil {
+			logger.WithField("error", err.Error()).
+				Error(errors.Wrap(err, "failed to process an asynchronous webhook"))
+		}
+	}()
+	err = f()
 }
