@@ -14,6 +14,7 @@
 
 import json
 import re
+import time
 
 import pytest
 
@@ -79,6 +80,10 @@ class TestWebhooks:
         intrnl.provision_device(
             TEST_TENANT_ID, dev,
         )
+
+        # let the async processing complete
+        time.sleep(1)
+
         expected_event = {
             "id": REGEX_UUID,
             "type": "device-provisioned",
@@ -124,6 +129,10 @@ class TestWebhooks:
             intrnl.decommission_device(TEST_TENANT_ID, device_id)
         except intrnl_exceptions.NotFoundException:
             pass
+
+        # let the async processing complete
+        time.sleep(1)
+
         expected_event = {
             "id": REGEX_UUID,
             "type": "device-decommissioned",
@@ -160,6 +169,10 @@ class TestWebhooks:
             )
         except intrnl_exceptions.NotFoundException:
             pass
+
+        # let the async processing complete
+        time.sleep(1)
+
         expected_event = {
             "id": REGEX_UUID,
             "type": "device-status-changed",

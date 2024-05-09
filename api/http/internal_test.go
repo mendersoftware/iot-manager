@@ -74,7 +74,7 @@ func TestProvisionDevice(t *testing.T) {
 			return mock
 		},
 
-		StatusCode: http.StatusNoContent,
+		StatusCode: http.StatusAccepted,
 	}, {
 		Name: "ok/noop",
 
@@ -92,7 +92,7 @@ func TestProvisionDevice(t *testing.T) {
 			return mock
 		},
 
-		StatusCode: http.StatusNoContent,
+		StatusCode: http.StatusAccepted,
 	}, {
 		Name: "error/malformed body",
 
@@ -229,7 +229,7 @@ func TestDecommissionDevice(t *testing.T) {
 			return mock
 		},
 
-		StatusCode: http.StatusNoContent,
+		StatusCode: http.StatusAccepted,
 	}, {
 		Name: "ok/noop",
 
@@ -245,7 +245,7 @@ func TestDecommissionDevice(t *testing.T) {
 			return mock
 		},
 
-		StatusCode: http.StatusNoContent,
+		StatusCode: http.StatusAccepted,
 	}, {
 		Name: "error/not found",
 
@@ -342,7 +342,6 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 		Status: model.StatusAccepted,
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
-			var result BulkResult
 			mockApp := new(mapp.App)
 			req := self.ReqBody.([]map[string]interface{})
 			for _, id := range req {
@@ -351,17 +350,10 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 					id["id"],
 					model.StatusAccepted,
 				).Return(nil)
-				result.Items = append(result.Items, BulkItem{
-					Status: http.StatusOK,
-					Parameters: map[string]interface{}{
-						"id": id["id"],
-					},
-				})
 			}
-			self.Response = result
 			return mockApp
 		},
-		StatusCode: http.StatusOK,
+		StatusCode: http.StatusAccepted,
 	}, {
 		Name: "ok, no result",
 
@@ -373,8 +365,8 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 			mockApp := new(mapp.App)
 			return mockApp
 		},
-		Response:   BulkResult{Items: []BulkItem{}},
-		StatusCode: http.StatusOK,
+		Response:   nil,
+		StatusCode: http.StatusAccepted,
 	}, {
 		Name: "error, partial result",
 
@@ -389,7 +381,6 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 		Status: model.StatusPreauthorized,
 
 		App: func(t *testing.T, self *testCase) *mapp.App {
-			var result BulkResult
 			mockApp := new(mapp.App)
 			req := self.ReqBody.([]map[string]interface{})
 			mockApp.On("SetDeviceStatus",
@@ -397,41 +388,19 @@ func TestBulkSetDeviceStatus(t *testing.T) {
 				req[0]["id"],
 				self.Status,
 			).Return(nil).Once()
-			result.Items = append(result.Items, BulkItem{
-				Status: http.StatusOK,
-				Parameters: map[string]interface{}{
-					"id": req[0]["id"],
-				},
-			})
 			mockApp.On("SetDeviceStatus",
 				contextMatcher,
 				req[1]["id"],
 				self.Status,
 			).Return(errors.New("internal error")).Once()
-			result.Items = append(result.Items, BulkItem{
-				Status:      http.StatusInternalServerError,
-				Description: "internal error",
-				Parameters: map[string]interface{}{
-					"id": req[1]["id"],
-				},
-			})
 			mockApp.On("SetDeviceStatus",
 				contextMatcher,
 				req[2]["id"],
 				self.Status,
 			).Return(client.NewHTTPError(http.StatusConflict)).Once()
-			result.Items = append(result.Items, BulkItem{
-				Status:      http.StatusConflict,
-				Description: client.NewHTTPError(http.StatusConflict).Error(),
-				Parameters: map[string]interface{}{
-					"id": req[2]["id"],
-				},
-			})
-			result.Error = true
-			self.Response = result
 			return mockApp
 		},
-		StatusCode: http.StatusOK,
+		StatusCode: http.StatusAccepted,
 	}, {
 		Name: "error: invalid request body",
 

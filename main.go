@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -214,5 +214,6 @@ func cmdSync(args *cli.Context) error {
 	}
 	defer ds.Close()
 	app := app.New(ds, wf, devauth).WithIoTHub(hub).WithIoTCore(core)
+	app = app.WithWebhooksTimeout(config.Config.GetUint(dconfig.SettingWebhooksTimeoutSeconds))
 	return app.SyncDevices(ctx, args.Int("batch-size"), args.Bool("fail-early"))
 }

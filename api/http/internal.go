@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/mendersoftware/iot-manager/app"
-	"github.com/mendersoftware/iot-manager/client"
 	"github.com/mendersoftware/iot-manager/model"
 
 	"github.com/gin-gonic/gin"
@@ -81,7 +80,7 @@ func (h *InternalHandler) ProvisionDevice(c *gin.Context) {
 	err := h.app.ProvisionDevice(ctx, model.DeviceEvent(device))
 	switch cause := errors.Cause(err); cause {
 	case nil, app.ErrNoCredentials:
-		c.Status(http.StatusNoContent)
+		c.Status(http.StatusAccepted)
 	case app.ErrDeviceAlreadyExists:
 		rest.RenderError(c, http.StatusConflict, cause)
 	default:
@@ -100,26 +99,12 @@ func (h *InternalHandler) DecommissionDevice(c *gin.Context) {
 	err := h.app.DecommissionDevice(ctx, deviceID)
 	switch errors.Cause(err) {
 	case nil, app.ErrNoCredentials:
-		c.Status(http.StatusNoContent)
+		c.Status(http.StatusAccepted)
 	case app.ErrDeviceNotFound:
 		rest.RenderError(c, http.StatusNotFound, err)
 	default:
 		rest.RenderError(c, http.StatusInternalServerError, err)
 	}
-}
-
-type BulkResult struct {
-	Error bool       `json:"error"`
-	Items []BulkItem `json:"items"`
-}
-
-type BulkItem struct {
-	// Status code for the operation (translates to HTTP status)
-	Status int `json:"status"`
-	// Description in case of error
-	Description string `json:"description,omitempty"`
-	// Parameters used for producing BulkItem
-	Parameters map[string]interface{} `json:"parameters"`
 }
 
 const (
@@ -155,29 +140,10 @@ func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
 			Tenant: c.Param("tenant_id"),
 		},
 	)
-	res := BulkResult{
-		Error: false,
-		Items: make([]BulkItem, len(schema)),
+	for _, item := range schema {
+		_ = h.app.SetDeviceStatus(ctx, item.DeviceID, status)
 	}
-	for i, item := range schema {
-		res.Items[i].Parameters = map[string]interface{}{
-			"id": item.DeviceID,
-		}
-		err := h.app.SetDeviceStatus(ctx, item.DeviceID, status)
-		if err != nil {
-			res.Error = true
-			if e, ok := errors.Cause(err).(client.HTTPError); ok {
-				res.Items[i].Status = e.Code()
-				res.Items[i].Description = e.Error()
-			} else {
-				res.Items[i].Status = http.StatusInternalServerError
-				res.Items[i].Description = err.Error()
-			}
-		} else {
-			res.Items[i].Status = http.StatusOK
-		}
-	}
-	c.JSON(http.StatusOK, res)
+	c.Status(http.StatusAccepted)
 }
 
 // POST /tenants/:tenant_id/auth
