@@ -72,8 +72,8 @@ paths:
               $ref: '#/components/schemas/NewDevice'
         required: true
       responses:
-        204:
-          description: Device provisioned successfully.
+        202:
+          description: The device provisioning event was accepted and will be processed asynchronously.
         400:
           $ref: '#/components/responses/InvalidRequestError'
         409:
@@ -106,8 +106,8 @@ paths:
           required: true
           description: ID of the target device.
       responses:
-        204:
-          description: Device deleted from Iot Hub
+        202:
+          description: The device decomissioning event was accepted and will be processed asynchronously.
         500:
           $ref: '#/components/responses/InternalServerError'
 
@@ -155,14 +155,8 @@ paths:
                   - id
         required: true
       responses:
-        200:
-          description: >-
-            Bulk request processed successfully. Check response body for individual
-            bulk item statuses.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BulkResult'
+        202:
+          description: The device status update bulk event was accepted and will be processed asynchronously.
         400:
           description: Bad Request.
           content:
@@ -252,32 +246,6 @@ components:
           format: date-time
           description: >-
             The creation timestamp of the authentication set.
-
-    BulkResult:
-      type: object
-      properties:
-        error:
-          type: boolean
-          description: Indicates whether an error occurred.
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/BulkItem'
-          description: The result of the individual bulk items.
-
-    BulkItem:
-      type: object
-      properties:
-        status:
-          type: integer
-          description: HTTP status code of the item.
-        description:
-          type: string
-          description: An error description in case the operation failed.
-        parameters:
-          type: object
-          additionalProperties: true
-          description: The input parameters associated with the bulk result.
 
   responses:
     InternalServerError:

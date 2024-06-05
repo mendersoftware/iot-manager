@@ -2,7 +2,7 @@ request:
   description: Set certificate status to ACTIVE in AWS IoT Core
   host: iot.region.amazonaws.com
   method: PUT
-  path: /certificates/:certificateId
+  path: /certificates/*
   queryStringParameters:
     newStatus: ["ACTIVE"]
 response:

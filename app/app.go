@@ -1,4 +1,4 @@
-// Copyright 2023 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -62,6 +62,7 @@ const (
 type App interface {
 	WithIoTCore(client iotcore.Client) App
 	WithIoTHub(client iothub.Client) App
+	WithWebhooksTimeout(timeout uint) App
 	HealthCheck(context.Context) error
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
@@ -88,12 +89,13 @@ type App interface {
 
 // app is an app object
 type app struct {
-	store         store.DataStore
-	iothubClient  iothub.Client
-	iotcoreClient iotcore.Client
-	wf            workflows.Client
-	devauth       devauth.Client
-	httpClient    *http.Client
+	store           store.DataStore
+	iothubClient    iothub.Client
+	iotcoreClient   iotcore.Client
+	wf              workflows.Client
+	devauth         devauth.Client
+	httpClient      *http.Client
+	webhooksTimeout time.Duration
 }
 
 // NewApp initialize a new iot-manager App
@@ -120,6 +122,12 @@ func (a *app) WithIoTHub(client iothub.Client) App {
 // WithIoTCore sets the IoT Core client
 func (a *app) WithIoTCore(client iotcore.Client) App {
 	a.iotcoreClient = client
+	return a
+}
+
+// WithWebhooksTimeout sets the timeout for webhooks requests
+func (a *app) WithWebhooksTimeout(timeout uint) App {
+	a.webhooksTimeout = time.Duration(timeout * uint(time.Second))
 	return a
 }
 
@@ -219,6 +227,18 @@ func (a *app) GetDeviceIntegrations(
 }
 
 func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
+	go func() {
+		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), a.webhooksTimeout)
+		ctxWithTimeout = identity.WithContext(ctxWithTimeout, identity.FromContext(ctx))
+		defer cancel()
+		runAndLogError(ctxWithTimeout, func() error {
+			return a.setDeviceStatus(ctxWithTimeout, deviceID, status)
+		})
+	}()
+	return nil
+}
+
+func (a *app) setDeviceStatus(ctx context.Context, deviceID string, status model.Status) error {
 	integrations, err := a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 	if err != nil {
 		if errors.Is(err, store.ErrObjectNotFound) {
@@ -307,6 +327,21 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 }
 
 func (a *app) ProvisionDevice(
+	ctx context.Context,
+	device model.DeviceEvent,
+) error {
+	go func() {
+		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), a.webhooksTimeout)
+		ctxWithTimeout = identity.WithContext(ctxWithTimeout, identity.FromContext(ctx))
+		defer cancel()
+		runAndLogError(ctxWithTimeout, func() error {
+			return a.provisionDevice(ctxWithTimeout, device)
+		})
+	}()
+	return nil
+}
+
+func (a *app) provisionDevice(
 	ctx context.Context,
 	device model.DeviceEvent,
 ) error {
@@ -554,6 +589,18 @@ func (a *app) SyncDevices(
 }
 
 func (a *app) DecommissionDevice(ctx context.Context, deviceID string) error {
+	go func() {
+		ctxWithTimeout, cancel := context.WithTimeout(context.Background(), a.webhooksTimeout)
+		ctxWithTimeout = identity.WithContext(ctxWithTimeout, identity.FromContext(ctx))
+		defer cancel()
+		runAndLogError(ctxWithTimeout, func() error {
+			return a.decommissionDevice(ctxWithTimeout, deviceID)
+		})
+	}()
+	return nil
+}
+
+func (a *app) decommissionDevice(ctx context.Context, deviceID string) error {
 	integrations, err := a.GetIntegrations(ctx)
 	if err != nil {
 		return err
@@ -713,4 +760,19 @@ func (a *app) SetDeviceStateIntegration(
 
 func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error) {
 	return a.store.GetEvents(ctx, filter)
+}
+
+func runAndLogError(ctx context.Context, f func() error) {
+	var err error
+	logger := log.FromContext(ctx)
+	defer func() {
+		if r := recover(); r != nil {
+			logger.WithField("panic", r).
+				Error(errors.Wrap(err, "panic processing asynchronous webhook"))
+		} else if err != nil {
+			logger.WithField("error", err.Error()).
+				Error(errors.Wrap(err, "failed to process an asynchronous webhook"))
+		}
+	}()
+	err = f()
 }

@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -60,8 +60,13 @@ func InitAndRun(conf config.Reader, dataStore store.DataStore) error {
 	}
 
 	azureIotManagerApp := app.New(dataStore, wf, da).WithIoTHub(hub).WithIoTCore(core)
+	azureIotManagerApp = azureIotManagerApp.
+		WithWebhooksTimeout(config.Config.GetUint(dconfig.SettingWebhooksTimeoutSeconds))
 
-	router := api.NewRouter(azureIotManagerApp, api.NewConfig().SetClient(httpClient))
+	router := api.NewRouter(azureIotManagerApp,
+		api.NewConfig().
+			SetClient(httpClient),
+	)
 
 	var listen = conf.GetString(dconfig.SettingListen)
 	srv := &http.Server{

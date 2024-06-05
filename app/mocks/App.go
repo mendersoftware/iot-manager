@@ -1,4 +1,4 @@
-// Copyright 2023 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -448,6 +448,22 @@ func (_m *App) WithIoTHub(client iothub.Client) app.App {
 	var r0 app.App
 	if rf, ok := ret.Get(0).(func(iothub.Client) app.App); ok {
 		r0 = rf(client)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(app.App)
+		}
+	}
+
+	return r0
+}
+
+// WithWebhooksTimeout provides a mock function with given fields: timeout
+func (_m *App) WithWebhooksTimeout(timeout uint) app.App {
+	ret := _m.Called(timeout)
+
+	var r0 app.App
+	if rf, ok := ret.Get(0).(func(uint) app.App); ok {
+		r0 = rf(timeout)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(app.App)
