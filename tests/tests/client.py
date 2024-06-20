@@ -33,25 +33,21 @@ from utils import generate_jwt
 class ManagementAPIClient(GenManagementAPIClient):
     def __init__(self, tenant_id, subject="tester"):
         jwt = generate_jwt(tenant_id, subject, is_user=True)
-        config = mgmt_Configuration(
-            host="http://mender-iot-manager:8080/api/management/v1/iot-manager",
-            access_token=jwt,
-        )
+        config = mgmt_Configuration.get_default_copy()
+        config.access_token = jwt
         client = mgmt_ApiClient(configuration=config)
         super().__init__(api_client=client)
 
 
 class InternalAPIClient(GenInternalAPIClient):
     def __init__(self):
-        config = intrnl_Configuration(
-            host="http://mender-iot-manager:8080/api/internal/v1/iot-manager",
-        )
+        config = intrnl_Configuration.get_default_copy()
         client = intrnl_ApiClient(configuration=config)
         super().__init__(api_client=client)
 
 
 class CliIoTManager:
-    def __init__(self):
+    def __init__(self, service="iot-manager"):
         self.docker = docker.from_env()
         _self = self.docker.containers.list(filters={"id": socket.gethostname()})[0]
 
@@ -60,7 +56,7 @@ class CliIoTManager:
             filters={
                 "label": [
                     f"com.docker.compose.project={project}",
-                    "com.docker.compose.service=mender-iot-manager",
+                    f"com.docker.compose.service={service}",
                 ]
             },
             limit=1,
