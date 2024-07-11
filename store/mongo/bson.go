@@ -1,4 +1,4 @@
-// Copyright 2023 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -35,6 +35,14 @@ func init() {
 	bson.DefaultRegistry.RegisterTypeEncoder(tUUID, bsoncodec.ValueEncoderFunc(uuidEncodeValue))
 	bson.DefaultRegistry.RegisterTypeDecoder(tUUID, bsoncodec.ValueDecoderFunc(uuidDecodeValue))
 	bson.DefaultRegistry.RegisterTypeMapEntry(bson.TypeEmbeddedDocument, tM)
+}
+func newRegistry() *bsoncodec.Registry {
+	reg := bson.NewRegistry()
+	// Add UUID encoder/decoder for github.com/google/uuid.UUID
+	reg.RegisterTypeEncoder(tUUID, bsoncodec.ValueEncoderFunc(uuidEncodeValue))
+	reg.RegisterTypeDecoder(tUUID, bsoncodec.ValueDecoderFunc(uuidDecodeValue))
+	reg.RegisterTypeMapEntry(bson.TypeEmbeddedDocument, tM)
+	return reg
 }
 
 func uuidEncodeValue(ec bsoncodec.EncodeContext, w bsonrw.ValueWriter, val reflect.Value) error {
