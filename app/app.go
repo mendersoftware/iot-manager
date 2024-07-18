@@ -79,6 +79,7 @@ type App interface {
 	GetDeviceStateIoTCore(context.Context, string, *model.Integration) (*model.DeviceState, error)
 	SetDeviceStateIoTCore(context.Context, string, *model.Integration, *model.DeviceState) (*model.DeviceState, error)
 	ProvisionDevice(context.Context, model.DeviceEvent) error
+	DeleteTenant(context.Context) error
 	DecommissionDevice(context.Context, string) error
 
 	SyncDevices(context.Context, int, bool) error
@@ -324,6 +325,12 @@ func (a *app) setDeviceStatus(ctx context.Context, deviceID string, status model
 	}
 	err = a.store.SaveEvent(ctx, event)
 	return err
+}
+
+func (a *app) DeleteTenant(
+	ctx context.Context,
+) error {
+	return a.store.DeleteTenantData(ctx)
 }
 
 func (a *app) ProvisionDevice(

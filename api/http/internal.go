@@ -1,4 +1,4 @@
-// Copyright 2023 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -53,6 +53,26 @@ func (dev *internalDevice) UnmarshalJSON(b []byte) error {
 	}
 	*dev = internalDevice(aDev.DeviceEvent)
 	return nil
+}
+
+// DELETE /tenants/:tenant_id
+// code: 204 - all tenant data removed
+//
+//	500 - internal server error on removal
+func (h *InternalHandler) DeleteTenant(c *gin.Context) {
+	tenantID := c.Param(ParamTenantID)
+
+	ctx := identity.WithContext(
+		c.Request.Context(),
+		&identity.Identity{
+			Tenant: tenantID,
+		},
+	)
+	err := h.app.DeleteTenant(ctx)
+	if err != nil {
+		rest.RenderError(c, http.StatusInternalServerError, err)
+	}
+	c.Status(http.StatusNoContent)
 }
 
 // POST /tenants/:tenant_id/devices

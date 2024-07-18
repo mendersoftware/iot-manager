@@ -1935,3 +1935,40 @@ func TestGetEvents(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, events, 0)
 }
+
+func TestDeleteTenant(t *testing.T) {
+	testCases := []struct {
+		Name string
+
+		StoreError error
+	}{
+		{
+			Name: "ok",
+		},
+		{
+			Name: "store error",
+
+			StoreError: errors.New("some error"),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			store := &storeMocks.DataStore{}
+			store.On("DeleteTenantData",
+				contextMatcher,
+			).Return(
+				tc.StoreError,
+			)
+			app := New(store, nil, nil)
+			ctx := context.Background()
+
+			err := app.DeleteTenant(ctx)
+			if tc.StoreError != nil {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
