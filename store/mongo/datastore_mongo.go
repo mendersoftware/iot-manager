@@ -197,6 +197,12 @@ func (db *DataStoreMongo) Collection(
 	return db.client.Database(*db.DbName).Collection(name, opts...)
 }
 
+func (db *DataStoreMongo) ListCollectionNames(
+	ctx context.Context,
+) ([]string, error) {
+	return db.client.Database(*db.DbName).ListCollectionNames(ctx, mopts.ListCollectionsOptions{})
+}
+
 func (db *DataStoreMongo) GetIntegrations(
 	ctx context.Context,
 	fltr model.IntegrationFilter,
@@ -537,4 +543,29 @@ func (db *DataStoreMongo) GetAllDevices(ctx context.Context) (store.Iterator, er
 			SetSort(bson.D{{Key: KeyTenantID, Value: 1}}),
 	)
 
+}
+
+func (db *DataStoreMongo) DeleteTenantData(
+	ctx context.Context,
+) error {
+	id := identity.FromContext(ctx)
+	if id == nil {
+		return errors.New("identity is empty")
+	}
+	if len(id.Tenant) < 1 {
+		return errors.New("tenant id is empty")
+	}
+
+	collectionNames, err := db.ListCollectionNames(ctx)
+	if err != nil {
+		return err
+	}
+	for _, collName := range collectionNames {
+		collection := db.Collection(collName)
+		_, e := collection.DeleteMany(ctx, bson.M{KeyTenantID: id.Tenant})
+		if e != nil {
+			return e
+		}
+	}
+	return nil
 }

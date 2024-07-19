@@ -86,6 +86,25 @@ paths:
         500:
           $ref: '#/components/responses/InternalServerError'
 
+  /tenants/{tenantId}:
+    delete:
+      tags:
+        - Internal API
+      operationId: Delete tenant
+      summary: Delete all data belonging to a given tenant.
+      parameters:
+        - in: path
+          name: tenantId
+          schema:
+            type: string
+          required: true
+          description: ID of tenant to remove.
+      responses:
+        204:
+          description: The removal of tenant data was successful.
+        500:
+          $ref: '#/components/responses/InternalServerError'
+
   /tenants/{tenantId}/devices/{deviceId}:
     delete:
       tags:

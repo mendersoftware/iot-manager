@@ -1,4 +1,4 @@
-// Copyright 2023 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 
 	"github.com/mendersoftware/go-lib-micro/identity"
 	"github.com/mendersoftware/go-lib-micro/rest.utils"
@@ -609,6 +611,73 @@ UwIDAQAB
 					APIURLInternal+
 					repl.Replace(APIURLTenantAuth),
 				bytes.NewReader(body),
+			)
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tc.StatusCode, w.Code)
+
+			if tc.Error != nil {
+				var err rest.Error
+				json.Unmarshal(w.Body.Bytes(), &err)
+				assert.Regexp(t, tc.Error.Error(), err.Error())
+			}
+		})
+	}
+}
+
+func TestDeleteTenant(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		Name string
+
+		TenantID string
+		App      func(*testing.T, *testCase) *mapp.App
+
+		StatusCode int
+		Error      error
+	}
+	testCases := []testCase{
+		{
+			Name: "ok",
+
+			TenantID: primitive.NewObjectID().Hex(),
+			App: func(t *testing.T, self *testCase) *mapp.App {
+				mock := new(mapp.App)
+				mock.On("DeleteTenant",
+					validateTenantIDCtx(self.TenantID),
+				).Return(nil)
+				return mock
+			},
+
+			StatusCode: http.StatusNoContent,
+		},
+		{
+			Name: "deletion error",
+
+			TenantID: "123456789012345678901234",
+			App: func(t *testing.T, self *testCase) *mapp.App {
+				return new(mapp.App)
+			},
+
+			StatusCode: http.StatusInternalServerError,
+			Error:      errors.New("internal error"),
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			app := tc.App(t, &tc)
+			w := httptest.NewRecorder()
+			handler := NewRouter(app)
+
+			req, _ := http.NewRequest(http.MethodDelete,
+				"http://localhost"+
+					APIURLInternal+
+					strings.ReplaceAll(APIURLTenant, ":tenant_id", tc.TenantID),
+				nil,
 			)
 
 			handler.ServeHTTP(w, req)
