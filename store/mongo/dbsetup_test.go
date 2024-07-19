@@ -1,4 +1,4 @@
-// Copyright 2021 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	if url := os.Getenv("MONGO_URL"); url != "" {
 		client, err := mongo.Connect(
 			context.Background(),
-			mgopts.Client().ApplyURI(url),
+			mgopts.Client().ApplyURI(url).SetRegistry(newRegistry()),
 		)
 		if err != nil {
 			panic(err)
@@ -65,7 +65,9 @@ func TestMain(m *testing.M) {
 				}
 			}()
 			return m.Run()
-		})
+		},
+			newRegistry(),
+		)
 	}
 	os.Exit(status)
 }
