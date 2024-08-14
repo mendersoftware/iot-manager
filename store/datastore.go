@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -65,6 +65,10 @@ type DataStore interface {
 	GetEvents(ctx context.Context, fltr model.EventsFilter) ([]model.Event, error)
 	// SaveEvent saves the event in the database
 	SaveEvent(ctx context.Context, event model.Event) error
+	// DeleteTenantData removes all data belonging to a given tenant
+	DeleteTenantData(
+		ctx context.Context,
+	) error
 }
 
 type Iterator interface {

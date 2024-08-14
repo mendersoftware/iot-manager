@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -22,11 +22,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
+
 	"github.com/mendersoftware/go-lib-micro/identity"
 	mstore "github.com/mendersoftware/go-lib-micro/store/v2"
-	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/mendersoftware/iot-manager/crypto"
 	"github.com/mendersoftware/iot-manager/model"
@@ -150,7 +153,7 @@ func TestCreateIntegration(t *testing.T) {
 				assert.Equal(t, tenantID, actualTID)
 
 				var integration model.Integration
-				bson.Unmarshal(doc, &integration)
+				bson.UnmarshalWithRegistry(newRegistry(), doc, &integration)
 				assert.Equal(t, tc.Integration, integration)
 			}
 		})
@@ -1164,6 +1167,105 @@ func TestUpsertDeviceIntegrations(t *testing.T) {
 				if assert.NoError(t, err) {
 					assert.Equal(t, tc.Device, new)
 				}
+			}
+		})
+	}
+}
+
+func TestDeleteTenantData(t *testing.T) {
+	t.Parallel()
+	client := db.Client()
+	type testCase struct {
+		Name            string
+		TenantToDelete  string
+		SomeOtherTenant string
+	}
+	testCases := []testCase{
+		{
+			Name: "ok",
+
+			TenantToDelete:  primitive.NewObjectID().Hex(),
+			SomeOtherTenant: primitive.NewObjectID().Hex(),
+		},
+		{
+			Name:            "no id",
+			SomeOtherTenant: primitive.NewObjectID().Hex(),
+		},
+		{
+			Name:            "no tenant id in id",
+			TenantToDelete:  "-",
+			SomeOtherTenant: primitive.NewObjectID().Hex(),
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		ds := NewDataStoreWithClient(client, NewConfig().
+			SetDbName(fmt.Sprintf("%s-%d", t.Name(), i)),
+		)
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+
+			database := client.Database(*ds.DbName)
+			collections := []*mongo.Collection{
+				database.Collection(CollNameLog),
+				database.Collection(CollNameDevices),
+				database.Collection(CollNameIntegrations),
+			}
+			ctx := context.Background()
+
+			if len(tc.TenantToDelete) > 0 {
+				tenantId := tc.TenantToDelete
+				if tenantId == "-" {
+					tenantId = ""
+				}
+				ctx = identity.WithContext(ctx, &identity.Identity{
+					Tenant: tenantId,
+				})
+			}
+			var err error
+			for _, c := range collections {
+				_, _ = c.DeleteMany(ctx, bson.M{})
+				_, err = c.InsertOne(
+					ctx,
+					map[string]string{
+						KeyTenantID: tc.TenantToDelete,
+						"data":      uuid.New().String(),
+					},
+				)
+				assert.NoError(t, err)
+				_, err = c.InsertOne(
+					ctx,
+					map[string]string{
+						KeyTenantID: tc.SomeOtherTenant,
+						"data":      uuid.New().String(),
+					},
+				)
+				assert.NoError(t, err)
+			}
+			for _, c := range collections {
+				count, _ := c.CountDocuments(ctx, bson.M{KeyTenantID: tc.TenantToDelete})
+				assert.Equal(t, 1, int(count), "inserted documents count to delete")
+				count, _ = c.CountDocuments(ctx, bson.M{KeyTenantID: tc.SomeOtherTenant})
+				assert.Equal(t, 1, int(count), "inserted documents count to keep")
+			}
+			err = ds.DeleteTenantData(ctx)
+			if len(tc.TenantToDelete) == 0 {
+				assert.Error(t, err)
+			} else if tc.TenantToDelete == "-" {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			for _, c := range collections {
+				count, _ := c.CountDocuments(ctx, bson.M{KeyTenantID: tc.TenantToDelete})
+				expected := 0
+				if tc.TenantToDelete == "" || tc.TenantToDelete == "-" {
+					expected = 1 // we expect all the data to be left alone if tenant idinthe ctx was empty
+				}
+				assert.Equal(t, expected, int(count), "inserted documents count to delete")
+				count, _ = c.CountDocuments(ctx, bson.M{KeyTenantID: tc.SomeOtherTenant})
+				assert.Equal(t, 1, int(count), "inserted documents count to keep")
 			}
 		})
 	}
