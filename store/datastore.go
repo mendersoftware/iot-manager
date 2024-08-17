@@ -33,6 +33,9 @@ type DataStore interface {
 
 	GetIntegrations(context.Context, model.IntegrationFilter) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
+	GetIntegrationsMap(ctx context.Context, scope *string) ([]model.IntegrationMap, error)
+	GetIntegrationsEtag(ctx context.Context) string
+	SetIntegrationsEtag(ctx context.Context, etag string) error
 	CreateIntegration(context.Context, model.Integration) (*model.Integration, error)
 	GetDevice(ctx context.Context, deviceID string) (*model.Device, error)
 	GetDeviceByIntegrationID(

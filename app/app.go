@@ -66,7 +66,11 @@ type App interface {
 	HealthCheck(context.Context) error
 	GetDeviceIntegrations(context.Context, string) ([]model.Integration, error)
 	GetIntegrations(context.Context) ([]model.Integration, error)
+	GetIntegrationsWithScope(context.Context, string) ([]model.Integration, error)
 	GetIntegrationById(context.Context, uuid.UUID) (*model.Integration, error)
+	GetIntegrationsMap(context.Context, *string) ([]model.IntegrationMap, error)
+	GetIntegrationsETag(context.Context) string
+	IntegrationsChanged(context.Context, string) bool
 	CreateIntegration(context.Context, model.Integration) (*model.Integration, error)
 	SetDeviceStatus(context.Context, string, model.Status) error
 	SetIntegrationCredentials(context.Context, uuid.UUID, model.Credentials) error
@@ -86,6 +90,7 @@ type App interface {
 
 	GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error)
 	VerifyDeviceTwin(ctx context.Context, req model.PreauthRequest) error
+	InventoryChanged(ctx context.Context, attributes []model.InventoryWebHookData) error
 }
 
 // app is an app object
@@ -141,6 +146,32 @@ func (a *app) GetIntegrations(ctx context.Context) ([]model.Integration, error) 
 	return a.store.GetIntegrations(ctx, model.IntegrationFilter{})
 }
 
+func (a *app) GetIntegrationsWithScope(
+	ctx context.Context,
+	scope string,
+) ([]model.Integration, error) {
+	return a.store.GetIntegrations(ctx, model.IntegrationFilter{Scope: scope})
+}
+
+func (a *app) GetIntegrationsMap(
+	ctx context.Context,
+	scope *string,
+) ([]model.IntegrationMap, error) {
+	return a.store.GetIntegrationsMap(ctx, scope)
+}
+
+func (a *app) IntegrationsChanged(ctx context.Context, etag string) bool {
+	if etag == "" {
+		return true
+	}
+
+	return etag != a.store.GetIntegrationsEtag(ctx)
+}
+
+func (a *app) GetIntegrationsETag(ctx context.Context) string {
+	return a.store.GetIntegrationsEtag(ctx)
+}
+
 func (a *app) GetIntegrationById(ctx context.Context, id uuid.UUID) (*model.Integration, error) {
 	integration, err := a.store.GetIntegrationById(ctx, id)
 	if err != nil {
@@ -161,6 +192,9 @@ func (a *app) CreateIntegration(
 	result, err := a.store.CreateIntegration(ctx, integration)
 	if err == store.ErrObjectExists {
 		return nil, ErrIntegrationExists
+	}
+	if err == nil && result != nil {
+		err = a.store.SetIntegrationsEtag(ctx, uuid.NewString())
 	}
 	return result, err
 }
@@ -233,7 +267,7 @@ func (a *app) SetDeviceStatus(ctx context.Context, deviceID string, status model
 		ctxWithTimeout = identity.WithContext(ctxWithTimeout, identity.FromContext(ctx))
 		defer cancel()
 		runAndLogError(ctxWithTimeout, func() error {
-			return a.setDeviceStatus(ctxWithTimeout, deviceID, status)
+			return a.setDeviceStatus(ctxWithTimeout, deviceID, status) // here
 		})
 	}()
 	return nil
@@ -289,6 +323,9 @@ func (a *app) setDeviceStatus(ctx context.Context, deviceID string, status model
 			err = a.setDeviceStatusIoTCore(ctx, deviceID, status, integration)
 
 		case model.ProviderWebhook:
+			if integration.Scope != model.ScopeDeviceAuth {
+				break
+			}
 			var (
 				req *http.Request
 				rsp *http.Response
@@ -384,6 +421,9 @@ func (a *app) provisionDevice(
 			})
 			integrationIDs = append(integrationIDs, integration.ID)
 		case model.ProviderWebhook:
+			if integration.Scope != model.ScopeDeviceAuth {
+				break
+			}
 			var (
 				req *http.Request
 				rsp *http.Response
@@ -653,6 +693,9 @@ func (a *app) decommissionDevice(ctx context.Context, deviceID string) error {
 			}
 			err = a.decommissionIoTCoreDevice(ctx, deviceID, integration)
 		case model.ProviderWebhook:
+			if integration.Scope != model.ScopeDeviceAuth {
+				break
+			}
 			var (
 				req *http.Request
 				rsp *http.Response
@@ -767,6 +810,77 @@ func (a *app) SetDeviceStateIntegration(
 
 func (a *app) GetEvents(ctx context.Context, filter model.EventsFilter) ([]model.Event, error) {
 	return a.store.GetEvents(ctx, filter)
+}
+
+func (a *app) InventoryChanged(ctx context.Context, attributes []model.InventoryWebHookData) error {
+	// the ctx timeout should more or less match the interval at which inventory-enterprise
+	// flushes the webhook queue (inventory.webhookQueueFlushInterval)
+	go func() {
+		webHookCtx, cancel := context.WithTimeout(context.Background(), a.webhooksTimeout)
+		webHookCtx = identity.WithContext(webHookCtx, identity.FromContext(ctx))
+		defer cancel()
+		runAndLogError(webHookCtx, func() error {
+			integrations, err := a.GetIntegrationsWithScope(webHookCtx, model.ScopeInventory)
+			if err != nil {
+				return err
+			}
+			event := model.Event{
+				WebhookEvent: model.WebhookEvent{
+					ID:      uuid.New(),
+					Type:    model.EventTypeDevicesInventory,
+					Data:    attributes,
+					EventTS: time.Now(),
+				},
+				DeliveryStatus: make([]model.DeliveryStatus, 0, len(integrations)),
+			}
+			for _, integration := range integrations {
+				var (
+					err error
+				)
+				deliver := model.DeliveryStatus{
+					IntegrationID: integration.ID,
+					Success:       true,
+				}
+				switch integration.Provider {
+				case model.ProviderWebhook:
+					var (
+						req *http.Request
+						rsp *http.Response
+					)
+					req, err = client.NewWebhookRequest(webHookCtx,
+						&integration.Credentials,
+						event.WebhookEvent)
+					if err != nil {
+						break // switch
+					}
+					rsp, err = a.httpClient.Do(req)
+					if err != nil {
+						break // switch
+					}
+					deliver.StatusCode = &rsp.StatusCode
+					if rsp.StatusCode >= 300 {
+						err = client.NewHTTPError(rsp.StatusCode)
+					}
+					_ = rsp.Body.Close()
+
+				default:
+					continue
+				}
+				if err != nil {
+					var httpError client.HTTPError
+					if errors.As(err, &httpError) {
+						errCode := httpError.Code()
+						deliver.StatusCode = &errCode
+					}
+					deliver.Success = false
+					deliver.Error = err.Error()
+				}
+				event.DeliveryStatus = append(event.DeliveryStatus, deliver)
+			}
+			return nil
+		})
+	}()
+	return nil
 }
 
 func runAndLogError(ctx context.Context, f func() error) {

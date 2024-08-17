@@ -132,7 +132,7 @@ const (
 )
 
 // PUT /tenants/:tenant_id/devices/status/{status}
-func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) {
+func (h *InternalHandler) BulkSetDeviceStatus(c *gin.Context) { // here
 	var schema []struct {
 		DeviceID string `json:"id"`
 	}
@@ -206,4 +206,83 @@ func (h *InternalHandler) PreauthorizeHandler(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// POST /tenants/:tenant_id/bulk/devices/inventory
+func (h *InternalHandler) InventoryHandler(c *gin.Context) {
+	tenantID, okTenant := c.Params.Get(ParamTenantID)
+	if !(okTenant) {
+		(*APIHandler)(h).NoRoute(c)
+		return
+	}
+
+	var req []model.InventoryWebHookData
+	if err := c.BindJSON(&req); err != nil {
+		_ = c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	ctx := identity.WithContext(c.Request.Context(), &identity.Identity{
+		Tenant: tenantID,
+	})
+	err := h.app.InventoryChanged(ctx, req)
+
+	if err != nil {
+		_ = c.Error(err)
+		c.Status(http.StatusInternalServerError)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// GetIntegrationsMap is an internal handler to return information whether a tenant
+// has integration of a scope enabled. it returns an array grouped by over all the records
+// in the integration collection with tenant id and scope. inventory-enterprise calls this
+// endpoint to find a priori tenants with inventory scope integrations -- so we do not have
+// to call every time inventory attributes are updated. We really should use Entity tags here.
+// GET /integrations?scope=inventory scope is optional
+func (h *InternalHandler) GetIntegrationsMap(c *gin.Context) {
+	ctx := c.Request.Context()
+
+	scopeParam := c.Query("scope")
+	etag := c.Request.Header.Get("If-None-Match")
+	if !h.app.IntegrationsChanged(ctx, etag) {
+		c.JSON(http.StatusNotModified, []model.IntegrationMap{})
+		return
+	}
+
+	var scope *string
+	if len(scopeParam) > 0 &&
+		(scopeParam == model.ScopeDeviceAuth ||
+			scopeParam == model.ScopeInventory) {
+		scope = &scopeParam
+	} else {
+		if len(scopeParam) > 0 {
+			rest.RenderError(c,
+				http.StatusBadRequest,
+				errors.New(
+					"the scope given is not supported; currently supported: "+
+						model.ScopeDeviceAuth+
+						" and "+
+						model.ScopeInventory,
+				),
+			)
+			return
+		}
+		scope = nil
+	}
+	integrations, err := h.app.GetIntegrationsMap(ctx, scope)
+	if err != nil {
+		rest.RenderError(c,
+			http.StatusInternalServerError,
+			err,
+		)
+		return
+	}
+	etag = h.app.GetIntegrationsETag(ctx)
+	if len(etag) > 0 {
+		c.Header("ETag", etag)
+	}
+
+	c.JSON(http.StatusOK, integrations)
 }

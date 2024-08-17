@@ -36,20 +36,22 @@ import (
 const (
 	APIURLInternal = "/api/internal/v1/iot-manager"
 
-	APIURLAlive             = "/alive"
-	APIURLHealth            = "/health"
-	APIURLTenants           = "/tenants"
-	APIURLTenant            = APIURLTenants + "/:tenant_id"
-	APIURLTenantAuth        = APIURLTenant + "/auth"
-	APIURLTenantDevices     = APIURLTenant + "/devices"
-	APIURLTenantDevice      = APIURLTenantDevices + "/:device_id"
-	APIURLTenantBulkDevices = APIURLTenant + "/bulk/devices"
-	APIURLTenantBulkStatus  = APIURLTenantBulkDevices + "/status/:status"
+	APIURLAlive                 = "/alive"
+	APIURLHealth                = "/health"
+	APIURLTenants               = "/tenants"
+	APIURLTenant                = APIURLTenants + "/:tenant_id"
+	APIURLTenantAuth            = APIURLTenant + "/auth"
+	APIURLTenantDevices         = APIURLTenant + "/devices"
+	APIURLTenantDevice          = APIURLTenantDevices + "/:device_id"
+	APIURLTenantBulkDevices     = APIURLTenant + "/bulk/devices"
+	APIURLTenantBulkStatus      = APIURLTenantBulkDevices + "/status/:status"
+	APIURLTenantDeviceInventory = APIURLTenantBulkDevices + "/inventory"
 
 	APIURLManagement = "/api/management/v1/iot-manager"
 
 	APIURLIntegrations           = "/integrations"
 	APIURLIntegration            = "/integrations/:id"
+	APIURLIntegrationsTenantMap  = APIURLIntegrations + "/tenants/map"
 	APIURLIntegrationCredentials = APIURLIntegration + "/credentials"
 
 	APIURLDevice                 = "/devices/:id"
@@ -113,7 +115,8 @@ func NewRouter(
 	internalAPI.POST(APIURLTenantDevices, internal.ProvisionDevice)
 	internalAPI.DELETE(APIURLTenantDevice, internal.DecommissionDevice)
 	internalAPI.PUT(APIURLTenantBulkStatus, internal.BulkSetDeviceStatus)
-
+	internalAPI.POST(APIURLTenantDeviceInventory, internal.InventoryHandler)
+	internalAPI.GET(APIURLIntegrationsTenantMap, internal.GetIntegrationsMap)
 	internalAPI.POST(APIURLTenantAuth, internal.PreauthorizeHandler)
 
 	managementAPI := router.Group(APIURLManagement, identity.Middleware())

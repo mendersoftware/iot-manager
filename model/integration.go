@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -21,11 +21,17 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	ScopeDeviceAuth = "deviceauth"
+	ScopeInventory  = "inventory"
+)
+
 type Integration struct {
 	ID          uuid.UUID   `json:"id" bson:"_id"`
 	Provider    Provider    `json:"provider" bson:"provider"`
 	Credentials Credentials `json:"credentials" bson:"credentials"`
 	Description string      `json:"description,omitempty" bson:"description,omitempty"`
+	Scope       string      `json:"scope,omitempty" bson:"scope"`
 }
 
 var (
@@ -115,4 +121,14 @@ type IntegrationFilter struct {
 	Limit    int64
 	Provider Provider
 	IDs      []uuid.UUID
+	Scope    string
+}
+
+// IntegrationMap is used to return information on which tenant has which integration
+// enabled. Primary use: so services like inventory-enterprise can get the map of the
+// integrations on startup / periodically and not during every call that needs
+// a webhook call.
+type IntegrationMap struct {
+	TenantID string `json:"tenant_id" bson:"tenant_id"`
+	Scope    string `json:"scope" bson:"scope"`
 }

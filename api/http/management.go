@@ -1,4 +1,4 @@
-// Copyright 2022 Northern.tech AS
+// Copyright 2024 Northern.tech AS
 //
 //    Licensed under the Apache License, Version 2.0 (the "License");
 //    you may not use this file except in compliance with the License.
@@ -87,6 +87,11 @@ func (h *ManagementHandler) CreateIntegration(c *gin.Context) {
 			errors.Wrap(err, "malformed request body"),
 		)
 		return
+	}
+	// we introduced a scope of integration and all the previous
+	// integrations are in the `deviceauth` scope
+	if len(integration.Scope) < 1 {
+		integration.Scope = model.ScopeDeviceAuth
 	}
 
 	// TODO verify that Azure connectionstring / AWS equivalent has correct permissions
