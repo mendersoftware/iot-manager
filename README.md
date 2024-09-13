@@ -1,3 +1,6 @@
+# MOVED
+
+This repository has been moved to the mender-server monorepo: https://github.com/mendersoftware/mender-server
 [![Build Status](https://gitlab.com/Northern.tech/Mender/iot-manager/badges/master/pipeline.svg)](https://gitlab.com/Northern.tech/Mender/iot-manager/pipelines)
 [![Coverage Status](https://coveralls.io/repos/github/mendersoftware/iot-manager/badge.svg?branch=master)](https://coveralls.io/github/mendersoftware/iot-manager?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/mendersoftware/iot-manager)](https://goreportcard.com/report/github.com/mendersoftware/iot-manager)
